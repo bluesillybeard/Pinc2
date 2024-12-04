@@ -1,0 +1,33 @@
+{
+    // This is for the streetsidesoftware.code-spell-checker extension
+    // Clearly, it is missing quite a lot of words, although many of these are not common words or names.
+    "cSpell.words": [
+        "ALSA",
+        "bgfx",
+        "BINDIR",
+        "BRRR",
+        "dlopen",
+        "Doptimize",
+        "emscripten",
+        "GLFW",
+        "haha",
+        "INCLUDEDIR",
+        "Kinc's",
+        "libc",
+        "llgl",
+        "MSAA",
+        "MSVC",
+        "nicegraf",
+        "opengl",
+        "PINC",
+        "pipewire",
+        "qpwgraph",
+        "rasterizer",
+        "Raylib",
+        "SFML",
+        "stdbool",
+        "stdint",
+        "valgrind",
+        "Xlib"
+    ]
+}

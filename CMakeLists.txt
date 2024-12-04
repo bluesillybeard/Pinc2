@@ -19,14 +19,13 @@ project(pinc
 
 include(GNUInstallDirs)
 
-# For now, use Pinc unity build
-# TODO: Make option to use split build for debug and rebuilding
 add_library(pinc
     src/pinc_main.c
 )
 
 set_target_properties(pinc PROPERTIES VERSION ${PROJECT_VERSION})
 set_target_properties(pinc PROPERTIES PUBLIC_HEADER include/pinc.h)
+set_target_properties(pinc PROPERTIES PUBLIC_HEADER include/pinc_opengl.h)
 target_include_directories(pinc PRIVATE include)
 target_include_directories(pinc PRIVATE src)
 

@@ -3,28 +3,30 @@
 // This header has no includes.
 
 // In general, here is what you can expect from the API:
-// - we assume floats are in the single precsision IEE754 format.
-// - no structs, those probably aren't nessesary anyway
+// - we assume floats are in the single precision IEE754 32 bit format.
+// - no structs, those are bad for ABI compatibility
 // - typedefs for ID handles
 
 // Usage error policy:
 // Usage errors occur when invalid inputs are used in a function. For example, entering 0 for an object handle when it must be defined.
 // - Depends on build system settings and application structure
-//     - Errors can be set to disabled, rigorous-panic, rigorous-except, light-panic, or light-except. 
+//     - Errors can be set to disabled, rigorous, or light.
 //     - If errors are disabled, pinc does not validate any inputs and will crash or behave strangely when used incorrectly
-//     - If errors are enabled as panic, then pinc will trigger a debug breakpoint or application exit upon detection of a usage error
-//     - If errors are enabled as exceptions, pinc will trigger a function set by the user by pinc_set_error_callback.
+//     - Usage errors will trigger an error macro defined by the user.
 //     - Rigorous is only meant to be used in debug mode when testing API usage, as it may impact performance significantly. It's meant to be treated like valgrind.
 //     - Light has pretty decent performance, and is meant to be potentially shipped to production if performance is not a top concern
 
 // Other error policy:
-// - Pinc will trigger a function set by pinc_set_error_callback when something goes wrong outside of the code's direct control. Ex: no GPU avalable.
+// - Pinc will trigger a function set by pinc_set_error_callback when something goes wrong outside of the code's direct control. Ex: no GPU available.
 //     - These can be disabled, but that is a bad idea unless you really know what you are doing
-// - Issues that occur due to pinc itself trigger panics. If this happens to you, please submit an issue with a reproduction test case ASAP.
+// - Issues that occur due to pinc itself trigger panics. If this happens to you, please submit an issue with a reproduction test case.
+//     If you can't make a minimal reproduction, at least report the error and the context in which it appeared.
 // - functions that may trigger an error will return a pinc_error_code
 
-// This header expects to be preprocessed and compiled with the same settings as Pinc itself.
-// If that will not be the case, it will likely work, but don't expect it to.
+// Memory policy: Ownership is never transferred between Pinc an the application. Pinc has its own allocation management system, and it should never mix with the applications.
+// This means that the application will always free its own allocations, and Pinc will never return a pointer unless it was created by the user.
+
+// see settings.md in the root of Pinc's repo for 
 
 // The flow of your code should be roughly like this:
 // - Set up preinit things
@@ -48,34 +50,34 @@
 #ifndef PINC_H
 #define PINC_H
 
+#include <stdint.h>
+#include <stdbool.h>
+
 // @section options
 // @brief build system options and stuff
 
-// API prefix (dllexport or whatever)
-#ifndef PINC_API
-#define PINC_API extern
+// API prefix for loading (dllimport or whatever)
+#ifndef PINC_EXTERN
+#define PINC_EXTERN extern
 #endif
 
-// calling convention
+// API prefix for exposing (dllexport or whatever)
+
+#ifndef PINC_EXPORT
+#define PINC_EXPORT
+#endif
+
+// calling convention for pinc functions
 
 #ifndef PINC_CALL
 #define PINC_CALL
 #endif
 
-// custom ABI settings. This is for when you need ABI interop.
+// calling conventions for user-supplied functions
+// TODO: how does this actually get applied? Apparently it depends on the compiler?
 
-#ifndef Pint
-#define Pint int
-#endif
-
-#ifndef Pchar
-#define Pchar char
-#endif
-
-#ifndef Pbool
-#define Pbool int
-#define Ptrue 1
-#define Pfalse 0
+#ifndef PINC_PROC_CALL
+#define PINC_PROC_CALL 
 #endif
 
 // @section types
@@ -88,37 +90,32 @@ typedef enum {
     pinc_window_backend_sdl2,
 } pinc_window_backend;
 
-// trick to make the enum use the int type defined earlier
-#define pinc_window_backend Pint
+// evil enum int trick. This may seem stupid, but remember that C is a volatile language
+// where 'enum' means anything from 8 bits to 64 bits depending on all kings of things.
+// It isn't even necessarily consistent across different versions or configurations of the same compiler on the same platform.
+// Considering one of Pinc's primary goals is to have a predicable ABI for bindings to other languages,
+// making all enums a predictable size is paramount.
+#undef pinc_window_backend
+#define pinc_window_backend uint32_t
 
 typedef enum {
+    /// @brief Represents any backend, or an unknown backend. Generally only works for calling pinc_complete_init.
     pinc_graphics_backend_any = 0,
-    pinc_graphics_backend_openg_2_1,
+    /// @brief raw OpenGL backend, for using Pinc with OpenGL.
+    ///            Requires pinc_opengl.h (or manually declaring the extern functions if you're weird like that.)
+    pinc_graphics_backend_raw_opengl,
 } pinc_graphics_backend;
 
-// trick to make the enum use the int type defined earlier
-#define pinc_graphics_backend Pint
-
-/// @brief Type of generated error
-typedef enum {
-    /// @brief Something wrong happened internally, meaning Pinc has something wrong with it. Only triggered when PINC_HANDLE_PANIC is set.
-    pinc_error_type_panic_redirect = -1,
-    /// @brief The error is caused by invalid user inputs. See error policy explained at the start of pinc.h.
-    pinc_error_type_invalid_use = 0,
-    /// @brief Something outside of Pinc's control went wrong. Failed memory allocation, no GPU available, etc.
-    pinc_error_type_external = 1,
-} pinc_error_type;
-
-// trick to make the enum use the int type defined earlier
-#define pinc_error_type Pint
+#undef pinc_graphics_backend
+#define pinc_graphics_backend uint32_t
 
 typedef enum {
     pinc_return_code_pass = 0,
     pinc_return_code_error = 1,
 } pinc_return_code;
 
-// trick to make the enum use the int type defined earlier
-#define pinc_return_code Pint
+#undef pinc_return_code
+#define pinc_return_code uint32_t
 
 typedef enum {
     pinc_object_type_none = -1,
@@ -131,9 +128,8 @@ typedef enum {
     pinc_object_type_texture,
 } pinc_object_type;
 
-
-// trick to make the enum use the int type defined earlier
-#define pinc_object_type Pint
+#undef pinc_object_type
+#define pinc_object_type uint32_t
 
 /// @brief enumeration of pinc keyboard codes
 ///     These are not physical, but logical - when the user presses the button labeled 'q' on their keyboard, that's the key reported here.
@@ -265,37 +261,62 @@ typedef enum {
     pinc_keyboard_key_count,
 } pinc_keyboard_key;
 
-// trick to make the enum use the int type defined earlier
-#define pinc_object_type Pint
+#undef pinc_keyboard_key
+#define pinc_keyboard_key uint32_t
+
+typedef enum {
+    // A basic color space with generally vague semantics. In general, bugger number = brighter output.
+    pinc_color_space_basic,
+    // Linear color space where the output magnitude is directly correlated with pixel values 
+    pinc_color_space_linear,
+    // Some kind of perceptual color space, usually with a gamma value of 2.2 but it often may not be.
+    pinc_color_space_perceptual,
+    // srgb color space, or a grayscale equivalent. This is similar to perceptual with a gamma value of 2.2
+    pinc_color_space_srgb
+} pinc_color_space;
 
 /// @section IDs
 
-typedef Pint pinc_framebuffer_format;
+// framebuffer formats are transferrable between window and graphics backends, but necessarily between different runs of the application.
+typedef uint32_t pinc_framebuffer_format;
 
-typedef Pint pinc_object;
+// objects are non-transferrable between runs.
+typedef uint32_t pinc_object;
 
-typedef Pint pinc_window;
+typedef pinc_object pinc_window;
 
 /// @section initialization functions
 
 /// @subsection preinit functions
 
-/// @brief Error callback. Message_buf is null terminated for convenience.
-typedef void (* error_callback) (pinc_error_type error, Pchar const * message_buf, Pint message_len);
+/// @brief Error callback. message_buf is null terminated for convenience. message_buf is temporary and a reference to it should not be kept.
+typedef void ( PINC_PROC_CALL * error_callback) (uint8_t const * message_buf, uintptr_t message_len);
 
-PINC_API void PINC_CALL pinc_preinit_set_error_callback(error_callback callback);
+/// @brief Set a function called when external issues occur. This should be set for ALL pinc applications. It is technically optional.
+PINC_EXTERN void PINC_CALL pinc_preinit_set_error_callback(error_callback callback);
+
+/// @brief Set a function called when issues withing Pinc occur. This is completely optional.
+///     It exists primarily for language and engines with their own panic reporting / debugging system. 
+///     It is also used for testing that panics ARE caught.
+///     Too often, testing cases that are supposed to panic is not simple, so this function makes that a possibility.
+///     After a panic, pinc_deinit() should be called and Pinc should be completely re-initialized from scratch in order to restore any broken state.
+PINC_EXTERN void PINC_CALL pinc_preinit_set_panic_callback(error_callback callback);
+
+/// @brief Set a function called when pinc usage errors occur. This is completely optional.
+///     It exists primarily for language and engines with their own panic reporting / debugging system. 
+PINC_EXTERN void PINC_CALL pinc_preinit_set_user_error_callback(error_callback callback);
 
 /// @brief Memory allocation callback. Alignment will usually be 1 except for certain circumstances.
-typedef void* (* alloc_callback) (Pint alloc_size_bytes, Pint alignment);
+typedef void* ( PINC_PROC_CALL * alloc_callback) (uintptr_t alloc_size_bytes, uintptr_t alignment);
 
 /// @brief Memory free callback. alloc_size_bytes is the size of the allocation being freed, for convenience and potential optimizations.
-typedef void (* free_callback) (void* ptr, Pint alloc_size_bytes);
+typedef void ( PINC_PROC_CALL * free_callback) (void* ptr, uintptr_t alloc_size_bytes);
 
-PINC_API void PINC_CALL pinc_preinit_set_alloc_callbacks(alloc_callback alloc, free_callback free);
+PINC_EXTERN void PINC_CALL pinc_preinit_set_alloc_callbacks(alloc_callback alloc, free_callback free);
 
 /// @brief Begin the initialization process
 /// @return the success or failure of this function call. Failures are likely caused by external factors (ex: no window backends) or a failed allocation.
-PINC_API pinc_return_code PINC_CALL pinc_incomplete_init(void);
+PINC_EXTERN pinc_return_code PINC_CALL pinc_incomplete_init(void);
 
 /// @subsection full initialization functions
 /// @brief The query functions work after initialization, although most of them are useless after the fact
@@ -304,14 +325,14 @@ PINC_API pinc_return_code PINC_CALL pinc_incomplete_init(void);
 /// @param backend_dest a pointer to a memory buffer to write to, or null
 /// @param capacity the amount of space available for window backends to be written. ignored if backend_dest is null
 /// @return the number of window backends that are available
-PINC_API Pint PINC_CALL pinc_query_window_backends(pinc_window_backend* backend_dest, Pint capacity);
+PINC_EXTERN uint32_t PINC_CALL pinc_query_window_backends(pinc_window_backend* backend_dest, uint32_t capacity);
 
 /// @brief Query the graphics backends available for a given window backend.
 /// @param window_backend The window backend to query. Must be a backend from query_window_backends.
 /// @param backend_dest a pointer to a memory buffer to write to, or null
 /// @param capacity the amount of space available for graphics backends to be written. Ignored if backend_dest is null
 /// @return the number of graphics backends that are available
-PINC_API Pint PINC_CALL pinc_query_graphics_backends(pinc_window_backend window_backend, pinc_graphics_backend* backend_dest, Pint capacity);
+PINC_EXTERN uint32_t PINC_CALL pinc_query_graphics_backends(pinc_window_backend window_backend, pinc_graphics_backend* backend_dest, uint32_t capacity);
 
 /// @brief Query the frame buffer format ids supported by a window backend and one of its supported graphics backend
 /// @param window_backend the window backend to query from. Must be a supported window backend
@@ -319,46 +340,53 @@ PINC_API Pint PINC_CALL pinc_query_graphics_backends(pinc_window_backend window_
 /// @param ids_dest a buffer to output the framebuffer format ids, or null
 /// @param capacity the amount of space available for framebuffer format ids to be written. Ignored if dest is null 
 /// @return the number of framebuffer format ids supported.
-PINC_API Pint PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format* ids_dest, Pint capacity);
+PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format* ids_dest, uint32_t capacity);
 
 /// @brief Query the number of channels that a frame buffer format supports
 /// @param format_id the id of the framebuffer format. Must be from query_framebuffer_format_ids
-/// @return the number of channels. 1 for greyscale, 2 for grayscale+alpha, 3 for RGB, 4 for RGBA.
-PINC_API Pint PINC_CALL pinc_query_framebuffer_format_channels(pinc_framebuffer_format format_id);
+/// @return the number of channels. 1 for grayscale, 2 for grayscale+alpha, 3 for RGB, 4 for RGBA.
+PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_channels(pinc_framebuffer_format format_id);
 
 /// @brief Query the bit depth of a channel of a frame buffer format.
 /// @param format_id the frame buffer format to query.
 /// @param channel the channel index to query. Must be between 0 and channels-1 inclusively.
 /// @return the number of bits per pixel in this channel.
-PINC_API Pint PINC_CALL pinc_query_framebuffer_format_channel_bits(pinc_framebuffer_format format_id, Pint channel);
+PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_channel_bits(pinc_framebuffer_format format_id, uint32_t channel);
 
-PINC_API Pint PINC_CALL pinc_query_framebuffer_format_depth_buffer_bits(pinc_framebuffer_format format_id);
+PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_depth_buffer_bits(pinc_framebuffer_format format_id);
+
+PINC_EXTERN pinc_color_space PINC_CALL pinc_query_framebuffer_format_color_space(pinc_framebuffer_format format_id);
+
+// maximum number of samples for MSAA
+PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_max_samples(pinc_framebuffer_format format_id);
 
 // This requires the graphics backend for things like GLFW where only one OpenGL window may exist, but the Vulkan backend supports many windows.
-PINC_API Pint PINC_CALL pinc_query_max_open_windows(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend);
+// the function itself is also useful for many console platforms where the entire idea of a window separate from the display itself doesn't make sense.
+PINC_EXTERN uint32_t PINC_CALL pinc_query_max_open_windows(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend);
 
 // use -1 to use a default framebuffer format
-PINC_API pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format framebuffer_format_id);
+// samples is for MSAA.
+PINC_EXTERN pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format framebuffer_format_id, uint32_t samples);
 
 /// @subsection post initialization related functions
 
-PINC_API void PINC_CALL pinc_deinit(void);
+PINC_EXTERN void PINC_CALL pinc_deinit(void);
 
-PINC_API pinc_window_backend PINC_CALL pinc_query_set_window_backend(void);
+PINC_EXTERN pinc_window_backend PINC_CALL pinc_query_set_window_backend(void);
 
-PINC_API pinc_graphics_backend PINC_CALL pinc_query_set_graphics_backend(void);
+PINC_EXTERN pinc_graphics_backend PINC_CALL pinc_query_set_graphics_backend(void);
 
-PINC_API Pint PINC_CALL pinc_query_set_framebuffer_format(void);
+PINC_EXTERN uint32_t PINC_CALL pinc_query_set_framebuffer_format(void);
 
-PINC_API pinc_object_type PINC_CALL pinc_get_object_type(pinc_object obj);
+PINC_EXTERN pinc_object_type PINC_CALL pinc_get_object_type(pinc_object obj);
 
-PINC_API Pbool PINC_CALL pinc_get_object_complete(pinc_object obj);
+PINC_EXTERN bool PINC_CALL pinc_get_object_complete(pinc_object obj);
 
 /// @section windows
 
-PINC_API pinc_window PINC_CALL pinc_window_create_incomplete(void);
+PINC_EXTERN pinc_window PINC_CALL pinc_window_create_incomplete(void);
 
-PINC_API pinc_return_code PINC_CALL pinc_window_complete(pinc_window window);
+PINC_EXTERN pinc_return_code PINC_CALL pinc_window_complete(pinc_window window);
 
 // window properties:
 // ALL window properties have defaults so users can get up and running ASAP. However, many of those defaults cannot be determined until after some point.
@@ -377,7 +405,7 @@ PINC_API pinc_return_code PINC_CALL pinc_window_complete(pinc_window window);
 // - float scale factor (rc)
 //     - this is the system scale. For example, if the user wants everything to be 1.5x larger on screen, this is 1.5
 //     - This is on the window so the user can, in theory, set a different scale for each window.
-//     - This can be very dificult to obtain before a window is open on the desktop, and even then the system scale may not be set.
+//     - This can be very difficult to obtain before a window is open on the desktop, and even then the system scale may not be set.
 //     - If not set, you can probably assume 1.0
 // - bool resizable (rw) [true]
 // - bool minimized (rw) [false]
@@ -389,122 +417,122 @@ PINC_API pinc_return_code PINC_CALL pinc_window_complete(pinc_window window);
 // - bool hidden (rw) [false]
 //     - when hidden, a window cannot be seen anywhere to the user (at least not directly), but is still secretly open.
 
-PINC_API void pinc_window_set_title(pinc_window window, const char* title_buf, Pint title_len);
+PINC_EXTERN void pinc_window_set_title(pinc_window window, const char* title_buf, uint32_t title_len);
 
-PINC_API Pint pinc_window_get_title(pinc_window window, char* title_buf, Pint title_capacity);
+PINC_EXTERN uint32_t pinc_window_get_title(pinc_window window, char* title_buf, uint32_t title_capacity);
 
 /// @brief set the width of a window, in pixels.
 /// @param window the window whose width to set. Asserts the object is valid, and is a window.
 /// @param width the width to set.
-PINC_API void PINC_CALL pinc_window_set_width(pinc_window window, Pint width);
+PINC_EXTERN void PINC_CALL pinc_window_set_width(pinc_window window, uint32_t width);
 
 /// @brief get the width of a window, in pixels
 /// @param window the window whose width to get. Asserts the object is valid, is a window, and has its width set (see pinc_window_has_width)
 /// @return the width of the window
-PINC_API Pint PINC_CALL pinc_window_get_width(pinc_window window);
+PINC_EXTERN uint32_t PINC_CALL pinc_window_get_width(pinc_window window);
 
 /// @brief get if a window has its width defined. A windows width will become defined either when completed, or when set using pinc_window_set_width
 /// @param window the window. Asserts the object is valid, and is a window
 /// @return 1 if the windows width is set, 0 if not.
-PINC_API Pint PINC_CALL pinc_window_has_width(pinc_window window);
+PINC_EXTERN uint32_t PINC_CALL pinc_window_has_width(pinc_window window);
 
 /// @brief set the height of a window, in pixels
 /// @param window the window whose height to set. Asserts the object is valid, and is a window
-/// @param height the heignt to set.
-PINC_API void PINC_CALL pinc_window_set_height(pinc_window window, Pint height);
+/// @param height the height to set.
+PINC_EXTERN void PINC_CALL pinc_window_set_height(pinc_window window, uint32_t height);
 
 /// @brief get the height of a window, in pixels
 /// @param window the window whose height to get. Asserts the object is valid, is a window, and has its height set (see pinc_window_has_height)
 /// @return the height of the window
-PINC_API Pint PINC_CALL pinc_window_get_height(pinc_window window);
+PINC_EXTERN uint32_t PINC_CALL pinc_window_get_height(pinc_window window);
 
 /// @brief get if a window has its height defined. A windows height will become defined either when completed, or when set using pinc_window_set_height
 /// @param window the window. Asserts the object is valid, and is a window
 /// @return 1 if the windows height is set, 0 if not.
-PINC_API Pbool PINC_CALL pinc_window_has_height(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_window_has_height(pinc_window window);
 
 /// @brief get the scale factor of a window. This is set by the user when they want to "zoom in" - a value of 1.5 should make everything appear 1.5x larger.
 /// @param window the window. Asserts the object is valid, is a window, and has its scale factor set (see pinc_window_has_scale_factor)
 /// @return the scale factor of this window.
-PINC_API float PINC_CALL pinc_window_get_scale_factor(pinc_window window);
+PINC_EXTERN float PINC_CALL pinc_window_get_scale_factor(pinc_window window);
 
 /// @brief get if a window has its scale factor defined. Whether this is true depends on the backend, whether the scale is set, and if the window is complete.
 ///        In general, it is safe to assume 1 unless it is set otherwise.
 /// @param window the window. Asserts the object is valid, and is a window
 /// @return 1 if the windows scale factor is set, 0 if not.
-PINC_API int PINC_CALL pinc_window_has_scale_factor(pinc_window window);
+PINC_EXTERN int PINC_CALL pinc_window_has_scale_factor(pinc_window window);
 
 /// @brief set if a window is resizable or not
 /// @param window the window. Asserts the object is valid, is a window, has its width defined (see pinc_window_has_width), and has its height defined (see pinc_window_has_height)
 /// @param resizable 1 if the window is resizable, 0 if not.
-PINC_API void PINC_CALL pinc_window_set_resizable(pinc_window window, Pbool resizable);
+PINC_EXTERN void PINC_CALL pinc_window_set_resizable(pinc_window window, bool resizable);
 
 /// @brief get if a window is resizable or not
 /// @param window the window. Asserts the object is valid, and is a window.
 /// @return 1 if the window is resizable, 0 if not.
-PINC_API Pbool PINC_CALL pinc_window_get_resizable(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_window_get_resizable(pinc_window window);
 
 /// @brief set if a window is minimized or not.
 /// @param window the window. Asserts the object is valid, and is a window.
 /// @param minimized 1 if the window is minimized, 0 if not
-PINC_API void PINC_CALL pinc_window_set_minimized(pinc_window window, Pbool minimized);
+PINC_EXTERN void PINC_CALL pinc_window_set_minimized(pinc_window window, bool minimized);
 
 /// @brief get if a window is minimized or not.
 /// @param window the window. Asserts the object is valid, and is a window.
 /// @return 1 if the window is minimized, 0 if not
-PINC_API Pbool PINC_CALL pinc_window_get_minimized(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_window_get_minimized(pinc_window window);
 
 /// @brief set if a window is maximized or not.
 /// @param window the window. Asserts the object is valid, and is a window.
 /// @param maximized 1 if the window is maximized, 0 if not
-PINC_API void PINC_CALL pinc_window_set_maximized(pinc_window window, Pbool maximized);
+PINC_EXTERN void PINC_CALL pinc_window_set_maximized(pinc_window window, bool maximized);
 
 /// @brief get if a window is maximized or not.
 /// @param window the window. Asserts the object is valid, and is a window.
 /// @return 1 if the window is maximized, 0 if not
-PINC_API Pbool PINC_CALL pinc_window_get_maximized(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_window_get_maximized(pinc_window window);
 
 /// @brief set if a window is fullscreen or not.
 /// @param window the window. Asserts the object is valid, and is a window.
 /// @param fullscreen 1 if the window is fullscreen, 0 if not
-PINC_API void PINC_CALL pinc_window_set_fullscreen(pinc_window window, Pbool fullscreen);
+PINC_EXTERN void PINC_CALL pinc_window_set_fullscreen(pinc_window window, bool fullscreen);
 
 /// @brief get if a window is fullscreen or not.
 /// @param window the window. Asserts the object is valid, and is a window.
 /// @return 1 if the window is fullscreen, 0 if not
-PINC_API Pbool PINC_CALL pinc_window_get_fullscreen(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_window_get_fullscreen(pinc_window window);
 
 /// @brief set if a window is focused or not.
 /// @param window the window. Asserts the object is valid, and is a window.
 /// @param focused 1 if the window is focused, 0 if not
-PINC_API void PINC_CALL pinc_window_set_focused(pinc_window window, Pbool focused);
+PINC_EXTERN void PINC_CALL pinc_window_set_focused(pinc_window window, bool focused);
 
 /// @brief get if a window is focused or not.
 /// @param window the window. Asserts the object is valid, and is a window.
 /// @return 1 if the window is focused, 0 if not
-PINC_API Pbool PINC_CALL pinc_window_get_focused(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_window_get_focused(pinc_window window);
 
 /// @brief set if a window is hidden or not.
 /// @param window the window. Asserts the object is valid, and is a window.
 /// @param hidden 1 if the window is hidden, 0 if not
-PINC_API void PINC_CALL pinc_window_set_hidden(pinc_window window, Pbool hidden);
+PINC_EXTERN void PINC_CALL pinc_window_set_hidden(pinc_window window, bool hidden);
 
 /// @brief get if a window is hidden or not.
 /// @param window the window. Asserts the object is valid, and is a window.
 /// @return 1 if the window is hidden, 0 if not
-PINC_API Pbool PINC_CALL pinc_window_get_hidden(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_window_get_hidden(pinc_window window);
 
 // It is best practice to set vsync before completing the window
 // as some systems do not support changing vsync after a window is completed.
-// vsync is true by defualt on systems that support it.
-PINC_API pinc_return_code PINC_CALL pinc_window_set_vsync(pinc_window window, Pbool sync);
+// vsync is true by default on systems that support it.
+PINC_EXTERN pinc_return_code PINC_CALL pinc_window_set_vsync(pinc_window window, bool sync);
 
-PINC_API Pbool PINC_CALL pinc_get_vsync(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_get_vsync(pinc_window window);
 
 /// @brief Present the framebuffer of a given window and prepares a backbuffer to draw on.
 ///        The number of backbuffers depends on the graphics backend, but it's generally 2 or 3.
 /// @param window the window whose framebuffer to present.
-PINC_API void PINC_CALL pinc_window_present_framebuffer(pinc_window window);
+PINC_EXTERN void PINC_CALL pinc_window_present_framebuffer(pinc_window window);
 
 /// @section user IO
 
@@ -513,101 +541,101 @@ PINC_API void PINC_CALL pinc_window_present_framebuffer(pinc_window window);
 /// @brief Get the state of a mouse button
 /// @param button the button to check. Generally, 0 is the left button, 1 is the right, and 2 is the middle
 /// @return 1 if the button is pressed, 0 if it is not pressed OR if this application has no focused windows.
-PINC_API Pbool PINC_CALL pinc_mouse_button_get(int button);
+PINC_EXTERN bool PINC_CALL pinc_mouse_button_get(int button);
 
 /// @brief Get the state of a keyboard key.
 /// @param button A value of pinc_keyboard_key to check
 /// @return 1 if the key is pressed, 0 if it is not.
-PINC_API Pbool PINC_CALL pinc_keyboard_key_get(pinc_keyboard_key button);
+PINC_EXTERN bool PINC_CALL pinc_keyboard_key_get(pinc_keyboard_key button);
 
 /// @brief Get the cursor X position relative to the window the cursor is currently in
 /// @return the X position. 0 on the left to width-1 on the right.
-PINC_API Pint PINC_CALL pinc_get_cursor_x(void);
+PINC_EXTERN uint32_t PINC_CALL pinc_get_cursor_x(void);
 
 /// @brief get the cursor Y position relative to the window the cursor is currently in
 /// @return the X position. 0 on the top to height-1 on the bottom.
-PINC_API Pint PINC_CALL pinc_get_cursor_y(void);
+PINC_EXTERN uint32_t PINC_CALL pinc_get_cursor_y(void);
 
 // Get the window the cursor is currently in, or 0 if the cursor is not over a window in this application.
-PINC_API pinc_window PINC_CALL pinc_get_cursor_window(void);
+PINC_EXTERN pinc_window PINC_CALL pinc_get_cursor_window(void);
 
 /// @section main loop & events
 
 /// @brief Flushes internal buffers and collects user input
-PINC_API void PINC_CALL pinc_step(void);
+PINC_EXTERN void PINC_CALL pinc_step(void);
 
 /// @brief Gets if a window was signalled to close during the last step.
-/// @param window the window to query. Only accepts comple windows.
+/// @param window the window to query. Only accepts complete windows.
 /// @return 1 if a window was signalled to close in the last step, 0 otherwise.
-PINC_API Pbool PINC_CALL pinc_event_window_closed(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_event_window_closed(pinc_window window);
 
 /// @brief Get if there was a mouse press/release from the last step
 /// @param window The window to check - although all windows share the same cursor,
 ///     it is possible for multiple windows to be clicked in the same step.
 /// @return 1 if there any mouse buttons were pressed or released, 0 otherwise.
-PINC_API Pbool PINC_CALL pinc_event_window_mouse_button(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_event_window_mouse_button(pinc_window window);
 
 /// @brief Gets if a window was resized during the last step.
 /// @param window the window to query. Only accepts complete windows.
 /// @return if the window was resized during the last step
-PINC_API Pbool PINC_CALL pinc_event_window_resized(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_event_window_resized(pinc_window window);
 
-/// @brief Gets if a window recieved input focus in the last step.
+/// @brief Gets if a window received input focus in the last step.
 ///        If a window lost and gained focus in the same step, it is safe to assume that window is not focused.
 /// @param window the window to query. Only accepts complete windows.
 /// @return 1 if the window was focused in the last step, 0 otherwise.
-PINC_API Pbool PINC_CALL pinc_event_window_focused(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_event_window_focused(pinc_window window);
 
 /// @brief gets if a window lost input focus in the last step, unless it regained focus in that same step.
 /// @param window the window to query. Only accepts complete windows.
 /// @return 1 if the window was focused in the last step, 0 otherwise.
-PINC_API Pbool PINC_CALL pinc_event_window_unfocused(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_event_window_unfocused(pinc_window window);
 
 /// @brief gets if a window should be redrawn from last step.
-/// @param window the window to query. Only accepts complere windows.
+/// @param window the window to query. Only accepts complete windows.
 /// @return 1 if the window should be redrawn this step, 0 otherwise.
-PINC_API Pbool PINC_CALL pinc_event_window_exposed(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_event_window_exposed(pinc_window window);
 
 // Keyboard events require a window because it's possible for multiple windows to have key events in a single step
 
-/// @brief Get key events in the last step. Key events are generatetd for presses, releases, and repeats. release v.s press or repeat is detected by getting that key's state after the event.
+/// @brief Get key events in the last step. Key events are generateted for presses, releases, and repeats. release v.s press or repeat is detected by getting that key's state after the event.
 /// @param window the window to get events from. Only accepts complete windows
 /// @param key_buffer a buffer to place the key events into. Events happened from lowest index to highest index. accepts null.
 /// @param capacity the number of keys the buffer can hold. Ignored if key_buffer is null
 /// @return the number of key events
-PINC_API Pint PINC_CALL pinc_event_window_keyboard_button_get(pinc_window window, pinc_keyboard_key* key_buffer, Pint capacity);
+PINC_EXTERN uint32_t PINC_CALL pinc_event_window_keyboard_button_get(pinc_window window, pinc_keyboard_key* key_buffer, uint32_t capacity);
 
 /// @brief Get whether key events from the last step were repeats or not. Index-matched with the output of event_window_keyboard_button_get.
-/// @param window the window to get events from. Only accecpts complete windows
+/// @param window the window to get events from. Only accepts complete windows
 /// @param repeat_buffer a buffer to place the repeat values into. Accepts null.
 /// @param capacity the number of values repeat_buffer can hold
 /// @return the number of key events
-PINC_API Pint PINC_CALL pinc_event_window_keyboard_button_get_repeat(pinc_window window, Pbool* repeat_buffer, Pint capacity);
+PINC_EXTERN uint32_t PINC_CALL pinc_event_window_keyboard_button_get_repeat(pinc_window window, bool* repeat_buffer, uint32_t capacity);
 
 /// @brief Get if the cursor moved within a window during the last step.
 ///        Requires a window because it's possible for the cursor to move from one window to another window in a single step.
 /// @param window the window to query. Only accepts complete windows.
 /// @return 1 if the cursor moved in this window, 0 if not.
-PINC_API Pbool PINC_CALL pinc_event_window_cursor_move(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_event_window_cursor_move(pinc_window window);
 
 /// @brief Get if the cursor has left a window during the last step.
 /// @param window the window to query. Only accepts complete windows.
 /// @return 1 if the cursor left the window, 0 if not.
-PINC_API Pbool PINC_CALL pinc_event_window_cursor_exit(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_event_window_cursor_exit(pinc_window window);
 
 /// @brief Get if the cursor has entered a window during the last step.
 /// @param window the window to query. Only accepts complete windows.
 /// @return 1 if the cursor entered the window, 0 if not.
-PINC_API Pbool PINC_CALL pinc_event_window_cursor_enter(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_event_window_cursor_enter(pinc_window window);
 
 // returns text that was typed into a window since the last step. Encoded in UTF 8.
-PINC_API Pint PINC_CALL pinc_event_window_text_get(pinc_window window, Pchar* return_buf, Pint capacity);
+PINC_EXTERN uint32_t PINC_CALL pinc_event_window_text_get(pinc_window window, uint8_t* return_buf, uint32_t capacity);
 
 // TODO: doc
-PINC_API float PINC_CALL pinc_window_scroll_vertical(pinc_window window);
+PINC_EXTERN float PINC_CALL pinc_window_scroll_vertical(pinc_window window);
 
 // TODO: doc
-PINC_API float PINC_CALL pinc_window_scroll_horizontal(pinc_window window);
+PINC_EXTERN float PINC_CALL pinc_window_scroll_horizontal(pinc_window window);
 
 
 #endif
