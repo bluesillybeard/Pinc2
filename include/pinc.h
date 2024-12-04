@@ -12,7 +12,7 @@
 // - Depends on build system settings and application structure
 //     - Errors can be set to disabled, rigorous, or light.
 //     - If errors are disabled, pinc does not validate any inputs and will crash or behave strangely when used incorrectly
-//     - Usage errors will trigger an error macro defined by the user.
+//     - Usage errors will trigger an error function defined by the user.
 //     - Rigorous is only meant to be used in debug mode when testing API usage, as it may impact performance significantly. It's meant to be treated like valgrind.
 //     - Light has pretty decent performance, and is meant to be potentially shipped to production if performance is not a top concern
 
