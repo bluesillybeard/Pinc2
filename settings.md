@@ -19,10 +19,10 @@ Header / Build settings are done in pinc.h by defining the setting if it is not 
 Header settings are done in the pinc library source code in src/pinc_src.h by defining the setting if it is not already defined. These only need to be defined for building pinc, and do not need to be defined when including the header. To be clear, these settings are set by the build system, but their defaults are managed by pinc_src.h.
 
 - `PINC_ERROR_SETTING` for what kind of error reporting should be present.
-    - options are "disabled", "rigorous", "light"
-    - "disabled" outright disables all error reporting. Only errors caused by external issues (such as no GPU available) are reported. Other errors cause undefined behavior. This is only recommended when performance is an absolute priority.
-    - "rigorous" rigorously checks for programmer / user errors, and calls a panic function when they occur. This is the recommended option for debugging and development.
-    - "light" Provides good performance at the cost of some error reporting. This is the recommended option for distribution.
+    - options are 0, 1, 2
+    - 0 outright disables all error reporting. Only errors caused by external issues (such as no GPU available) are reported. Other errors cause undefined behavior. This is only recommended when performance is an absolute priority.
+    - 1 Provides good performance at the cost of some error reporting. This is the recommended option for distribution.
+    - 2 rigorously checks for programmer / user errors, and calls a panic function when they occur. This is the recommended option for debugging and development. It is also the default option.
 - `PINC_HAVE_WINDOW_SDL2`
     - whether pinc with support for SDL2 window backend. 1 for enabled, 0 for disabled. Defaults to 1.
     - this is currently the *only* window backend, so disabling it is not a good idea

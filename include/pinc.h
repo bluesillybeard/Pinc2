@@ -52,6 +52,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 // @section options
 // @brief build system options and stuff
@@ -183,7 +184,7 @@ typedef enum {
     pinc_keyboard_key_left_bracket,
     pinc_keyboard_key_backslash,
     pinc_keyboard_key_right_bracket,
-    /// @brief The ` character. The ~` button on US keyboards.
+    /// @brief The "\`" character. The "~" button on US keyboards.
     pinc_keyboard_key_backtick,
     pinc_keyboard_key_escape,
     pinc_keyboard_key_enter,
@@ -275,10 +276,13 @@ typedef enum {
     pinc_color_space_srgb
 } pinc_color_space;
 
+#undef pinc_color_space
+#define pinc_color_space uint32_t
+
 /// @section IDs
 
 // framebuffer formats are transferrable between window and graphics backends, but necessarily between different runs of the application.
-typedef uint32_t pinc_framebuffer_format;
+typedef int32_t pinc_framebuffer_format;
 
 // objects are non-transferrable between runs.
 typedef uint32_t pinc_object;
@@ -290,29 +294,48 @@ typedef pinc_object pinc_window;
 /// @subsection preinit functions
 
 /// @brief Error callback. message_buf is null terminated for convenience. message_buf is temporary and a reference to it should not be kept.
-typedef void ( PINC_PROC_CALL * error_callback) (uint8_t const * message_buf, uintptr_t message_len);
+typedef void ( PINC_PROC_CALL * pinc_error_callback) (uint8_t const * message_buf, uintptr_t message_len);
 
 /// @brief Set a function called when external issues occur. This should be set for ALL pinc applications. It is technically optional.
-PINC_EXTERN void PINC_CALL pinc_preinit_set_error_callback(error_callback callback);
+PINC_EXTERN void PINC_CALL pinc_preinit_set_error_callback(pinc_error_callback callback);
 
 /// @brief Set a function called when issues withing Pinc occur. This is completely optional.
 ///     It exists primarily for language and engines with their own panic reporting / debugging system. 
 ///     It is also used for testing that panics ARE caught.
 ///     Too often, testing cases that are supposed to panic is not simple, so this function makes that a possibility.
 ///     After a panic, pinc_deinit() should be called and Pinc should be completely re-initialized from scratch in order to restore any broken state.
-PINC_EXTERN void PINC_CALL pinc_preinit_set_panic_callback(error_callback callback);
+PINC_EXTERN void PINC_CALL pinc_preinit_set_panic_callback(pinc_error_callback callback);
 
 /// @brief Set a function called when pinc usage errors occur. This is completely optional.
 ///     It exists primarily for language and engines with their own panic reporting / debugging system. 
-PINC_EXTERN void PINC_CALL pinc_preinit_set_user_error_callback(error_callback callback);
+PINC_EXTERN void PINC_CALL pinc_preinit_set_user_error_callback(pinc_error_callback callback);
 
-/// @brief Memory allocation callback. Alignment will usually be 1 except for certain circumstances.
-typedef void* ( PINC_PROC_CALL * alloc_callback) (uintptr_t alloc_size_bytes, uintptr_t alignment);
+/// @brief Callback to allocate some memory. Aligned depending on platform such that any structure can be placed into this memory.
+///     Identical to libc's malloc function.
+/// @param alloc_size_bytes Number of bytes to allocate.
+/// @return A pointer to the memory.
+typedef void* ( PINC_PROC_CALL * pinc_alloc_callback) (size_t alloc_size_bytes);
 
-/// @brief Memory free callback. alloc_size_bytes is the size of the allocation being freed, for convenience and potential optimizations.
-typedef void ( PINC_PROC_CALL * free_callback) (void* ptr, uintptr_t alloc_size_bytes);
+/// @brief Callback to allocate some memory with explicit alignment.
+/// @param alloc_size_bytes Number of bytes to allocate. Must be a multiple of alignment.
+/// @param alignment Alignment requirement. Must be a power of 2.
+/// @return A pointer to the allocated memory.
+typedef void* ( PINC_PROC_CALL * pinc_alloc_aligned_callback) (size_t alloc_size_bytes, size_t alignment);
 
-PINC_EXTERN void PINC_CALL pinc_preinit_set_alloc_callbacks(alloc_callback alloc, free_callback free);
+/// @brief Reallocate some memory with a different size
+/// @param ptr Pointer to the memory to reallocate. Must exactly be a pointer returned by pAlloc, pAllocAligned, or pRealloc.
+/// @param old_alloc_size_bytes Old size of the allocation. Must be the exact size given to pAlloc, pAllocAligned, or pRealloc for the respective pointer.
+/// @param alloc_size_bytes The new size of the allocation
+/// @return A pointer to this memory. May be the same or different from pointer.
+typedef void* ( PINC_PROC_CALL * pinc_realloc_callback) (void* ptr, size_t old_alloc_size_bytes, size_t alloc_size_bytes);
+
+/// @brief Free some memory
+/// @param ptr Pointer to free. Must exactly be a pointer returned by pAlloc, pAllocAligned, or pRealloc.
+/// @param alloc_size_bytes Number of bytes to free. Must be the exact size given to pAlloc, pAllocAligned, or pRealloc for the respective pointer.
+typedef void ( PINC_PROC_CALL * pinc_free_callback) (void* ptr, size_t alloc_size_bytes);
+
+/// @brief Set allocation callbacks. Must be called before incomplete_init, or never. The type of each proc has more information.
+PINC_EXTERN void PINC_CALL pinc_preinit_set_alloc_callbacks(pinc_alloc_callback alloc, pinc_alloc_aligned_callback alloc_aligned, pinc_realloc_callback realloc, pinc_free_callback free);
 
 /// @brief Begin the initialization process
 /// @return the success or failure of this function call. Failures are likely caused by external factors (ex: no window backends) or a failed allocation.
@@ -417,9 +440,10 @@ PINC_EXTERN pinc_return_code PINC_CALL pinc_window_complete(pinc_window window);
 // - bool hidden (rw) [false]
 //     - when hidden, a window cannot be seen anywhere to the user (at least not directly), but is still secretly open.
 
-PINC_EXTERN void pinc_window_set_title(pinc_window window, const char* title_buf, uint32_t title_len);
+// if title_len is zero, title_buf is assumed to be null terminated, or itself null for an empty title.
+PINC_EXTERN void PINC_CALL pinc_window_set_title(pinc_window window, const char* title_buf, uint32_t title_len);
 
-PINC_EXTERN uint32_t pinc_window_get_title(pinc_window window, char* title_buf, uint32_t title_capacity);
+PINC_EXTERN uint32_t PINC_CALL pinc_window_get_title(pinc_window window, char* title_buf, uint32_t title_capacity);
 
 /// @brief set the width of a window, in pixels.
 /// @param window the window whose width to set. Asserts the object is valid, and is a window.

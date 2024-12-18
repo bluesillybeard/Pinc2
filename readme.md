@@ -60,12 +60,17 @@ Pinc is written entirely in C, making it (theoretically) portable to any system 
 - Would it be worth setting up header injection?
     - this is where pinc includes a user-defined header as part of its compilation process, rather than having a million separate defines that need to be managed.
     - SDL does something like this actually, but only for new platforms and not on a project-per-project basis.
-- implement SDL2 backend
-- implement OpenGL 2.1 backend
+- implement SDL2 & raw opengl backend
+    - add tests as things are implemented
 - finish pinc graphics header
     - Just base it off the original one.
-- implement pinc's graphics api
+    - One change to make: move the texture sampling properties from the uniform definition to the pipeline definition
+- implement opengl 2.1 backend
 - Celebrate! we've made it back to where we left off in the original Zig version of Pinc.
+    - And in fact, with some new things that the original prototype-like thing did not have
+
+## Implemented platforms
+- Posix / Unix
 
 ## Implemented windowing backends
 - SDL2
@@ -81,7 +86,6 @@ Pinc is written entirely in C, making it (theoretically) portable to any system 
 
 ## Tested Compilers
 - GNU C Compiler (gcc)
-- clang
 
 ## Important notes
 
@@ -111,11 +115,25 @@ I suggest reading through the header a bit as well as looking at the examples to
 ## Q&A
 - Why make this when other libraries already exist?
     - for fun
-    - the state of low-level windowing / graphics libraries is not ideal. Kinc's build system is a mess, Raylib is too basic, V-EZ hasn't been updated in many years, bgfx is written in C++, SDL doesn't cross-compile particularly easily, nicegraf and llgl don't provide a way to create a window, GLFW has no way to have multiple windows on a single OpenGL context, Jai is a programming language instead of a library, and the list goes on and on and on. They are all great, but they all suck in specific ways that are conveniently very bad for a certain group of programmers
+    - To make a low-level windowing / graphics library that can be built and used, with only the requirement being a C compiler and some time.
     - Additionally, a library with an insanely wide net of supported backends is very useful. Admittedly, the only backend implemented at the moment is based on SDL2, but take a look at the [Planned Backends](#planned-window-backends-not-final),
 - Why support OpenGL 2.1. It's so old! (and deprecated)
     - I thought it would be cool to be able to run this on extremely ancient hardware and OS, for no other reason than to see it run. Partially inspired by [MattKC porting .NET framework 2 to Windows 95.](https://www.youtube.com/watch?v=CTUMNtKQLl8)
     - If a platform is capable of running OpenGL 2.1, someone has probably made an opengl driver for it
+        - Even the Nintendo 64 has an OpenGL 1 implementation - it doesn't have reprogrammable shading though, so no opengl 2.
+
+## Planned supported platforms
+- Windows NT
+- Windows NT without libc
+- Windows 9x
+- Windows 9x without libc
+- Macos X
+- Haiku
+
+## Maybe planned supported platforms (if someone wants to contribute)
+- Posix without libc
+    - Will require some inline assembly for all architectures to make syscalls
+    - Will require a custom shared object loader
 
 ## Planned graphics backends (NOT FINAL)
 - Raw / framebuffer on the CPU / software rasterizer
@@ -135,6 +153,7 @@ I suggest reading through the header a bit as well as looking at the examples to
 - Vulkan 1.0 (first vulkan release)
 - Vulkan 1.2 (last Vulkan release that is very widely supported on older hardware)
 - Vulkan 1.3 (last Vulkan release)
+- Raw Vulkan
 
 ## Planned window backends (NOT FINAL)
 - SDL 1
@@ -223,3 +242,4 @@ None of these are going to be implemented any time soon - if ever.
     - MSVC, as much as their C compiler sucks
     - Cosmopolitan (Not yet though)
     - emscripten (once web support is added)
+- add debug print callback

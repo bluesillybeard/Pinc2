@@ -14,11 +14,13 @@
         "INCLUDEDIR",
         "Kinc's",
         "libc",
+        "libsdl",
         "llgl",
         "MSAA",
         "MSVC",
         "nicegraf",
         "opengl",
+        "PALLOCALIGNED",
         "PINC",
         "pipewire",
         "qpwgraph",
@@ -27,7 +29,12 @@
         "SFML",
         "stdbool",
         "stdint",
+        "syscalls",
         "valgrind",
         "Xlib"
-    ]
+    ],
+    "files.associations": {
+        "*.h": "c",
+        "*.inc": "c",
+    }
 }
