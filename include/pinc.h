@@ -281,7 +281,7 @@ typedef enum {
 
 /// @section IDs
 
-// framebuffer formats are transferrable between window and graphics backends, but necessarily between different runs of the application.
+// framebuffer formats are transferrable between window and graphics backends, but not between different runs of the application.
 typedef int32_t pinc_framebuffer_format;
 
 // objects are non-transferrable between runs.
@@ -314,28 +314,28 @@ PINC_EXTERN void PINC_CALL pinc_preinit_set_user_error_callback(pinc_error_callb
 ///     Identical to libc's malloc function.
 /// @param alloc_size_bytes Number of bytes to allocate.
 /// @return A pointer to the memory.
-typedef void* ( PINC_PROC_CALL * pinc_alloc_callback) (size_t alloc_size_bytes);
+typedef void* ( PINC_PROC_CALL * pinc_alloc_callback) (void* userPtr, size_t alloc_size_bytes);
 
 /// @brief Callback to allocate some memory with explicit alignment.
 /// @param alloc_size_bytes Number of bytes to allocate. Must be a multiple of alignment.
 /// @param alignment Alignment requirement. Must be a power of 2.
 /// @return A pointer to the allocated memory.
-typedef void* ( PINC_PROC_CALL * pinc_alloc_aligned_callback) (size_t alloc_size_bytes, size_t alignment);
+typedef void* ( PINC_PROC_CALL * pinc_alloc_aligned_callback) (void* userPtr, size_t alloc_size_bytes, size_t alignment);
 
 /// @brief Reallocate some memory with a different size
 /// @param ptr Pointer to the memory to reallocate. Must exactly be a pointer returned by pAlloc, pAllocAligned, or pRealloc.
 /// @param old_alloc_size_bytes Old size of the allocation. Must be the exact size given to pAlloc, pAllocAligned, or pRealloc for the respective pointer.
 /// @param alloc_size_bytes The new size of the allocation
 /// @return A pointer to this memory. May be the same or different from pointer.
-typedef void* ( PINC_PROC_CALL * pinc_realloc_callback) (void* ptr, size_t old_alloc_size_bytes, size_t alloc_size_bytes);
+typedef void* ( PINC_PROC_CALL * pinc_realloc_callback) (void* userPtr, void* ptr, size_t old_alloc_size_bytes, size_t alloc_size_bytes);
 
 /// @brief Free some memory
 /// @param ptr Pointer to free. Must exactly be a pointer returned by pAlloc, pAllocAligned, or pRealloc.
 /// @param alloc_size_bytes Number of bytes to free. Must be the exact size given to pAlloc, pAllocAligned, or pRealloc for the respective pointer.
-typedef void ( PINC_PROC_CALL * pinc_free_callback) (void* ptr, size_t alloc_size_bytes);
+typedef void ( PINC_PROC_CALL * pinc_free_callback) (void* userPtr, void* ptr, size_t alloc_size_bytes);
 
-/// @brief Set allocation callbacks. Must be called before incomplete_init, or never. The type of each proc has more information.
-PINC_EXTERN void PINC_CALL pinc_preinit_set_alloc_callbacks(pinc_alloc_callback alloc, pinc_alloc_aligned_callback alloc_aligned, pinc_realloc_callback realloc, pinc_free_callback free);
+/// @brief Set allocation callbacks. Must be called before incomplete_init, or never. The type of each proc has more information. They either must all be set, or all null.
+PINC_EXTERN void PINC_CALL pinc_preinit_set_alloc_callbacks(void* user_ptr, pinc_alloc_callback alloc, pinc_alloc_aligned_callback alloc_aligned, pinc_realloc_callback realloc, pinc_free_callback free);
 
 /// @brief Begin the initialization process
 /// @return the success or failure of this function call. Failures are likely caused by external factors (ex: no window backends) or a failed allocation.
@@ -439,6 +439,8 @@ PINC_EXTERN pinc_return_code PINC_CALL pinc_window_complete(pinc_window window);
 // - bool focused (rw) [false]
 // - bool hidden (rw) [false]
 //     - when hidden, a window cannot be seen anywhere to the user (at least not directly), but is still secretly open.
+// - bool vsync (rw) [true]
+//     - note: should be set before completion, but may be able to be set after.
 
 // if title_len is zero, title_buf is assumed to be null terminated, or itself null for an empty title.
 PINC_EXTERN void PINC_CALL pinc_window_set_title(pinc_window window, const char* title_buf, uint32_t title_len);

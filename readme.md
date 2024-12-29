@@ -1,10 +1,10 @@
 # Pinc 2
 
-This is the second iteration of a project called Pinc.
-
-Pinc aims to build a new-age window / graphics toolkit for game and application development, with a focus on cross-compilation, dependency minimization, and ease of integration.
+Pinc is a cross platform window / graphics library for game and application development, with a focus on cross-compilation, dependency minimization, and ease of integration.
 
 Pinc is written entirely in C, making it (theoretically) portable to any system with a C compiler. Pinc currently uses cmake, however its design hopefully makes it simple to port to other build systems. See [build.md](build.md) for how the build system is configured.
+
+The original version written in Zig can be found [here](https://github.com/bluesillybeard/Pinc). We do not suggest using it.
 
 ## Pinc goals
 
@@ -13,13 +13,10 @@ Pinc is written entirely in C, making it (theoretically) portable to any system 
     - The external API only uses `int`, `char`, `void`, and basic pointers to arrays (`char*` and `len` for strings, `int*` and `len` for element arrays, etc)
 
 - ZERO compile-time dependencies other than a functional C compiler / linker
-    - Required headers are included in this repository. Their license is marked at the top.
-    - proprietary headers are rebuilt with the minimal types and functions required (ex: windows.h).
-    - all required shared libraries are loaded at runtime, unless they are guaranteed to exist as-is for the target platform without development libraries installed
-        - example: the windows API can be linked normally, although it remains to be seen if import libraries will be strictly needed.
-    - libc is still required on unix systems (linux, macos, bsd, etc) because doing unix development without libc is literal hell
-        - musl will be supported eventually, but for now dlopen is a required function which musl does not implement due to technical constraints.
-        - Note: pinc does not need the PLT or related tables updated with the symbols from loaded objects, as it loads them into its own proc tables. So pinc support for unix without libc is absolutely possible, but would require a complete ELF loader outside of libc.
+    - Headers are rebuilt and baked into the library itself
+    - libraries can be linked statically, dynamically, or at runtime
+        - Note: this part hasn't been implemented yet!
+    - Note: certain base platform libraries are required (ex: libc on Posix / Unix, kernel32 on Windows), but those are usually built into the compiler anyway
 
 - Easy to use
     - comparable to something like SDL or SFML
@@ -27,52 +24,42 @@ Pinc is written entirely in C, making it (theoretically) portable to any system 
 
 - Flexible
     - Bring your own build system (we just use cmake for convenience)
-        - unity build with a single compiler command is an option
+        - unity build with a simple compiler command is an option. Note: not implemented yet!
     - determines the API to use at runtime, reducing the number of required compile targets
         - Note: we do not yet support cosmopolitan C, although it is a potential consideration
+
+- Wide Support
+    - Something along the lines of what ClassiCube supports: https://github.com/ClassiCube/ClassiCube/tree/master?tab=readme-ov-file
 
 ## Other things
 - Pinc does not take hold of the entry point
 - Pinc does not provide a main loop
 
 ## This library is barely even started. Here's what's left to do:
-- (DONE) figure out stdint.h and stdbool.h situation
-    - stdint.h is part of C99 and is guaranteed to exist for pretty much any compiler / build system imaginable
-    - Note that some niche C compilers do not implement stdint nicely due to various reasons. For all desktop and modern console platforms, this is not an issue. Pinc will not support embedded platforms (at least not any time soon). Vintage platforms are also problematic, but for now Pinc does not intend on supporting most of those.
-    - VERDICT: use stdint.h and stdbool.h in spares. It can be easily refactored later anyway.
-- (DONE) finish the pinc header (just the base header)
-- (DONE) finish the pinc opengl header
-    - the graphics api will come later!
-- set up common macros
-    - asserts and user error reporting
-        - The Zig implementation just has "unreachable" everywhere, which is unacceptable from a UX point of view.
-    - errors and calling the error callback easily
-    - Are macros for zig-like error types possible?
-- set up libc wrappers
-    - memory allocation
-    - string printing
-    - unicode conversions (which libc absolutely sucks crap at anyway so yeah)
-- set up interfaces for window and graphics backends
-- set up other fundamental components
-    - arrays and slices (will require heavy macro use but whatever)
-    - build system and settings documentation
-        - the build system itself must remain as minimal as possible. IE: The C code should do as much as possible to make adding new build systems simpler.
-- Would it be worth setting up header injection?
-    - this is where pinc includes a user-defined header as part of its compilation process, rather than having a million separate defines that need to be managed.
-    - SDL does something like this actually, but only for new platforms and not on a project-per-project basis.
-- implement SDL2 & raw opengl backend
+- (PARTIALLY DONE) set up interface for window backend
+- implement SDL2 + raw OpenGl backend
     - add tests as things are implemented
 - finish pinc graphics header
     - Just base it off the original one.
-    - One change to make: move the texture sampling properties from the uniform definition to the pipeline definition
+    - Changes I want to make:
+        - move the texture sampling properties from the uniform to the pipeline
+        - Remove GLSL and use a custom shader definition compatible with fixed function rendering (aim for minimal features like OpenGL 1.0 or the N64)
+        - Add GLSL as an optional feature that a graphics backend may or may not have
+        - Add indexed framebuffer / texture (where colors are an enum instead of brightness values)
+            - This may be as simple as adding a new color space and some query functions.
+            - Note: Modern GPUs don't support this directly (lol I wonder why), however texture formats will be an enum / list so this will not be a problem
+- set up interface for graphics backend
 - implement opengl 2.1 backend
+- Add platform implementations for at least windows (probably macos if it needs to be separate from posix)
+- implement the rest of the examples from the original project
 - Celebrate! we've made it back to where we left off in the original Zig version of Pinc.
     - And in fact, with some new things that the original prototype-like thing did not have
+- Make the library public
 
 ## Implemented platforms
 - Posix / Unix
 
-## Implemented windowing backends
+## Implemented window backends
 - SDL2
 
 ## Implemented graphics backends
@@ -85,6 +72,7 @@ Pinc is written entirely in C, making it (theoretically) portable to any system 
 - Visual Studio Code
 
 ## Tested Compilers
+- Clang (the LLVM C compiler)
 - GNU C Compiler (gcc)
 
 ## Important notes
@@ -94,15 +82,16 @@ Pinc is a very new library, and is MASSIVELY out of scope for a single developer
 - Expect bugs / issues
     - Many functions may not be implemented
 - the API is highly variable for the foreseeable future
-    - Give me your suggestions - the API is VERY incomplete and we don't know what's missing!
+    - Report any suggestions - the API is VERY incomplete and we don't know what's missing!
 - the project desperately needs contributors - see contribution guide
+    - TODO: actually make the contribution guide
 
 Pinc's current API is fundamentally incompatible with multithreading. Sorry.
 
 ## How to get started
 - Get familiar with cmake a bit
     - Follow a tutorial if you do not know C or cmake
-    - If you want to use another programming language than C, you're on your own for now
+    - If you want to use another programming language than C or C++, you're on your own for now
 - Compile the project with cmake
     - We recommend Clang + cmake since that is the system we use for testing and development
     - use the main branch, it's tested regularly. We don't have CI set up yet though.
@@ -117,10 +106,9 @@ I suggest reading through the header a bit as well as looking at the examples to
     - for fun
     - To make a low-level windowing / graphics library that can be built and used, with only the requirement being a C compiler and some time.
     - Additionally, a library with an insanely wide net of supported backends is very useful. Admittedly, the only backend implemented at the moment is based on SDL2, but take a look at the [Planned Backends](#planned-window-backends-not-final),
-- Why support OpenGL 2.1. It's so old! (and deprecated)
+- Why support fixed-function rendering It's so old! (and deprecated)
     - I thought it would be cool to be able to run this on extremely ancient hardware and OS, for no other reason than to see it run. Partially inspired by [MattKC porting .NET framework 2 to Windows 95.](https://www.youtube.com/watch?v=CTUMNtKQLl8)
-    - If a platform is capable of running OpenGL 2.1, someone has probably made an opengl driver for it
-        - Even the Nintendo 64 has an OpenGL 1 implementation - it doesn't have reprogrammable shading though, so no opengl 2.
+    - Remember the wide support goal: we want this project to work on pretty much any platform that can render textured polygons
 
 ## Planned supported platforms
 - Windows NT
@@ -129,30 +117,42 @@ I suggest reading through the header a bit as well as looking at the examples to
 - Windows 9x without libc
 - Macos X
 - Haiku
+- emscripten
 
 ## Maybe planned supported platforms (if someone wants to contribute)
+- Cosmopolitan C
+- WASI
+- IOS
+- "old" macos
 - Posix without libc
     - Will require some inline assembly for all architectures to make syscalls
     - Will require a custom shared object loader
 
 ## Planned graphics backends (NOT FINAL)
-- Raw / framebuffer on the CPU / software rasterizer
+- Raw software rasterizer
 - SDL 1
     - Is this even worth implementing despite the raw and opengl backends?
 - SDL 2
     - Is this even worth implementing despite the raw and opengl backends?
 - SDL 3
     - Is this even worth implementing despite the raw and opengl backends?
-- OpenGL 1.x
-    - not sure which 1.x version(s) yet
-- OpenGL 3.x
-    - not sure which 3.x version yet
-- OpenGL 4.x
-    - note sure which 4.x version(s) yet
-- OpenGL 4.6 (last OpenGL release)
-- Vulkan 1.0 (first vulkan release)
-- Vulkan 1.2 (last Vulkan release that is very widely supported on older hardware)
-- Vulkan 1.3 (last Vulkan release)
+- OpenGL 1.2
+    - Oldest version of OpenGL worth supporting
+- OpenGL 1.5
+    - Latest fixed-function version of OpenGL
+- OpenGL 3.2
+    - The last widest supported version of OpenGL. This is the version that Minecraft uses
+- OpenGL 3.3
+    - Backported a bunch of 4.x features. TODO: what features are these? Is it worth an OpenGL 3.3 backend when the 3.2 one exists?
+- OpenGL 4.3
+    - Last version of OpenGL supported on Macos (other than using some kind of weird cursed ANGLE->MoltenVK->Metal setup, or a pure software implementation)
+- OpenGl 4.6
+    - Last version of OpenGL
+- Vulkan 1.0
+- Vulkan 1.2
+    - last Vulkan release that is very widely supported on older hardware
+- Vulkan 1.3
+- TODO: figure out what Vulkan 1.4 brings and if supporting 1.3 is worth the effort over 1.2
 - Raw Vulkan
 
 ## Planned window backends (NOT FINAL)
@@ -160,7 +160,7 @@ I suggest reading through the header a bit as well as looking at the examples to
 - SDL 3
 - X11 (Xlib)
 - win32
-- windows 9x (TODO: figure out what the API is called for this)
+- windows 9x (more or less just win32 with an extremely limited set of features)
 - Cocoa
 - Wayland
 - GLFW
@@ -175,7 +175,7 @@ None of these are going to be implemented any time soon - if ever.
 - Xbox
     - It's basically just Windows (I think), should be pretty easy actually
 - Nintendo switch
-    - There seems to be a lack of info on how this could be done.
+    - This actually seems pretty simple. Nintendo seems to be OK with letting Switch code exist in open source code, although whether the SDK itself is freely available is another issue.
 - N64 would be funny
 - Playstation would also be funny
 - Microsoft DOS
@@ -185,7 +185,7 @@ None of these are going to be implemented any time soon - if ever.
 - 3dfx's Glide graphics api
     - The funny thing is, there are actual Glide drivers available for modern GPUS. I believe it's an implementation that uses Vulkan to emulate the original API.
 
-## backends that will NEVER be implemented
+## backends that will NEVER be implemented (unless for good reason)
 - Raw X11 network packets
     - are you crazy!? Also, good luck getting OpenGL or Vulkan to work.
 - Xcb
@@ -224,6 +224,7 @@ None of these are going to be implemented any time soon - if ever.
         - ... and a billion more, although most of the current smaller ones will likely die along with X11
         - could probably just read the GTK and QT system themes and get 99% coverage
         - I think recently a portal and standard for cross-toolkit theming was created
+    - Most consoles don't even have user-defined coloring, so those can be hard-coded
 - Audio support
     - audio playback to a default or specific device
     - software audio, or something like OpenAL which supports hardware acceleration
@@ -234,12 +235,16 @@ None of these are going to be implemented any time soon - if ever.
         - notify the application when the user edits the audio output through system settings or something like qpwgraph
     - native implementations for OpenAL, ALSA, pipewire, and whatever else?
         - SDL backend probably
+- built-in text / font rendering
+    - This is an extremely common thing to do, so it may make sense to just add this into Pinc directly - maybe an official (but separate) module
 
 ## TODO
 - test on different compilers
-    - Clang
-    - GCC
     - MSVC, as much as their C compiler sucks
-    - Cosmopolitan (Not yet though)
     - emscripten (once web support is added)
-- add debug print callback
+    - tcc
+- add debug print callback with proper formatting (that isn't just a copy of libc's formatting)
+- expose (most of) platform.h so users can write code that is just as portable as Pinc itself
+- Add options / code / auto detection for where libraries come from
+    - This is a requirement for supporting platforms without dynamic linking (such as the web)
+- move state to structs or add prefixes to avoid strange linker weirdness

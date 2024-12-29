@@ -1,7 +1,7 @@
 #include "example.h"
 // open a quick window
 int main(int argc, char** argv) {
-    // pinc_preinit_set_error_callback(example_error_callback);
+    pinc_preinit_set_error_callback(example_error_callback);
     pinc_incomplete_init();
     // We don't care what we get, so don't set anything.
     // Everything is left default.

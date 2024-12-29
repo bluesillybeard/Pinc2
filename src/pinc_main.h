@@ -31,11 +31,7 @@ extern pinc_error_callback pfn_pinc_error_callback;
 extern pinc_error_callback pfn_pinc_panic_callback;
 extern pinc_error_callback pfn_pinc_user_error_callback;
 
-extern pinc_alloc_callback pfn_pinc_alloc;
-extern pinc_alloc_aligned_callback pfn_pinc_alloc_aligned;
-extern pinc_realloc_callback pfn_pinc_realloc;
-extern pinc_free_callback pfn_pinc_free;
-
+// Call when some kind of external issue occurs
 #define PERROR(message, len) \
     { \
         if(pfn_pinc_error_callback) { \
@@ -45,14 +41,16 @@ extern pinc_free_callback pfn_pinc_free;
         } \
     }
 
+#define PERROR_NL(message) PERROR((message), pStringLen(message))
+
 #define PPANIC(message, len) \
     { \
         if(pfn_pinc_panic_callback) { \
             pfn_pinc_panic_callback((uint8_t*) (message), (len)); \
         } else { \
             pPrintError((uint8_t*) (message), (len)); \
-            pAssertFail(); \
         } \
+        pAssertFail(); \
     }
 
 #define PPANIC_NL(message) PPANIC(message, pStringLen((char*)message))
@@ -63,8 +61,8 @@ extern pinc_free_callback pfn_pinc_free;
             pfn_pinc_user_error_callback((uint8_t*) (message), (len)); \
         } else { \
             pPrintError((uint8_t*)(message), (len)); \
-            pAssertFail(); \
         } \
+        pAssertFail(); \
     }
 
 #if PINC_ERROR_SETTING == 2
@@ -123,32 +121,55 @@ extern pinc_free_callback pfn_pinc_free;
 
 #endif
 
-void* PALLOC(size_t size) {
-    if(pfn_pinc_alloc) {
-        return pfn_pinc_alloc(size);
-    }
-    return pAlloc(size);
+// Zig-style allocator interface
+
+typedef struct {
+    void* allocatorObjectPtr;
+    void* (*allocate) (void* obj, size_t size);
+    void* (*allocateAligned) (void* obj, size_t size, size_t alignment);
+    void* (*reallocate) (void* obj, void* ptr, size_t oldSize, size_t newSize);
+    void (*free) (void* obj, void* ptr, size_t size);
+} Allocator;
+
+/// @brief Allocate some memory. Aligned depending on platform such that any structure can be placed into this memory.
+///     Identical to libc's malloc function.
+/// @param size Number of bytes to allocate.
+/// @return A pointer to the memory.
+static void* Allocator_allocate(Allocator a, size_t size) {
+    return a.allocate(a.allocatorObjectPtr, size);
 }
 
-void* PALLOCALIGNED(size_t size, size_t alignment) {
-    if(pfn_pinc_alloc_aligned) {
-        return pfn_pinc_alloc_aligned(size, alignment);
-    }
-    return pAllocAligned(size, alignment);
+/// @brief Allocate some memory with explicit alignment.
+/// @param size Number of bytes to allocate. Must be a multiple of alignment.
+/// @param alignment Alignment requirement. Must be a power of 2.
+/// @return A pointer to the allocated memory.
+static void* Allocator_allocateAligned(Allocator a, size_t size, size_t alignment) {
+    return a.allocateAligned(a.allocatorObjectPtr, size, alignment);
 }
 
-void* PREALLOC(void* ptr, size_t oldSize, size_t newSize) {
-    if(pfn_pinc_realloc) {
-        return pfn_pinc_realloc(ptr, oldSize, newSize);
-    }
-    return pRealloc(ptr, oldSize, newSize);
+/// @brief Reallocate some memory with a different size
+/// @param ptr Pointer to the memory to reallocate. Must be the exact pointer from to allocate, allocateAligned, or reallocate on the same allocator
+/// @param oldSize Old size of the allocation. Must be the exact size given to allocate, allocateAligned, or reallocate on the same allocator for the respective pointer.
+/// @param newSize The new size of the allocation
+/// @return A pointer to this memory. May be the same or different from pointer.
+static void* Allocator_reallocate(Allocator a, void* ptr, size_t oldSize, size_t newSize) {
+    return a.reallocate(a.allocatorObjectPtr, ptr, oldSize, newSize);
 }
 
-void PFREE(void* ptr, size_t size) {
-    if(pfn_pinc_free) {
-        pfn_pinc_free(ptr, size);
-    }
-    pFree(ptr, size);
+/// @brief Free some memory
+/// @param pointer Pointer to free. Must be the exact pointer from allocate, allocateAligned, or reallocate on the same allocator
+/// @param bytes Number of bytes to free. Must be the exact size given to allocate, allocateAligned, or reallocate on the same allocator
+static void Allocator_free(Allocator a, void* ptr, size_t size) {
+    return a.free(a.allocatorObjectPtr, ptr, size);
 }
+
+/// @brief Pinc primary "root" allocator
+/// @remarks 
+///     This is either a wrapper around the platform.h functions, or user-defined allocator functions (which themselves might just be wrappers of platform.h)
+///     It is undefined until pinc_incomplete_init is called by the user.
+extern Allocator rootAllocator;
+
+/// @brief Pinc temporary allocator. This is an arena/bump allocator that is cleared at the start of pinc_step. undefined until pinc_incomplete_init is called by the user.
+extern Allocator tempAllocator;
 
 #endif

@@ -3,8 +3,13 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 // Platform provides some base platform functionality
+
+// TODO: It is probably worth exposing these functions to the user, as an alternative to whatever other platform library they may use.
+// We have to implement all of these nice functions for every supported platform anyway, may as well let the downstream developer make use of it,
+// Although many of them are just wrappers of libc (for now)
 
 // allocations
 
@@ -39,8 +44,8 @@ void pFree(void* pointer, size_t bytes);
 ///     It is allowed to do so if the implementation requires it.
 /// @param nameUtf8 The name of the library, as a UTF8 encoded string.
 /// @param nameSize The number of bytes in the name.
-/// @return An opaque pointer to the library object
-void* pLoadLibrary(uint8_t* nameUtf8, size_t nameSize);
+/// @return An opaque pointer to the library object, or null if the library could not be loaded.
+void* pLoadLibrary(uint8_t const* nameUtf8, size_t nameSize);
 
 /// @brief Load a symbol from a library
 /// @param library The library to load from
@@ -58,23 +63,25 @@ void pUnloadLibrary(void* library);
 /// @brief Gets the length of a null-terminated string of bytes. Same thing as libc's strlen function.
 /// @param str String to get the length of
 /// @return length of the string, in bytes, not including the null terminator
-size_t pStringLen(char* str);
+size_t pStringLen(char const* str);
 
 /// @brief Copy memory from one location to another. Source and destination must not overlap.
 /// @param source The source of the copy operation
 /// @param destination Destination of the copy operation
 /// @param numBytes The number of bytes to copy
-void pMemCopy(void* source, void* destination, size_t numBytes);
+void pMemCopy(void const* source, void* destination, size_t numBytes);
 
 /// @brief Same thing as pMemCopy, but the source and destination may overlap.
-void pMemMove(void* source, void* destination, size_t numBytes);
+void pMemMove(void const* source, void* destination, size_t numBytes);
+
+void pMemSet(uint8_t value, void* destination, size_t numBytes);
 
 /// @brief Convert the first UTF8 encoded codepoint
 /// @param str String to convert
 /// @param strLen The length of the string, in bytes. To avoid reading out of bounds for invalid UTF8.
 /// @param outLen Place to output the number of bytes converted, or null if that is not needed.
 /// @return the unicode point
-uint32_t pUtf8Unicode(uint8_t* str, size_t strLen, size_t* outLen);
+uint32_t pUtf8Unicode(uint8_t const* str, size_t strLen, size_t* outLen);
 
 /// @brief Encode a unicode point to UTF8
 /// @param codepoint the codepoint to encode
@@ -87,20 +94,29 @@ size_t pUnicodeUtf8(uint32_t codepoint, char* destStr);
 /// @param strLen length of UTF8 string in bytes
 /// @param outUnicode where to write output characters, or null to only query length
 /// @return the number of unicode points in the string
-size_t pUtf8UnicodeString(uint8_t* str, size_t strLen, uint32_t* outUnicode);
+size_t pUtf8UnicodeString(uint8_t const* str, size_t strLen, uint32_t* outUnicode);
 
 /// @brief Convert a unicode string into a UTF8 string
 /// @param codepoints unicode string to convert
 /// @param numCodepoints the length of the unicode string, in codepoints
 /// @param outUtf8 where to write the output string, or null to only query length
 /// @return the number of UTF8 bytes in the string
-size_t pUnicodeUtf8String(uint32_t* codepoints, size_t numCodepoints, uint8_t* outUtf8);
+size_t pUnicodeUtf8String(uint32_t const* codepoints, size_t numCodepoints, uint8_t* outUtf8);
 
 // debugging functionality
 
 /// @brief Call when an assertion fails.
 void pAssertFail(void);
 
-void pPrintError(uint8_t* message, size_t len);
+void pPrintError(uint8_t const* message, size_t len);
+
+void pPrintDebug(uint8_t const* message, size_t len);
+
+// TODO: replace this with a proper formatting system that isn't just a wrapper of libc's printf
+// Variadic arguments feel hacky and are annoying to deal with.
+void pPrintFormat(char const* fmt, ...);
+
+// Returns the number of characters that would have been written given enough space
+size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v);
 
 #endif

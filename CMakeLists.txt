@@ -32,6 +32,7 @@ include(GNUInstallDirs)
 add_library(pinc
     src/pinc_main.c
     src/platform/platform.c
+    src/sdl2.c
 )
 
 set_target_properties(pinc PROPERTIES VERSION ${PROJECT_VERSION})
@@ -48,7 +49,16 @@ target_compile_definitions(pinc
     PRIVATE PINC_HAVE_WINDOW_SDL2=${PINC_HAVE_WINDOW_SDL2}
     PRIVATE PINC_HAVE_GRAPHICS_RAW_OPENGL=${PINC_HAVE_GRAPHICS_RAW_OPENGL}
 )
-target_compile_options(pinc PRIVATE -Wall)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # We like all the warnings we can get (and to treat them as errors!)
+    # Except that blasted unused function warning - I get why it's useful, but not for this project.
+    target_compile_options(pinc PRIVATE -Werror -pedantic-errors -Wall, -Wextra -Wconversion -Wno-unused-function -fsanitize=address,undefined)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # We like all the warnings we can get (and to treat them as errors!)
+    # Except that blasted unused function warning - I get why it's useful, but not for this project.
+    target_compile_options(pinc PRIVATE -Werror -pedantic-errors -Wall, -Wextra -Wconversion -Wno-unused-function -fsanitize=address,undefined)
+endif()
 
 install(TARGETS pinc
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

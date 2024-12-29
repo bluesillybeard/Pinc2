@@ -8,6 +8,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 void* pAlloc(size_t bytes) {
     return malloc(bytes);
@@ -25,7 +26,7 @@ void pFree(void* pointer, size_t bytes) {
     free(pointer);
 }
 
-void* pLoadLibrary(uint8_t* nameUtf8, size_t nameSize) {
+void* pLoadLibrary(uint8_t const* nameUtf8, size_t nameSize) {
     // Cannot assume name is null terminated, which is what dlopen needs
     // The input name also does not contain the file ending or lib prefix - only the name of the library (ex: "sdl2")
     uint8_t* nameUtf8NullTerm = pAlloc(nameSize+7);
@@ -55,35 +56,57 @@ void pUnloadLibrary(void* library) {
     dlclose(library);
 }
 
-size_t pStringLen(char* str) {
+size_t pStringLen(char const* str) {
     return strlen(str);
 }
 
-void pMemCopy(void* source, void* destination, size_t numBytes) {
+void pMemCopy(void const* source, void* destination, size_t numBytes) {
     memcpy(destination, source, numBytes);
 }
 
-void pMemMove(void* source, void* destination, size_t numBytes) {
+void pMemMove(void const* source, void* destination, size_t numBytes) {
     memmove(destination, source, numBytes);
 }
 
+void pMemSet(uint8_t value, void* destination, size_t numBytes) {
+    memset(destination, value, numBytes);
+}
+
 // TODO
-uint32_t pUtf8Unicode(uint8_t* str, size_t strLen, size_t* outLen);
+uint32_t pUtf8Unicode(uint8_t const* str, size_t strLen, size_t* outLen);
 
 // TODO
 size_t pUnicodeUtf8(uint32_t codepoint, char* destStr);
 
 // TODO
-size_t pUtf8UnicodeString(uint8_t* str, size_t strLen, uint32_t* outUnicode);
+size_t pUtf8UnicodeString(uint8_t const* str, size_t strLen, uint32_t* outUnicode);
 
 // TODO
-size_t pUnicodeUtf8String(uint32_t* codepoints, size_t numCodepoints, uint8_t* outUtf8);
+size_t pUnicodeUtf8String(uint32_t const* codepoints, size_t numCodepoints, uint8_t* outUtf8);
 
 void pAssertFail(void) {
     // For now, use libc's assert
     assert(0);
 }
 
-void pPrintError(uint8_t* message, size_t len) {
+void pPrintError(uint8_t const* message, size_t len) {
     fwrite(message, sizeof(uint8_t), len, stderr);
+}
+
+void pPrintDebug(uint8_t const* message, size_t len) {
+    fwrite(message, sizeof(uint8_t), len, stdout);
+}
+
+void pPrintFormat(char const* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vprintf(fmt, args);
+    va_end(args);
+}
+
+#include <inttypes.h>
+
+size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
+    int res = snprintf(buf, capacity, "%" PRIu32, v);
+    return res;
 }
