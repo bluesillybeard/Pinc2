@@ -1,6 +1,6 @@
 #include "platform.h"
 
-// Jumping ground for platform implementations
+// Platform implementation detection thingy
 
 #if defined (__unix) || (__linux)
 

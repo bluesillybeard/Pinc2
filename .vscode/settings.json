@@ -6,6 +6,7 @@
         "bgfx",
         "BINDIR",
         "BRRR",
+        "ClassiCube",
         "dlopen",
         "Doptimize",
         "emscripten",
@@ -29,6 +30,7 @@
         "qpwgraph",
         "rasterizer",
         "Raylib",
+        "Rmask",
         "SDLCALL",
         "SFML",
         "stdbool",
@@ -41,8 +43,7 @@
         "Werror",
         "Wextra",
         "WINRT",
-        "Xlib",
-        "ClassiCube"
+        "Xlib"
     ],
     "files.associations": {
         "*.h": "c",

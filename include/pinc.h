@@ -385,6 +385,7 @@ PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_max_samples(pinc_fr
 
 // This requires the graphics backend for things like GLFW where only one OpenGL window may exist, but the Vulkan backend supports many windows.
 // the function itself is also useful for many console platforms where the entire idea of a window separate from the display itself doesn't make sense.
+// Returns 0 if there is no reasonable limit (the limit is not a specific number, and you'll probably never encounter related issues in this case)
 PINC_EXTERN uint32_t PINC_CALL pinc_query_max_open_windows(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend);
 
 // use -1 to use a default framebuffer format

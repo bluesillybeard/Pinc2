@@ -175,7 +175,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_incomplete_init(void) {
     // Again, SDL2 is the only window backend, so some shortcuts can be taken
     // Once there are more window backends, all of their various framebuffer formats
     // need to be merged into one list and properly mapped to user-facing ID handles
-    WindowBackend_queryFramebufferFormats(&sdl2WindowBackend, rootAllocator, &framebufferFormatNum);
+    framebufferFormats = WindowBackend_queryFramebufferFormats(&sdl2WindowBackend, rootAllocator, &framebufferFormatNum);
     
     return pinc_return_code_pass;
 }
@@ -271,6 +271,14 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend wi
     if(window_backend == pinc_window_backend_any) {
         window_backend = pinc_window_backend_sdl2;
     }
+    // TODO: only graphics backend is raw opengl, shortcuts are taken
+    if(graphics_backend == pinc_graphics_backend_any) {
+        graphics_backend = pinc_graphics_backend_raw_opengl;
+    }
+    if(framebuffer_format_id == -1) {
+        // TODO: actually choose the best one instead of just grabbing the first one
+        framebuffer_format_id = 0;
+    }
     PUSEERROR_LIGHT_NL(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?\n");
     PUSEERROR_LIGHT_NL(framebuffer_format_id < framebufferFormatNum && framebuffer_format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?\n");
     FramebufferFormat framebuffer = framebufferFormats[framebuffer_format_id];
@@ -279,12 +287,13 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend wi
         return pinc_return_code_error;
     }
     windowBackend = sdl2WindowBackend;
+    windowBackendSet = true;
 
     return pinc_return_code_pass;
 }
 
 PINC_EXPORT pinc_window PINC_CALL pinc_window_create_incomplete(void) {
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_window_create_complete?\n");
+    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
     pinc_window handle = PincObject_allocate();
     PincObject* window = PincObject_ref(handle);
     window->discriminator = PincObjectDiscriminator_incompleteWindow;
@@ -294,6 +303,7 @@ PINC_EXPORT pinc_window PINC_CALL pinc_window_create_incomplete(void) {
     nameLen += 12;
     nameLen += pBufPrintUint32(namebuf+12, 12, handle);
     char* name = Allocator_allocate(rootAllocator, nameLen);
+    pMemCopy(namebuf, name, nameLen);
     window->incompleteWindow = (IncompleteWindow){
         (uint8_t*)name, // uint8_t* titlePtr;
         nameLen, // size_t titleLen;
@@ -321,13 +331,17 @@ PINC_EXPORT void PINC_CALL pinc_window_set_title(pinc_window window, const char*
     switch (object->discriminator)
     {
         case PincObjectDiscriminator_incompleteWindow:
+            // TODO: potential optimization here (this code is quite cold though)
             Allocator_free(rootAllocator, object->incompleteWindow.titlePtr, object->incompleteWindow.titleLen);
             object->incompleteWindow.titlePtr = Allocator_allocate(rootAllocator, title_len);
             object->incompleteWindow.titleLen = title_len;
             pMemCopy(title_buf, object->incompleteWindow.titlePtr, title_len);
             break;
         case PincObjectDiscriminator_window:
-            WindowBackend_setWindowTitle(&windowBackend, object->window, (uint8_t*)title_buf, title_len);
+            // Window takes ownership of the pointer, but we don't have ownership of title_buf
+            uint8_t* titlePtr = Allocator_allocate(rootAllocator, title_len);
+            pMemCopy(title_buf, titlePtr, title_len);
+            WindowBackend_setWindowTitle(&windowBackend, object->window, titlePtr, title_len);
             break;
         default:
             PUSEERROR_LIGHT_NL(false, "Invalid Object (pinc_window_set_title): Window is not a window object\n");

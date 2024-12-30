@@ -30,15 +30,23 @@ The original version written in Zig can be found [here](https://github.com/blues
 
 - Wide Support
     - Something along the lines of what ClassiCube supports: https://github.com/ClassiCube/ClassiCube/tree/master?tab=readme-ov-file
+    - this is why we use C: you would be hard pressed to find a platform that does not support C
+        - note: there may be some C++, objective-c, or Java code in this codebase. This is for BeOS/Haiku, Macos, and Android respectively, who decided to defy language-agnostic APIs in favor of using a more advanced programming language.
 
 ## Other things
 - Pinc does not take hold of the entry point
+    - This means on certain platforms (Android for example), some shenanigans may be required. Android without Java is possible, but realistically it's best to make a JNI entry point.
 - Pinc does not provide a main loop
+    - For applet based platforms (ex: emscripten, WASI), this means potentially making your code either reentrant or just running it on another thread
+- Pinc's API has a complete memory barrier from your application. Pinc will not give you pointers to accidentally store, and it will not store any pointers you give it. (other than the allocation callbacks of course)
 
 ## This library is barely even started. Here's what's left to do:
 - (PARTIALLY DONE) set up interface for window backend
 - implement SDL2 + raw OpenGl backend
     - add tests as things are implemented
+- Make sure all of the important TODOs are handled
+- Make the library public
+    - Not yet at where the Zig version is, but the library is usable.
 - finish pinc graphics header
     - Just base it off the original one.
     - Changes I want to make:
@@ -47,14 +55,29 @@ The original version written in Zig can be found [here](https://github.com/blues
         - Add GLSL as an optional feature that a graphics backend may or may not have
         - Add indexed framebuffer / texture (where colors are an enum instead of brightness values)
             - This may be as simple as adding a new color space and some query functions.
-            - Note: Modern GPUs don't support this directly (lol I wonder why), however texture formats will be an enum / list so this will not be a problem
+            - Note: Modern GPUs don't support this directly (lol I wonder why), so this capability needs to be queryable
+            - SDL2 supports this! I'm genuinely not quite sure why they would, seeing as they only target platforms of the last ~20 years, but still neat.
 - set up interface for graphics backend
 - implement opengl 2.1 backend
 - Add platform implementations for at least windows (probably macos if it needs to be separate from posix)
 - implement the rest of the examples from the original project
 - Celebrate! we've made it back to where we left off in the original Zig version of Pinc.
     - And in fact, with some new things that the original prototype-like thing did not have
-- Make the library public
+
+## Absolutely Important TODOs for before the library goes anywhere
+- Changes to framebuffer format
+    - Depth buffer is for the graphics backend to handle, not the framebuffer format
+    - multisampling is for the graphics backend to handle, not the framebuffer format
+    - framebuffer transparency is for the graphics backend to handle not the framebuffer format?
+        - I'm questioning this because transparent windows exist. I'll omit this for now, and support transparent windows in the future.
+    - A window backend supports framebuffer formats to display, and the graphics backend separately supports framebuffer formats it can render to.
+    - The depth buffer is not displayed to the user. Neither is the number of samples. Both effect the output pixel values, but neither are directly sent to the compositor.
+- Move things from window backend to graphics backend
+    - depth buffer, samples, and framebuffer alpha channel bits as mentioned earlier
+    - vsync probably belongs in the graphics backend and not the window backend
+        - Annoyingly, in OpenGL vsync is a property of the window (kinda ish sorta), but in Vulkan and any other decently low-level graphics API, it's part of that API's framebuffer->surface->window system
+- warning print system
+- (proper) debug print system
 
 ## Implemented platforms
 - Posix / Unix
@@ -191,7 +214,7 @@ None of these are going to be implemented any time soon - if ever.
 - Xcb
     - Not worth the effort. Xlib works fine for X11.
 
-## Missing features (LOOKING FOR CONTRIBUTORS / API DESIGN IDEAS)
+## TODO and missing features (LOOKING FOR CONTRIBUTORS / API DESIGN IDEAS)
 - window position
     - wayland be like:
 - lots of events aren't implemented yet
@@ -227,7 +250,7 @@ None of these are going to be implemented any time soon - if ever.
     - Most consoles don't even have user-defined coloring, so those can be hard-coded
 - Audio support
     - audio playback to a default or specific device
-    - software audio, or something like OpenAL which supports hardware acceleration
+    - software audio, or something like (the ancient and probably deprecated) OpenAL which supports hardware acceleration
     - directly output samples
     - audio recording
     - arbitrary inputs and outputs for something like DAW software
@@ -236,15 +259,23 @@ None of these are going to be implemented any time soon - if ever.
     - native implementations for OpenAL, ALSA, pipewire, and whatever else?
         - SDL backend probably
 - built-in text / font rendering
-    - This is an extremely common thing to do, so it may make sense to just add this into Pinc directly - maybe an official (but separate) module
-
-## TODO
-- test on different compilers
+    - This is an extremely common thing to do, so it may make sense to just add this into Pinc directly - maybe an official (but separate) module?
+- test and get working on different compilers
     - MSVC, as much as their C compiler sucks
+        - how far back do we want to support? c99?
     - emscripten (once web support is added)
     - tcc
+    - clang-cl
+    - mingw
+    - cygwin
+    - Zig's cross-compiler thing for clang
+        - This is ultimately clang, however it does some extra work to get libc and platform libraries/headers working nicely iirc
 - add debug print callback with proper formatting (that isn't just a copy of libc's formatting)
 - expose (most of) platform.h so users can write code that is just as portable as Pinc itself
 - Add options / code / auto detection for where libraries come from
     - This is a requirement for supporting platforms without dynamic linking (such as the web)
 - move state to structs or add prefixes to avoid strange linker weirdness
+- set up clang-tidy or another linter
+- Add option to capture mouse and lock mouse
+    - Capture mouse just forces it to be in the window. As much as I hate this as a user, may as well just add it for completeness.
+    - Lock mouse forces it to be in the window, and is used for first-person games for camera movement, and sometimes by applications (like Blender) to have infinite mouse movement for certain operations (like changing unbounded sliders or panning the camera).
