@@ -9,9 +9,7 @@
 typedef struct {
     uint32_t channels;
     uint32_t channel_bits[4];
-    uint32_t depth_buffer_bits;
     pinc_color_space color_space;
-    uint32_t max_samples;
 } FramebufferFormat;
 
 typedef struct {
@@ -28,7 +26,6 @@ typedef struct {
     bool fullscreen;
     bool focused;
     bool hidden;
-    bool vsync;
 } IncompleteWindow;
 
 typedef void* WindowHandle;
@@ -46,9 +43,9 @@ struct WindowBackend;
     /* ### Initialization / query functions ### */ \
     PINC_WINDOW_INTERFACE_FUNCTION(FramebufferFormat*, (struct WindowBackend* obj, Allocator allocator, size_t* outNumFormats), queryFramebufferFormats, (obj, allocator, outNumFormats)) \
     PINC_WINDOW_INTERFACE_FUNCTION(pinc_graphics_backend*, (struct WindowBackend* obj, Allocator allocator, size_t* outNumBackends), queryGraphicsBackends, (obj, allocator, outNumBackends)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj, pinc_graphics_backend graphicsBackend), queryMaxOpenWindows, (obj, graphicsBackend)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj), queryMaxOpenWindows, (obj)) \
     /* The window backend is in charge of initializing the graphics backend at this point */ \
-    PINC_WINDOW_INTERFACE_FUNCTION(pinc_return_code, (struct WindowBackend* obj, pinc_graphics_backend graphicsBackend, FramebufferFormat framebuffer, uint32_t samples), completeInit, (obj, graphicsBackend, framebuffer, samples)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(pinc_return_code, (struct WindowBackend* obj, pinc_graphics_backend graphicsBackend, FramebufferFormat framebuffer, uint32_t samples, uint32_t depthBufferBits), completeInit, (obj, graphicsBackend, framebuffer, samples, depthBufferBits)) \
     PINC_WINDOW_INTERFACE_FUNCTION(void, (struct WindowBackend* obj), deinit, (obj)) \
     PINC_WINDOW_INTERFACE_FUNCTION(void, (struct WindowBackend* obj), step, (obj)) \
     /* ### Window Property Functions ## */ \
@@ -76,8 +73,8 @@ struct WindowBackend;
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, WindowHandle window), getWindowFocused, (obj, window)) \
     PINC_WINDOW_INTERFACE_FUNCTION(void, (struct WindowBackend* obj, WindowHandle window, bool hidden), setWindowHidden, (obj, window, hidden)) \
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, WindowHandle window), getWindowHidden, (obj, window)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(void, (struct WindowBackend* obj, WindowHandle window, bool vsync), setWindowVsync, (obj, window, vsync)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, WindowHandle window), getWindowVsync, (obj, window)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(void, (struct WindowBackend* obj, bool vsync), setVsync, (obj, vsync)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj), getVsync, (obj)) \
     /* ### Window Event Functions ### */ \
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, WindowHandle window), windowEventClosed, (obj, window)) \
     /* ### Other Window Functions ### */ \

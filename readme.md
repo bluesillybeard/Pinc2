@@ -32,6 +32,7 @@ The original version written in Zig can be found [here](https://github.com/blues
     - Something along the lines of what ClassiCube supports: https://github.com/ClassiCube/ClassiCube/tree/master?tab=readme-ov-file
     - this is why we use C: you would be hard pressed to find a platform that does not support C
         - note: there may be some C++, objective-c, or Java code in this codebase. This is for BeOS/Haiku, Macos, and Android respectively, who decided to defy language-agnostic APIs in favor of using a more advanced programming language.
+    - Note: The library has barely been started, currently very few platforms are actually supported.
 
 ## Other things
 - Pinc does not take hold of the entry point
@@ -55,8 +56,9 @@ The original version written in Zig can be found [here](https://github.com/blues
         - Add GLSL as an optional feature that a graphics backend may or may not have
         - Add indexed framebuffer / texture (where colors are an enum instead of brightness values)
             - This may be as simple as adding a new color space and some query functions.
-            - Note: Modern GPUs don't support this directly (lol I wonder why), so this capability needs to be queryable
+            - Note: Modern APIs don't support this directly (lol I wonder why), so this capability needs to be queryable
             - SDL2 supports this! I'm genuinely not quite sure why they would, seeing as they only target platforms of the last ~20 years, but still neat.
+        - scissor rectangle
 - set up interface for graphics backend
 - implement opengl 2.1 backend
 - Add platform implementations for at least windows (probably macos if it needs to be separate from posix)
@@ -65,19 +67,9 @@ The original version written in Zig can be found [here](https://github.com/blues
     - And in fact, with some new things that the original prototype-like thing did not have
 
 ## Absolutely Important TODOs for before the library goes anywhere
-- Changes to framebuffer format
-    - Depth buffer is for the graphics backend to handle, not the framebuffer format
-    - multisampling is for the graphics backend to handle, not the framebuffer format
-    - framebuffer transparency is for the graphics backend to handle not the framebuffer format?
-        - I'm questioning this because transparent windows exist. I'll omit this for now, and support transparent windows in the future.
-    - A window backend supports framebuffer formats to display, and the graphics backend separately supports framebuffer formats it can render to.
-    - The depth buffer is not displayed to the user. Neither is the number of samples. Both effect the output pixel values, but neither are directly sent to the compositor.
-- Move things from window backend to graphics backend
-    - depth buffer, samples, and framebuffer alpha channel bits as mentioned earlier
-    - vsync probably belongs in the graphics backend and not the window backend
-        - Annoyingly, in OpenGL vsync is a property of the window (kinda ish sorta), but in Vulkan and any other decently low-level graphics API, it's part of that API's framebuffer->surface->window system
 - warning print system
 - (proper) debug print system
+- Make sure all functions that take pinc_window_backend or pinc_graphics_backend can take 'any' to reference the default one.
 
 ## Implemented platforms
 - Posix / Unix

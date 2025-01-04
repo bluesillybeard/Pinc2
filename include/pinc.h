@@ -282,6 +282,7 @@ typedef enum {
 /// @section IDs
 
 // framebuffer formats are transferrable between window and graphics backends, but not between different runs of the application.
+// A framebuffer format simply describes the pixel output values on the window itself. It does not include things like a depth buffer or MSAA.
 typedef int32_t pinc_framebuffer_format;
 
 // objects are non-transferrable between runs.
@@ -367,7 +368,7 @@ PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_bac
 
 /// @brief Query the number of channels that a frame buffer format supports
 /// @param format_id the id of the framebuffer format. Must be from query_framebuffer_format_ids
-/// @return the number of channels. 1 for grayscale, 2 for grayscale+alpha, 3 for RGB, 4 for RGBA.
+/// @return the number of channels. 1 for grayscale, 2 for grayscale+alpha, 3 for RGB. Transparent windows (RGBA) is not yet supported.
 PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_channels(pinc_framebuffer_format format_id);
 
 /// @brief Query the bit depth of a channel of a frame buffer format.
@@ -376,21 +377,26 @@ PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_channels(pinc_frame
 /// @return the number of bits per pixel in this channel.
 PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_channel_bits(pinc_framebuffer_format format_id, uint32_t channel);
 
-PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_depth_buffer_bits(pinc_framebuffer_format format_id);
-
 PINC_EXTERN pinc_color_space PINC_CALL pinc_query_framebuffer_format_color_space(pinc_framebuffer_format format_id);
 
-// maximum number of samples for MSAA
-PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_max_samples(pinc_framebuffer_format format_id);
+// Ask the graphics backend what numbers of samples it can support for a given framebuffer format.
+// single sampling (1 sample per pixel) is guaranteed to be supported on all backends.
+PINC_EXTERN uint32_t PINC_CALL pinc_query_graphics_samples_options(pinc_graphics_backend graphics_backend, pinc_framebuffer_format format_id, uint32_t* samples_dest, uint32_t capacity);
 
-// This requires the graphics backend for things like GLFW where only one OpenGL window may exist, but the Vulkan backend supports many windows.
-// the function itself is also useful for many console platforms where the entire idea of a window separate from the display itself doesn't make sense.
+// Ask the graphics backend what depth buffer bit depths are supported for a given framebuffer format
+PINC_EXTERN uint32_t PINC_CALL pinc_query_graphics_depth_options(pinc_graphics_backend graphics_backend, pinc_framebuffer_format format_id, uint32_t* depth_bits_dest, uint32_t capacity);
+
+// Many platforms (web & most consoles) can only have a certain number of windows open at a time. Most of the time this is one,
+// but it's possible to set up a web template with multiple canvases and there are consoles with 2 screens (like the nintendo DS) where it makes sense to treat them as separate windows.
 // Returns 0 if there is no reasonable limit (the limit is not a specific number, and you'll probably never encounter related issues in this case)
-PINC_EXTERN uint32_t PINC_CALL pinc_query_max_open_windows(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend);
+PINC_EXTERN uint32_t PINC_CALL pinc_query_max_open_windows(pinc_window_backend window_backend);
+
+PINC_EXTERN uint32_t PINC_CALL pinc_query_graphics_alpha_options(pinc_graphics_backend graphics_backend, pinc_framebuffer_format format_id, uint32_t* alpha_bits_dest, uint32_t capacity);
 
 // use -1 to use a default framebuffer format
-// samples is for MSAA.
-PINC_EXTERN pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format framebuffer_format_id, uint32_t samples);
+// samples is for MSAA. 1 is guaranteed to be supported
+// A depth bits of 0 means no depth buffer. If you want a depth buffer but don't care how many bits it is, 
+PINC_EXTERN pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format framebuffer_format_id, uint32_t samples, uint32_t depthBits);
 
 /// @subsection post initialization related functions
 
@@ -440,8 +446,6 @@ PINC_EXTERN pinc_return_code PINC_CALL pinc_window_complete(pinc_window window);
 // - bool focused (rw) [false]
 // - bool hidden (rw) [false]
 //     - when hidden, a window cannot be seen anywhere to the user (at least not directly), but is still secretly open.
-// - bool vsync (rw) [true]
-//     - note: should be set before completion, but may be able to be set after.
 
 // if title_len is zero, title_buf is assumed to be null terminated, or itself null for an empty title.
 PINC_EXTERN void PINC_CALL pinc_window_set_title(pinc_window window, const char* title_buf, uint32_t title_len);
@@ -549,12 +553,16 @@ PINC_EXTERN void PINC_CALL pinc_window_set_hidden(pinc_window window, bool hidde
 /// @return 1 if the window is hidden, 0 if not
 PINC_EXTERN bool PINC_CALL pinc_window_get_hidden(pinc_window window);
 
-// It is best practice to set vsync before completing the window
-// as some systems do not support changing vsync after a window is completed.
 // vsync is true by default on systems that support it.
-PINC_EXTERN pinc_return_code PINC_CALL pinc_window_set_vsync(pinc_window window, bool sync);
+// Technically, vsync is generally either bound to a window or a graphics context.
+// Any half-decently modern graphics API supports setting vsync arbitrary at any time,
+// However some of them (*cough cough* OpenGL *cough cough*) are a bit more picky in how vsync is handled.
+// In general, call this function right after pinc_complete_init to be safe,
+// and call it again before present_framebuffer in hopes that the underlying API supports modifying vsync at runtime.
+// An error from this function just means vsync couldn't be changed, and is otherwise harmless.
+PINC_EXTERN pinc_return_code PINC_CALL pinc_set_vsync(bool sync);
 
-PINC_EXTERN bool PINC_CALL pinc_get_vsync(pinc_window window);
+PINC_EXTERN bool PINC_CALL pinc_get_vsync(void);
 
 /// @brief Present the framebuffer of a given window and prepares a backbuffer to draw on.
 ///        The number of backbuffers depends on the graphics backend, but it's generally 2 or 3.

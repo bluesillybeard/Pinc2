@@ -116,9 +116,10 @@ static Sdl2Window* _dummyWindow(Sdl2WindowBackend* this) {
         false, // bool fullscreen;
         false, // bool focused;
         true, // bool hidden;
-        true, // bool vsync;
     };
-    this->dummyWindow = sdl2completeWindow(this, &windowSettings);
+    this->dummyWindow = sdl2completeWindow((struct WindowBackend*)this, &windowSettings);
+    if(!this->dummyWindow) PPANIC_NL("Could not create dummy window\n");
+    return this->dummyWindow;
 }
 
 // Quick function for convenience
@@ -181,9 +182,6 @@ FramebufferFormat* sdl2queryFramebufferFormats(struct WindowBackend* obj, Alloca
             // SDL2 has us covered though, with a nice function that decodes all of it
             SdlPixelFormat* format = this->libsdl2.allocFormat(displayMode.format);
             FramebufferFormat bufferFormat;
-            // TODO: this is being refactored out of framebuffer format VERY VERY SOON - pretty much as soon as we have a window opening
-            bufferFormat.depth_buffer_bits = 0;
-            bufferFormat.max_samples = 1;
             // TODO: properly figure out transparent window support
             if(format->palette) {
                 // This is a palette / index based format, which Pinc does not yet support
@@ -202,13 +200,9 @@ FramebufferFormat* sdl2queryFramebufferFormats(struct WindowBackend* obj, Alloca
                     bufferFormat.channels = 3;
                     bufferFormat.channel_bits[3] = 0;
                 } else {
-                    // RGBA
+                    // RGBA?
                     bufferFormat.channels = 4;
                     bufferFormat.channel_bits[3] = bitCount32(format-> Amask);
-                    if(bufferFormat.channel_bits[3] == 0) {
-                        // An RGBA format that's secretly only RGB isn't actually an RGBA format.
-                        bufferFormat.channels = 3;
-                    }
                 }
                 _framebufferFormatAdd(&formats, &formatsNum, &formatsCapacity, &bufferFormat);
             }
@@ -234,17 +228,17 @@ pinc_graphics_backend* sdl2queryGraphicsBackends(struct WindowBackend* obj, Allo
     return backends;
 }
 
-uint32_t sdl2queryMaxOpenWindows(struct WindowBackend* obj, pinc_graphics_backend graphicsBackend) {
+uint32_t sdl2queryMaxOpenWindows(struct WindowBackend* obj) {
     // SDL2 has no (arbitrary) limit on how many windows can be open.
     return 0;
 }
 
-pinc_return_code sdl2completeInit(struct WindowBackend* obj, pinc_graphics_backend graphicsBackend, FramebufferFormat framebuffer, uint32_t samples) {
+pinc_return_code sdl2completeInit(struct WindowBackend* obj, pinc_graphics_backend graphicsBackend, FramebufferFormat framebuffer, uint32_t samples, uint32_t depthBufferBits) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     switch (graphicsBackend)
     {
         case pinc_graphics_backend_raw_opengl:
-
+            // TODO: probably need to store the samples and depth buffer bits somewhere?
             break;
         
         default:
@@ -308,23 +302,17 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
     if(incomplete->hidden) {
         windowFlags |= SDL_WINDOW_HIDDEN;
     }
-    if(incomplete->vsync) {
-        if(this->libsdl2.glSetSwapInterval(-1) == -1) {
-            // uh oh, we couldn't set the swap interval
-            // Try again with a value of 1 (so normal non-adaptive vsync)
-            if(this->libsdl2.glSetSwapInterval(1) == -1) {
-                // So, we cannot set vsync at all
-                // TODO: Pinc really needs a proper warning print system
-                pPrintFormat("SDL2 Could not set the swap interval: %s\n", this->libsdl2.getError());
-            }
-        }
-    }
     SdlWindowHandle win = this->libsdl2.createWindow(titleNullTerm, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 256, 256, windowFlags);
     // I'm so paranoid, I actually went through the SDL2 source code to make sure it actually duplicates the window title to avoid a use-after-free
     // Better too worried than not enough I guess
     Allocator_free(tempAllocator, titleNullTerm, incomplete->titleLen+1);
 
     // Title's ownership is in the window object itself
+    Sdl2Window* windowObj = Allocator_allocate(rootAllocator, sizeof(Sdl2Window));
+    windowObj->sdlWindow = win;
+    windowObj->titleLen = incomplete->titleLen;
+    windowObj->titlePtr = incomplete->titlePtr;
+    return (WindowHandle)windowObj;
 }
 
 void sdl2setWindowTitle(struct WindowBackend* obj, WindowHandle windowHandle, uint8_t* title, size_t titleLen) {
@@ -427,11 +415,11 @@ bool sdl2getWindowHidden(struct WindowBackend* obj, WindowHandle window) {
     return false;
 }
 
-void sdl2setWindowVsync(struct WindowBackend* obj, WindowHandle window, bool vsync) {
+void sdl2setVsync(struct WindowBackend* obj, bool vsync) {
     // TODO
 }
 
-bool sdl2getWindowVsync(struct WindowBackend* obj, WindowHandle window) {
+bool sdl2getVsync(struct WindowBackend* obj) {
     // TODO
     return false;
 }

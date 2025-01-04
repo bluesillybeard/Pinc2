@@ -238,13 +238,6 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_channel_bits(pinc_f
     return fmt->channel_bits[channel];
 }
 
-PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_depth_buffer_bits(pinc_framebuffer_format format_id) {
-    // TODO: shortcuts were taken, see pinc_query_framebuffer_format_ids
-    PUSEERROR_LIGHT_NL(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?\n");
-    PUSEERROR_LIGHT_NL(format_id < framebufferFormatNum && format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?\n");
-    return framebufferFormats[format_id].depth_buffer_bits;
-}
-
 PINC_EXPORT pinc_color_space PINC_CALL pinc_query_framebuffer_format_color_space(pinc_framebuffer_format format_id) {
     // TODO: shortcuts were taken, see pinc_query_framebuffer_format_ids
     PUSEERROR_LIGHT_NL(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?\n");
@@ -252,20 +245,13 @@ PINC_EXPORT pinc_color_space PINC_CALL pinc_query_framebuffer_format_color_space
     return framebufferFormats[format_id].color_space;
 }
 
-PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_max_samples(pinc_framebuffer_format format_id) {
-    // TODO: shortcuts were taken, see pinc_query_framebuffer_format_ids
-    PUSEERROR_LIGHT_NL(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?\n");
-    PUSEERROR_LIGHT_NL(format_id < framebufferFormatNum && format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?\n");
-    return framebufferFormats[format_id].max_samples;
-}
-
-PINC_EXPORT uint32_t PINC_CALL pinc_query_max_open_windows(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend) {
+PINC_EXPORT uint32_t PINC_CALL pinc_query_max_open_windows(pinc_window_backend window_backend) {
     // TODO: only window backend is SDL2, shortcuts are taken
-    return WindowBackend_queryMaxOpenWindows(&sdl2WindowBackend, graphics_backend);
+    return WindowBackend_queryMaxOpenWindows(&sdl2WindowBackend);
 }
 
 
-PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format framebuffer_format_id, uint32_t samples) {
+PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format framebuffer_format_id, uint32_t samples, uint32_t depth_buffer_bits) {
     // TODO: only window backend is SDL2, shortcuts are taken
     PUSEERROR_LIGHT_NL(window_backend != pinc_window_backend_none, "Unsupported window backend\n");
     if(window_backend == pinc_window_backend_any) {
@@ -282,7 +268,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend wi
     PUSEERROR_LIGHT_NL(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?\n");
     PUSEERROR_LIGHT_NL(framebuffer_format_id < framebufferFormatNum && framebuffer_format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?\n");
     FramebufferFormat framebuffer = framebufferFormats[framebuffer_format_id];
-    pinc_return_code result = WindowBackend_completeInit(&sdl2WindowBackend, graphics_backend, framebuffer, samples);
+    pinc_return_code result = WindowBackend_completeInit(&sdl2WindowBackend, graphics_backend, framebuffer, samples, depth_buffer_bits);
     if(result == pinc_return_code_error) {
         return pinc_return_code_error;
     }
@@ -317,7 +303,6 @@ PINC_EXPORT pinc_window PINC_CALL pinc_window_create_incomplete(void) {
         false, // bool fullscreen;
         false, // bool focused;
         false, // bool hidden;
-        true, // bool vsync;
     };
     return handle;
 }
