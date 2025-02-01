@@ -34,7 +34,7 @@ add_library(pinc
     src/platform/platform.c
     src/sdl2.c
 )
-
+set_target_properties(pinc PROPERTIES C_STANDARD 99)
 set_target_properties(pinc PROPERTIES VERSION ${PROJECT_VERSION})
 set_target_properties(pinc PROPERTIES PUBLIC_HEADER include/pinc.h)
 set_target_properties(pinc PROPERTIES PUBLIC_HEADER include/pinc_opengl.h)

@@ -54,6 +54,13 @@ static void pinc_root_platform_free(void* obj, void* ptr, size_t size) {
     pFree(ptr, size);
 }
 
+static AllocatorVtable platform_alloc_vtable = (AllocatorVtable) {
+    .allocate = &pinc_root_platform_allocate,
+    .allocateAligned = &pinc_root_platform_allocateAligned,
+    .reallocate = &pinc_root_platform_reallocate,
+    .free = &pinc_root_platform_free,
+};
+
 // Implementation of allocator based on the user callbacks
 // These need to exist due to the potential ABI difference between this internal allocator, and the PINC_PROC_CALL setting.
 // the object can be set to the user pointer though
@@ -72,6 +79,13 @@ static void* pinc_root_user_reallocate(void* obj, void* ptr, size_t oldSize, siz
 static void pinc_root_user_free(void* obj, void* ptr, size_t size) {
     pfn_user_free(obj, ptr, size);
 }
+
+static AllocatorVtable user_alloc_vtable = (AllocatorVtable) {
+    .allocate = &pinc_root_user_allocate,
+    .allocateAligned = &pinc_root_user_allocateAligned,
+    .reallocate = &pinc_root_user_reallocate,
+    .free = &pinc_root_user_free,
+};
 
 // Some other variables exclusive to this translation unit
 
@@ -114,7 +128,7 @@ static pinc_object PincObject_allocate(void) {
             objectsCapacity = newObjectsCapacity;
         }
     }
-    // TODO: search for an empty spot instead of growing the list indefinitely
+    // TODO: get an empty spot instead of growing the list indefinitely
     objectsNum++;
     pinc_object id = objectsNum;
     if(id != objectsNum) PPANIC_NL("Integer Overflow\n");
@@ -148,13 +162,15 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_incomplete_init(void) {
     
     if(pfn_user_alloc) {
         // User callbacks are set
-        rootAllocator = (Allocator){
-            ptr_user_alloc, &pinc_root_user_allocate, &pinc_root_user_allocateAligned, &pinc_root_user_reallocate, &pinc_root_user_free
+        rootAllocator = (Allocator) {
+            .allocatorObjectPtr = ptr_user_alloc,
+            .vtable = &user_alloc_vtable,
         };
     } else {
         // user callbacks are not set
         rootAllocator = (Allocator){
-            0, &pinc_root_platform_allocate, &pinc_root_platform_allocateAligned, &pinc_root_platform_reallocate, &pinc_root_platform_free
+            .allocatorObjectPtr = 0,
+            .vtable = &platform_alloc_vtable,
         };
     }
 
@@ -313,6 +329,8 @@ PINC_EXPORT void PINC_CALL pinc_window_set_title(pinc_window window, const char*
     if(title_len == 0) {
         title_len = pStringLen(title_buf);
     }
+    // this is over here because reasons
+    uint8_t* titlePtr;
     switch (object->discriminator)
     {
         case PincObjectDiscriminator_incompleteWindow:
@@ -324,7 +342,7 @@ PINC_EXPORT void PINC_CALL pinc_window_set_title(pinc_window window, const char*
             break;
         case PincObjectDiscriminator_window:
             // Window takes ownership of the pointer, but we don't have ownership of title_buf
-            uint8_t* titlePtr = Allocator_allocate(rootAllocator, title_len);
+            titlePtr = (uint8_t*)Allocator_allocate(rootAllocator, title_len);
             pMemCopy(title_buf, titlePtr, title_len);
             WindowBackend_setWindowTitle(&windowBackend, object->window, titlePtr, title_len);
             break;

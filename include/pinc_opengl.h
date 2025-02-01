@@ -23,7 +23,7 @@ typedef uint32_t pinc_raw_opengl_context;
 
 PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_version_supported(pinc_window_backend backend, uint32_t major, uint32_t minor, bool es);
 
-// depth buffer and srgb is already handled by base Pinc framebuffer format.
+// srgb is already handled by base Pinc framebuffer format.
 // Unfortunately, due to certain reasons, the raw opengl backend
 // still has to adhere to Pinc's requirement of only one framebuffer format for all windows (and by proxy all opengl contexts).
 
