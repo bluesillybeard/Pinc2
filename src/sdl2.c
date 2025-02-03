@@ -82,6 +82,12 @@ static void* sdl2LoadLib(void) {
     return lib;
 }
 
+static void sdl2UnloadLib(void* lib) {
+    if(lib) {
+        pUnloadLibrary(lib);
+    }
+}
+
 // declare the sdl2 window functions
 
 #define PINC_WINDOW_INTERFACE_FUNCTION(type, arguments, name, argumentsNames) type sdl2##name arguments;
@@ -98,12 +104,13 @@ bool psdl2Init(WindowBackend* obj) {
     void* lib = sdl2LoadLib();
     if(!lib) {
         pPrintFormat("SDL2 could not be loaded, disabling SDL2 backend\n\n");
-        // TODO: clean up
+        // sdl2UnloadLib(lib);
         return false;
     }
     sdl2Lib = lib;
     obj->obj = Allocator_allocate(rootAllocator, sizeof(Sdl2WindowBackend));
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    pMemSet(0, this, sizeof(Sdl2WindowBackend));
     loadSdl2Functions(sdl2Lib, &this->libsdl2);
     // TODO: warn for any functions that were not loaded
     SDL_version sdlVersion;
@@ -127,8 +134,11 @@ bool psdl2Init(WindowBackend* obj) {
 
 void psdl2Deinit(WindowBackend* obj) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    this->libsdl2.quit();
+    Allocator_free(rootAllocator, this->windows, sizeof(Sdl2Window*) * this->windowsCapacity);
     Allocator_free(rootAllocator, this, sizeof(Sdl2WindowBackend));
-    // TODO: quit sdl2
+    sdl2UnloadLib(sdl2Lib);
+    sdl2Lib = 0;
 }
 
 // Fingers crossed the compiler sees that this obviously counts the number of set bits and uses a more efficient method
@@ -398,6 +408,10 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
     sdl2AddWindow(this, windowObj);
 
     return (WindowHandle)windowObj;
+}
+
+void sdl2deinitWindow(struct WindowBackend* obj, WindowHandle windowHandle) {
+    // TODO
 }
 
 void sdl2setWindowTitle(struct WindowBackend* obj, WindowHandle windowHandle, uint8_t* title, size_t titleLen) {

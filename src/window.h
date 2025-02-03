@@ -51,6 +51,7 @@ struct WindowBackend;
     /* ### Window Property Functions ## */ \
     /* May return null in the case of an error */ \
     PINC_WINDOW_INTERFACE_FUNCTION(WindowHandle, (struct WindowBackend* obj, IncompleteWindow const * incomplete), completeWindow, (obj, incomplete)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(void, (struct WindowBackend* obj, WindowHandle window), deinitWindow, (obj, window)) \
     /* This function takes ownership of the title's memory. It is assumed to be on the pinc root allocator. */ \
     PINC_WINDOW_INTERFACE_FUNCTION(void, (struct WindowBackend* obj, WindowHandle window, uint8_t* title, size_t titleLen), setWindowTitle, (obj, window, title, titleLen)) \
     /* Returned memory is owned by the window */ \

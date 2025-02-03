@@ -11,6 +11,7 @@
 #define SDL_FUNC(type, name, realName, args)
 #define SDL_FUNCTIONS \
     SDL_FUNC(int, init, SDL_Init, (uint32_t flags)) \
+    SDL_FUNC(void, quit, SDL_Quit, (void)) \
     SDL_FUNC(void, getVersion, SDL_GetVersion, (SDL_version* ver)) \
     SDL_FUNC(int, getNumVideoDisplays, SDL_GetNumVideoDisplays, (void)) \
     SDL_FUNC(int, getNumDisplayModes, SDL_GetNumDisplayModes, (int displayIndex)) \

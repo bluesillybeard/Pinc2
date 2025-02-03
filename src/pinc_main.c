@@ -91,6 +91,7 @@ static AllocatorVtable user_alloc_vtable = (AllocatorVtable) {
 
 static WindowBackend sdl2WindowBackend;
 
+// On the root allocator
 static FramebufferFormat* framebufferFormats = 0;
 
 static size_t framebufferFormatNum;
@@ -323,7 +324,7 @@ PINC_EXPORT pinc_window PINC_CALL pinc_window_create_incomplete(void) {
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_title(pinc_window window, const char* title_buf, uint32_t title_len) {
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_window_create_complete?\n");
+    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
     PincObject* object = PincObject_ref(window);
     if(title_len == 0) {
         title_len = pStringLen(title_buf);
@@ -350,7 +351,7 @@ PINC_EXPORT void PINC_CALL pinc_window_set_title(pinc_window window, const char*
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_window_complete(pinc_window window) {
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_window_create_complete?\n");
+    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
     PincObject* object = PincObject_ref(window);
     PUSEERROR_LIGHT_NL(object->discriminator == PincObjectDiscriminator_incompleteWindow, "Invalid Object (pinc_window_complete): Window is not an incomplete window object\n");
     WindowHandle handle = WindowBackend_completeWindow(&windowBackend, &object->incompleteWindow);
@@ -362,22 +363,128 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_window_complete(pinc_window window) 
     return pinc_return_code_pass;
 }
 
+PINC_EXPORT void PINC_CALL pinc_window_deinit(pinc_window window) {
+    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
+    PincObject* object = PincObject_ref(window);
+    switch(object->discriminator) {
+        case PincObjectDiscriminator_incompleteWindow:{
+            PincObject_free(window);
+            break;
+        }
+        case PincObjectDiscriminator_window:{
+            WindowBackend_deinitWindow(&windowBackend, &object->window);
+            break;
+        }
+        default:{
+            PUSEERROR_LIGHT_NL(object->discriminator == PincObjectDiscriminator_incompleteWindow, "Invalid Object (pinc_window_deinit): Window is not a window object\n");
+            break;
+        }
+    }
+}
+
+PINC_EXPORT pinc_object_type PINC_CALL pinc_get_object_type(pinc_object obj) {
+    PincObject* object = PincObject_ref(obj);
+    switch (object->discriminator)
+    {
+    case PincObjectDiscriminator_none:
+        return pinc_object_type_none;
+    case PincObjectDiscriminator_incompleteWindow:
+    case PincObjectDiscriminator_window:
+        return pinc_object_type_window;
+    default:
+        PPANIC_NL("Invalid object type - this is an error within Pinc!\n");
+    }
+}
+
 PINC_EXPORT void PINC_CALL pinc_step(void) {
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_window_create_complete?\n");
+    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
     WindowBackend_step(&windowBackend);
     // TODO: clear temp allocator
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_closed(pinc_window window) {
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_window_create_complete?\n");
+    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
     PincObject* object = PincObject_ref(window);
     PUSEERROR_LIGHT_NL(object->discriminator == PincObjectDiscriminator_window, "Invalid Object (pinc_event_window_closed): must be a window object\n");
     return WindowBackend_windowEventClosed(&windowBackend, object->window);
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_present_framebuffer(pinc_window window) {
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_window_create_complete?\n");
+    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
     PincObject* object = PincObject_ref(window);
     PUSEERROR_LIGHT_NL(object->discriminator == PincObjectDiscriminator_window, "Invalid Object (pinc_event_window_closed): must be a window object\n");
     WindowBackend_windowPresentFramebuffer(&windowBackend, object->window);
+}
+
+PINC_EXPORT void PINC_CALL pinc_deinit(void) {
+    // Pinc deinit should work when called at ANY POINT AT ALL
+    // Essentially, it is a safe function that says "call me at any point to completely reset Pinc to ground zero"
+    // As such, there is quite a lot of work to do.
+    // - destroy framebuffer formats
+    // - destroy any objects
+    // - deinit all backends (there may be multiple as this can be called before one is chosen)
+
+    // If the allocator is not initialized, then it means Pinc is not initialized in any capacity and we can just return
+    if(rootAllocator.vtable == NULL) {
+        return;
+    }
+
+    // Destroy framebuffer formats
+    if(framebufferFormats && framebufferFormatNum) {
+        Allocator_free(rootAllocator, framebufferFormats, framebufferFormatNum * sizeof(FramebufferFormat));
+        framebufferFormats = NULL;
+        framebufferFormatNum = 0;
+    }
+
+    if(objects && objectsCapacity) {
+        // Go through every object and destroy it
+        for(int i=0; i<objectsNum; ++i) {
+            pinc_object id = i+1;
+            switch (pinc_get_object_type(id))
+            {
+                case pinc_object_type_none: {
+                    break;
+                }
+                case pinc_object_type_window: {
+                    pinc_window_deinit(id);
+                    break;
+                }
+                case pinc_object_type_vertex_attributes: {
+                    // TODO
+                    break;
+                }
+                case pinc_object_type_uniforms: {
+                    // TODO
+                    break;
+                }
+                case pinc_object_type_shaders: {
+                    // TODO
+                    break;
+                }
+                case pinc_object_type_pipeline: {
+                    // TODO
+                    break;
+                }
+                case pinc_object_type_vertex_array: {
+                    // TODO
+                    break;
+                }
+                case pinc_object_type_texture: {
+                    // TODO
+                    break;
+                }
+                default:
+                    PPANIC_NL("Invalid object type! This is an error in Pinc itself.\n");
+            }
+        }
+    }
+
+    // deinit backends
+    // TODO: only window backend is sdl2, shortcuts are taken
+    if(windowBackendSet) {
+        psdl2Deinit(&windowBackend);
+        windowBackendSet = false;
+        windowBackend.obj = 0;
+        sdl2WindowBackend.obj = 0;
+    }
 }

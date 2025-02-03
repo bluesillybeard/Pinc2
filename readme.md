@@ -40,6 +40,7 @@ The original version written in Zig can be found [here](https://github.com/blues
 - Pinc does not provide a main loop
     - For applet based platforms (ex: emscripten, WASI), this means potentially making your code either reentrant or just running it on another thread
 - Pinc's API has a complete memory barrier from your application. Pinc will not give you pointers to accidentally store, and it will not store any pointers you give it. (other than some callbacks and related pointers)
+- Pinc is written for C99. If your compiler doesn't support C99... good luck getting any C code written in the last 10 years to work.
 
 ## This library is barely even started. Here's what's left to do:
 - (PARTIALLY DONE) set up interface for window backend

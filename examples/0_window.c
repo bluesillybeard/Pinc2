@@ -24,4 +24,6 @@ int main(int argc, char** argv) {
         }
         pinc_window_present_framebuffer(window);
     }
+    pinc_window_deinit(window);
+    pinc_deinit();
 }

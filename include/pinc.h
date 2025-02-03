@@ -418,6 +418,9 @@ PINC_EXTERN pinc_window PINC_CALL pinc_window_create_incomplete(void);
 
 PINC_EXTERN pinc_return_code PINC_CALL pinc_window_complete(pinc_window window);
 
+// Deinit / close / destroy a window object.
+PINC_EXTERN void PINC_CALL pinc_window_deinit(pinc_window window);
+
 // window properties:
 // ALL window properties have defaults so users can get up and running ASAP. However, many of those defaults cannot be determined until after some point.
 // r -> can be read at any time. It has a default [default is in square brackets]

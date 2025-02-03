@@ -69,6 +69,8 @@ install(TARGETS pinc
 
 # examples
 
+# Example 0_window
+
 add_executable(example_window
     examples/0_window.c
 )
@@ -77,3 +79,14 @@ target_include_directories(example_window PUBLIC include)
 target_include_directories(example_window PRIVATE examples)
 
 target_link_libraries(example_window PUBLIC pinc)
+
+# Example 1_multi_init
+
+add_executable(example_multi_init
+    examples/1_multi_init.c
+)
+
+target_include_directories(example_multi_init PUBLIC include)
+target_include_directories(example_multi_init PRIVATE examples)
+
+target_link_libraries(example_multi_init PUBLIC pinc)
