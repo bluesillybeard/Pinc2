@@ -3,30 +3,78 @@
 #include "window.h"
 #include "sdl2load.h"
 
+typedef struct Sdl2WindowEvents {
+    bool closed;
+} Sdl2WindowEvents;
+
+#define PINC_SDL2_EMPTY_WINDOW_EVENTS (Sdl2WindowEvents) {\
+    .closed = false,\
+}
+
 typedef struct {
-    SdlWindowHandle sdlWindow;
-    uint8_t* titlePtr;
-    size_t titleLen;
+    SDL_Window* sdlWindow;
+    PString title;
+    Sdl2WindowEvents events;
 } Sdl2Window;
 
 typedef struct {
     Sdl2Functions libsdl2;
-    // May be null. Is reused as the first window the user creates.
+    // May be null.
     Sdl2Window* dummyWindow;
     // Whether the dummy window is also in use as a user-facing window object
     bool dummyWindowInUse;
+    // List of windows.
+    // TODO: instead of a list of pointers, just use a list of the struct itself
+    // All external references to a window would need to change to be an ID / index into the list, instead of an arbitrary pointer.
+    Sdl2Window** windows;
+    size_t windowsNum;
+    size_t windowsCapacity;
 } Sdl2WindowBackend;
+
+// Adds a window to the list of windows
+void sdl2AddWindow(Sdl2WindowBackend* this, Sdl2Window* window) {
+    if(!this->windows) {
+        this->windows = Allocator_allocate(rootAllocator, sizeof(Sdl2Window*) * 8);
+        this->windowsNum = 0;
+        this->windowsCapacity = 8;
+    }
+    if(this->windowsCapacity == this->windowsNum) {
+        this->windows = Allocator_reallocate(rootAllocator, this->windows, sizeof(Sdl2Window*) * this->windowsCapacity, sizeof(Sdl2Window*) * this->windowsCapacity * 2);
+        this->windowsCapacity = this->windowsCapacity * 2;
+    }
+    this->windows[this->windowsNum] = window;
+    this->windowsNum++;
+}
+
+// This IS NOT responsible for actually destroying the window.
+// It only removes a window from the list of windows.
+void sdl2RemoveWindow(Sdl2WindowBackend* this, Sdl2Window* window) {
+    // Get the index of this window
+    // Linear search is fine - this is cold code (hopefully), and the number of windows (should be) quite small.
+    // Arguably it's the user's problem if they are constantly destroying windows and there are enough of them to make linear search slow.
+    uintptr_t index;
+    for(uintptr_t i=0; i<this->windowsNum; i++) {
+        if(this->windows[i] == window) {
+            index = i;
+            break;
+        }
+    }
+    // Order of windows is not important, swap remove
+    this->windows[index] = this->windows[this->windowsNum-1];
+    this->windows[this->windowsNum-1] = NULL;
+    this->windowsNum--;
+}
 
 static void* sdl2Lib = 0;
 
 static void* sdl2LoadLib(void) {
     // TODO: what are all the library name possibilities?
-    // Note: For now, we only use functions from the original 2.0.0 release
+    // Note: For now, we only use functionality from the original 2.0.0 release
     // On my Linux mint system with libsdl2-dev installed, I get:
     // - libSDL2-2.0.so
     // - libSDL2-2.0.so.0
     // - libSDL2-2.0.so.0.3000.0
-    // - libSDL2.so
+    // - libSDL2.so - this one only seems to be present with the dev package installed
     void* lib = pLoadLibrary((uint8_t*)"SDL2-2.0", 8);
     if(!lib) {
         lib = pLoadLibrary((uint8_t*)"SDL2", 4);
@@ -58,7 +106,7 @@ bool psdl2Init(WindowBackend* obj) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     loadSdl2Functions(sdl2Lib, &this->libsdl2);
     // TODO: warn for any functions that were not loaded
-    SdlVersion sdlVersion;
+    SDL_version sdlVersion;
     this->libsdl2.getVersion(&sdlVersion);
     pPrintFormat("Loaded SDL2 version: %i.%i.%i\n", sdlVersion.major, sdlVersion.minor, sdlVersion.patch);
     if(sdlVersion.major < 2) {
@@ -104,18 +152,17 @@ static Sdl2Window* _dummyWindow(Sdl2WindowBackend* this) {
     pMemCopy(title, titlePtr, titleLen);
     IncompleteWindow windowSettings = {
         // Ownership is transferred to the window
-        titlePtr, // uint8_t* titlePtr;
-        titleLen, // size_t titleLen;
-        false, // bool hasWidth;
-        0, // uint32_t width;
-        false, // bool hasHeight;
-        0, // uint32_t height;
-        true, // bool resizable;
-        false, // bool minimized;
-        false, // bool maximized;
-        false, // bool fullscreen;
-        false, // bool focused;
-        true, // bool hidden;
+        .title = (PString) {.str = titlePtr, .len = titleLen},
+        .hasWidth = false,
+        .width = 0,
+        .hasHeight = false,
+        .height = 0,
+        .resizable = true,
+        .minimized = false,
+        .maximized = false,
+        .fullscreen = false,
+        .focused = false,
+        .hidden = true,
     };
     this->dummyWindow = sdl2completeWindow((struct WindowBackend*)this, &windowSettings);
     if(!this->dummyWindow) PPANIC_NL("Could not create dummy window\n");
@@ -175,12 +222,12 @@ FramebufferFormat* sdl2queryFramebufferFormats(struct WindowBackend* obj, Alloca
     for(int displayIndex=0; displayIndex<numDisplays; ++displayIndex) {
         int numDisplayModes = this->libsdl2.getNumDisplayModes(displayIndex);
         for(int displayModeIndex=0; displayModeIndex<numDisplayModes; ++displayModeIndex) {
-            SdlDisplayMode displayMode;
+            SDL_DisplayMode displayMode;
             this->libsdl2.getDisplayMode(displayIndex, displayModeIndex, &displayMode);
             // the pixel format is a bitfield, like so (in little endian order):
             // bytes*8, bits*8, layout*4, order*4, type*4, 1, 0*remaining
             // SDL2 has us covered though, with a nice function that decodes all of it
-            SdlPixelFormat* format = this->libsdl2.allocFormat(displayMode.format);
+            SDL_PixelFormat* format = this->libsdl2.allocFormat(displayMode.format);
             FramebufferFormat bufferFormat;
             // TODO: properly figure out transparent window support
             if(format->palette) {
@@ -254,8 +301,43 @@ void sdl2deinit(struct WindowBackend* obj) {
     // TODO
 }
 
+
 void sdl2step(struct WindowBackend* obj) {
-    // TODO
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+
+    // Iterate all windows and reset their event data
+    // TODO: would it be a good idea to make an 'official' way to do this, or is it best for the backend to store its own list of windows?
+    for(uintptr_t windowIndex = 0; windowIndex < this->windowsNum; ++windowIndex) {
+        this->windows[windowIndex]->events = PINC_SDL2_EMPTY_WINDOW_EVENTS;
+    }
+
+    SDL_Event event;
+    NEXTLOOP:
+    while(this->libsdl2.pollEvent(&event)) {
+        switch (event.type) {
+            case SDL_WINDOWEVENT: {
+                SDL_Window* sdlWin = this->libsdl2.getWindowFromId(event.window.windowID);
+                if(!sdlWin) PPANIC_NL("SDL2 window from WindowEvent is NULL!\n");
+                Sdl2Window* windowObj = (Sdl2Window*)this->libsdl2.getWindowData(sdlWin, "pincSdl2Window");
+                if(!windowObj) PPANIC_NL("Pinc SDL2 window object from WindowEvent is NULL!\n");
+                switch (event.window.event) {
+                    case SDL_WINDOWEVENT_CLOSE:{
+                        windowObj->events.closed = true;
+                        break;
+                    }
+                    default:{
+                        // TODO: once all window events are handled, assert.
+                        break;
+                    }
+                }
+                break;
+            }
+            default:{
+                // TODO: Once all SDL events are handled, assert.
+                break;
+            }
+        }
+    }
 }
 
 WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow const * incomplete) {
@@ -273,12 +355,8 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
     // }
     // SDL expects a null-terminated title, while our actual title is not null terminated
     // (How come nobody ever makes options for those using non null-terminated strings?)
-    // TODO: should probably make some quick string marshalling functions for convenience
-    // Something like Allocator_marshalToNullterm(allocator, string, length) and Allocator_marshalFromNullTerm(allocator, string, *outLen)
     // Reminder: SDL2 uses UTF8 encoding for pretty much all strings
-    char* titleNullTerm = Allocator_allocate(tempAllocator, incomplete->titleLen+1);
-    pMemCopy(incomplete->titlePtr, titleNullTerm, incomplete->titleLen);
-    titleNullTerm[incomplete->titleLen] = 0;
+    char* titleNullTerm = PString_marshalAlloc(incomplete->title, tempAllocator);
     // TODO: is ResetHints a good idea?
     uint32_t windowFlags = 0;
     if(incomplete->resizable) {
@@ -302,16 +380,23 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
     if(incomplete->hidden) {
         windowFlags |= SDL_WINDOW_HIDDEN;
     }
-    SdlWindowHandle win = this->libsdl2.createWindow(titleNullTerm, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 256, 256, windowFlags);
+    SDL_Window* win = this->libsdl2.createWindow(titleNullTerm, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 256, 256, windowFlags);
     // I'm so paranoid, I actually went through the SDL2 source code to make sure it actually duplicates the window title to avoid a use-after-free
     // Better too worried than not enough I guess
-    Allocator_free(tempAllocator, titleNullTerm, incomplete->titleLen+1);
+    Allocator_free(tempAllocator, titleNullTerm, incomplete->title.len+1);
 
-    // Title's ownership is in the window object itself
     Sdl2Window* windowObj = Allocator_allocate(rootAllocator, sizeof(Sdl2Window));
+    
+    // Title's ownership is in the window object itself
     windowObj->sdlWindow = win;
-    windowObj->titleLen = incomplete->titleLen;
-    windowObj->titlePtr = incomplete->titlePtr;
+    windowObj->title = incomplete->title;
+
+    // So we can easily get one of our windows out of the SDL2 window handle
+    this->libsdl2.setWindowData(win, "pincSdl2Window", windowObj);
+
+    // Add it to the list of windows
+    sdl2AddWindow(this, windowObj);
+
     return (WindowHandle)windowObj;
 }
 
@@ -319,23 +404,20 @@ void sdl2setWindowTitle(struct WindowBackend* obj, WindowHandle windowHandle, ui
     // We take ownership of the title
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     Sdl2Window* window = (Sdl2Window*)windowHandle;
-    Allocator_free(rootAllocator, window->titlePtr, window->titleLen);
-    window->titlePtr = title;
-    window->titleLen = titleLen;
+    PString_free(&window->title, rootAllocator);
+    window->title = (PString){.str = title, .len = titleLen};
     // Let SDL2 know that the title was changed
-    // It needs to me null terminated because reasons
+    // It needs to be null terminated because reasons
     // TODO: let SDL2 have the window title and not keep our own copy of it?
-    char* titleNullTerm = Allocator_allocate(tempAllocator, titleLen+1);
-    pMemCopy(title, titleNullTerm, titleLen);
-    titleNullTerm[titleLen] = 0;
+    char* titleNullTerm = PString_marshalAlloc((PString){.str = title, .len = titleLen}, tempAllocator);
     this->libsdl2.setWindowTitle(window->sdlWindow, titleNullTerm);
     Allocator_free(tempAllocator, titleNullTerm, titleLen+1);
 }
 
 uint8_t const * sdl2getWindowTitle(struct WindowBackend* obj, WindowHandle windowHandle, size_t* outTitleLen) {
     Sdl2Window* window = (Sdl2Window*)windowHandle;
-    *outTitleLen = window->titleLen;
-    return window->titlePtr;
+    *outTitleLen = window->title.len;
+    return window->title.str;
 }
 
 void sdl2setWindowWidth(struct WindowBackend* obj, WindowHandle window, uint32_t width) {
@@ -425,9 +507,8 @@ bool sdl2getVsync(struct WindowBackend* obj) {
 }
 
 bool sdl2windowEventClosed(struct WindowBackend* obj, WindowHandle window) {
-    
-    // TODO
-    return false;
+    Sdl2Window* windowObj = (Sdl2Window*)window;
+    return windowObj->events.closed;
 }
 
 void sdl2windowPresentFramebuffer(struct WindowBackend* obj, WindowHandle window) {

@@ -68,7 +68,7 @@ size_t pStringLen(char const* str) {
     return strlen(str);
 }
 
-void pMemCopy(void const* source, void* destination, size_t numBytes) {
+void pMemCopy(void const* restrict source, void* restrict destination, size_t numBytes) {
     memcpy(destination, source, numBytes);
 }
 
@@ -81,16 +81,16 @@ void pMemSet(uint8_t value, void* destination, size_t numBytes) {
 }
 
 // TODO
-uint32_t pUtf8Unicode(uint8_t const* str, size_t strLen, size_t* outLen);
+uint32_t pUtf8Unicode(uint8_t const* restrict str, size_t strLen, size_t* restrict outLen);
 
 // TODO
 size_t pUnicodeUtf8(uint32_t codepoint, char* destStr);
 
 // TODO
-size_t pUtf8UnicodeString(uint8_t const* str, size_t strLen, uint32_t* outUnicode);
+size_t pUtf8UnicodeString(uint8_t const* restrict str, size_t strLen, uint32_t* restrict outUnicode);
 
 // TODO
-size_t pUnicodeUtf8String(uint32_t const* codepoints, size_t numCodepoints, uint8_t* outUtf8);
+size_t pUnicodeUtf8String(uint32_t const* restrict codepoints, size_t numCodepoints, uint8_t* restrict outUtf8);
 
 void pAssertFail(void) {
     // For now, use libc's assert

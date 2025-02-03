@@ -4,13 +4,13 @@
 
 // In general, here is what you can expect from the API:
 // - we assume floats are in the single precision IEE754 32 bit format.
-// - no structs, those are bad for ABI compatibility
+// - no structs, at least for now. Structs can cause ABI issues, and can be harder to deal with when making bindings.
 // - typedefs for ID handles
 
 // Usage error policy:
-// Usage errors occur when invalid inputs are used in a function. For example, entering 0 for an object handle when it must be defined.
+// Usage errors occur when invalid inputs are used in a function. For example, entering 0 for an object handle when it must be defined. See settings.md.
 // - Depends on build system settings and application structure
-//     - Errors can be set to disabled, rigorous, or light.
+//     - Errors can be set to disabled (0), rigorous (2), or light (1).
 //     - If errors are disabled, pinc does not validate any inputs and will crash or behave strangely when used incorrectly
 //     - Usage errors will trigger an error function defined by the user.
 //     - Rigorous is only meant to be used in debug mode when testing API usage, as it may impact performance significantly. It's meant to be treated like valgrind.
@@ -19,8 +19,8 @@
 // Other error policy:
 // - Pinc will trigger a function set by pinc_set_error_callback when something goes wrong outside of the code's direct control. Ex: no GPU available.
 //     - These can be disabled, but that is a bad idea unless you really know what you are doing
-// - Issues that occur due to pinc itself trigger panics. If this happens to you, please submit an issue with a reproduction test case.
-//     If you can't make a minimal reproduction, at least report the error and the context in which it appeared.
+// - Issues that occur due to pinc itself trigger panics / asserts. If this happens to you, please submit an issue with a reproduction test case.
+//     - If you can't make a minimal reproduction, at least report the error and the context in which it appeared.
 // - functions that may trigger an error will return a pinc_error_code
 
 // Memory policy: Ownership is never transferred between Pinc an the application. Pinc has its own allocation management system, and it should never mix with the applications.

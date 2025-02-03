@@ -307,18 +307,17 @@ PINC_EXPORT pinc_window PINC_CALL pinc_window_create_incomplete(void) {
     char* name = Allocator_allocate(rootAllocator, nameLen);
     pMemCopy(namebuf, name, nameLen);
     window->incompleteWindow = (IncompleteWindow){
-        (uint8_t*)name, // uint8_t* titlePtr;
-        nameLen, // size_t titleLen;
-        false, // bool hasWidth;
-        0, // uint32_t width;
-        false, // bool hasHeight;
-        0, // uint32_t height;
-        true, // bool resizable;
-        false, // bool minimized;
-        false, // bool maximized;
-        false, // bool fullscreen;
-        false, // bool focused;
-        false, // bool hidden;
+        .title = (PString){ .str = (uint8_t*)name, .len = nameLen},
+        .hasWidth = false,
+        .width = 0,
+        .hasHeight = false,
+        .height = 0,
+        .resizable = true,
+        .minimized = false,
+        .maximized = false,
+        .fullscreen = false,
+        .focused = false,
+        .hidden = false,
     };
     return handle;
 }
@@ -335,10 +334,8 @@ PINC_EXPORT void PINC_CALL pinc_window_set_title(pinc_window window, const char*
     {
         case PincObjectDiscriminator_incompleteWindow:
             // TODO: potential optimization here (this code is quite cold though)
-            Allocator_free(rootAllocator, object->incompleteWindow.titlePtr, object->incompleteWindow.titleLen);
-            object->incompleteWindow.titlePtr = Allocator_allocate(rootAllocator, title_len);
-            object->incompleteWindow.titleLen = title_len;
-            pMemCopy(title_buf, object->incompleteWindow.titlePtr, title_len);
+            PString_free(&object->incompleteWindow.title, rootAllocator);
+            object->incompleteWindow.title = PString_copy((PString){.str = (uint8_t*)title_buf, .len = title_len}, rootAllocator);
             break;
         case PincObjectDiscriminator_window:
             // Window takes ownership of the pointer, but we don't have ownership of title_buf

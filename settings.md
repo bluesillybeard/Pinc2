@@ -16,7 +16,7 @@ Header / Build settings are done in pinc.h by defining the setting if it is not 
 - `PINC_PROC_CALL` for the calling convention of pinc callbacks, such as the error and allocation callbacks. Default value is empty (default C calling convention)
 
 ## Settings that only apply to the library build
-Header settings are done in the pinc library source code in src/pinc_src.h by defining the setting if it is not already defined. These only need to be defined for building pinc, and do not need to be defined when including the header. To be clear, these settings are set by the build system, but their defaults are managed by pinc_src.h.
+Header settings are done in the pinc library source code in src/pinc_src.h by defining the setting if it is not already defined. These only need to be defined for building pinc, and do not need to be defined when including the header. To be clear, these settings are set by the build system, but their defaults are managed by pinc_src.h. Due to how build systems handle these settings (for example, cmake), these defaults may be duplicated over multiple files.
 
 - `PINC_ERROR_SETTING` for what kind of error reporting should be present.
     - options are 0, 1, 2

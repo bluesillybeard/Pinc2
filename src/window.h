@@ -5,6 +5,7 @@
 
 #include <pinc.h>
 #include "pinc_main.h"
+#include "pstring.h"
 
 typedef struct {
     uint32_t channels;
@@ -14,8 +15,7 @@ typedef struct {
 
 typedef struct {
     // Allocated on the Pinc root allocator
-    uint8_t* titlePtr;
-    size_t titleLen;
+    PString title;
     bool hasWidth;
     uint32_t width;
     bool hasHeight;
