@@ -16,9 +16,12 @@ void* pAlloc(size_t bytes) {
 
 void* pAllocAligned(size_t bytes, size_t alignment) {
     // aligned_alloc is C11 or newer. We want to be compatible with C99 if doable.
+    // Note: Pinc is purely compiled with C99, so this will never be true (for now)
     #if(__STDC_VERSION__ >= 201112L)
     return aligned_alloc(alignment, bytes);
     #else
+    P_UNUSED(bytes);
+    P_UNUSED(alignment);
     // Aligned alloc is not implemented for older than C11....
     // Oh well. Pinc is unlikely to use this. In other words: only bother fixing this if an error occurs.
     assert(0);
@@ -27,10 +30,12 @@ void* pAllocAligned(size_t bytes, size_t alignment) {
 }
 
 void* pRealloc(void* pointer, size_t oldSize, size_t newSize) {
+    P_UNUSED(oldSize);
     return realloc(pointer, newSize);
 }
 
 void pFree(void* pointer, size_t bytes) {
+    P_UNUSED(bytes);
     free(pointer);
 }
 
@@ -116,5 +121,6 @@ void pPrintFormat(char const* fmt, ...) {
 
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
     int res = snprintf(buf, capacity, "%" PRIu32, v);
-    return res;
+    if(res < 0) pAssertFail();
+    return (size_t)res;
 }

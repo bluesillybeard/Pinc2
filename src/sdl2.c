@@ -52,13 +52,16 @@ void sdl2RemoveWindow(Sdl2WindowBackend* this, Sdl2Window* window) {
     // Get the index of this window
     // Linear search is fine - this is cold code (hopefully), and the number of windows (should be) quite small.
     // Arguably it's the user's problem if they are constantly destroying windows and there are enough of them to make linear search slow.
+    bool indexFound = false;
     uintptr_t index;
     for(uintptr_t i=0; i<this->windowsNum; i++) {
         if(this->windows[i] == window) {
             index = i;
+            indexFound = true;
             break;
         }
     }
+    if(!indexFound) return;
     // Order of windows is not important, swap remove
     this->windows[index] = this->windows[this->windowsNum-1];
     this->windows[this->windowsNum-1] = NULL;
@@ -91,10 +94,12 @@ static void sdl2UnloadLib(void* lib) {
 // declare the sdl2 window functions
 
 #define PINC_WINDOW_INTERFACE_FUNCTION(type, arguments, name, argumentsNames) type sdl2##name arguments;
+#define PINC_WINDOW_INTERFACE_PROCEDURE(arguments, name, argumentsNames) void sdl2##name arguments;
 
 PINC_WINDOW_INTERFACE
 
 #undef PINC_WINDOW_INTERFACE_FUNCTION
+#undef PINC_WINDOW_INTERFACE_PROCEDURE
 
 bool psdl2Init(WindowBackend* obj) {
     if(sdl2Lib) {
@@ -125,10 +130,12 @@ bool psdl2Init(WindowBackend* obj) {
     this->libsdl2.init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
     // Load all of the functions into the vtable
     #define PINC_WINDOW_INTERFACE_FUNCTION(type, arguments, name, argumentsNames) obj->vt.name = sdl2##name;
+    #define PINC_WINDOW_INTERFACE_PROCEDURE(arguments, name, argumentsNames) obj->vt.name = sdl2##name;
 
     PINC_WINDOW_INTERFACE
 
     #undef PINC_WINDOW_INTERFACE_FUNCTION
+    #undef PINC_WINDOW_INTERFACE_PROCEDURE
     return true;
 }
 
@@ -143,8 +150,8 @@ void psdl2Deinit(WindowBackend* obj) {
 
 // Fingers crossed the compiler sees that this obviously counts the number of set bits and uses a more efficient method
 // TODO: actually check this
-static int bitCount32(uint32_t n) {
-    int counter = 0;
+static uint32_t bitCount32(uint32_t n) {
+    uint32_t counter = 0;
     while(n) {
         counter++;
         n &= (n - 1);
@@ -268,7 +275,7 @@ FramebufferFormat* sdl2queryFramebufferFormats(struct WindowBackend* obj, Alloca
     }
     // Allocate the final returned value
     FramebufferFormat* actualFormats = Allocator_allocate(allocator, formatsNum * sizeof(FramebufferFormat));
-    for(int fmi = 0; fmi<formatsNum; fmi++) {
+    for(size_t fmi = 0; fmi<formatsNum; fmi++) {
         actualFormats[fmi] = formats[fmi];
     }
     // Even though the temp allocator os a bump allocator, we may as well treat it as a real one.
@@ -278,6 +285,7 @@ FramebufferFormat* sdl2queryFramebufferFormats(struct WindowBackend* obj, Alloca
 }
 
 pinc_graphics_backend* sdl2queryGraphicsBackends(struct WindowBackend* obj, Allocator allocator, size_t* outNumBackends) {
+    P_UNUSED(obj);
     // The only one supported for now is raw opengl
     pinc_graphics_backend* backends = Allocator_allocate(allocator, sizeof(pinc_graphics_backend));
     *backends = pinc_graphics_backend_raw_opengl;
@@ -286,12 +294,17 @@ pinc_graphics_backend* sdl2queryGraphicsBackends(struct WindowBackend* obj, Allo
 }
 
 uint32_t sdl2queryMaxOpenWindows(struct WindowBackend* obj) {
+    P_UNUSED(obj);
     // SDL2 has no (arbitrary) limit on how many windows can be open.
     return 0;
 }
 
 pinc_return_code sdl2completeInit(struct WindowBackend* obj, pinc_graphics_backend graphicsBackend, FramebufferFormat framebuffer, uint32_t samples, uint32_t depthBufferBits) {
-    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    P_UNUSED(obj);
+    P_UNUSED(framebuffer);
+    P_UNUSED(samples);
+    P_UNUSED(depthBufferBits);
+    // Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     switch (graphicsBackend)
     {
         case pinc_graphics_backend_raw_opengl:
@@ -301,13 +314,14 @@ pinc_return_code sdl2completeInit(struct WindowBackend* obj, pinc_graphics_backe
         default:
             // We don't support this graphics backend.
             // Technically this code should never run, because the user API frontend should have caught this
-            PERROR_NL("Attempt to use SDL2 backend with an unsupported graphics backend\n");
+            PUSEERROR_LIGHT_NL(false, "Attempt to use SDL2 backend with an unsupported graphics backend\n");
             return pinc_return_code_error;
     }
     return pinc_return_code_pass;
 }
 
 void sdl2deinit(struct WindowBackend* obj) {
+    P_UNUSED(obj);
     // TODO
 }
 
@@ -322,7 +336,7 @@ void sdl2step(struct WindowBackend* obj) {
     }
 
     SDL_Event event;
-    NEXTLOOP:
+    // NEXTLOOP:
     while(this->libsdl2.pollEvent(&event)) {
         switch (event.type) {
             case SDL_WINDOWEVENT: {
@@ -407,10 +421,18 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
     // Add it to the list of windows
     sdl2AddWindow(this, windowObj);
 
+    // If the dummy window is not set, make this the dummy window
+    if(!this->dummyWindow) {
+        this->dummyWindow = windowObj;
+        this->dummyWindowInUse = true;
+    }
+
     return (WindowHandle)windowObj;
 }
 
 void sdl2deinitWindow(struct WindowBackend* obj, WindowHandle windowHandle) {
+    P_UNUSED(obj);
+    P_UNUSED(windowHandle);
     // TODO
 }
 
@@ -429,103 +451,265 @@ void sdl2setWindowTitle(struct WindowBackend* obj, WindowHandle windowHandle, ui
 }
 
 uint8_t const * sdl2getWindowTitle(struct WindowBackend* obj, WindowHandle windowHandle, size_t* outTitleLen) {
+    P_UNUSED(obj);
     Sdl2Window* window = (Sdl2Window*)windowHandle;
     *outTitleLen = window->title.len;
     return window->title.str;
 }
 
 void sdl2setWindowWidth(struct WindowBackend* obj, WindowHandle window, uint32_t width) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
+    P_UNUSED(width);
     // TODO
 }
 
 uint32_t sdl2getWindowWidth(struct WindowBackend* obj, WindowHandle window) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
     // TODO
     return 0;
 }
 
 void sdl2setWindowHeight(struct WindowBackend* obj, WindowHandle window, uint32_t height) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
+    P_UNUSED(height);
     // TODO
 }
 
 uint32_t sdl2getWindowHeight(struct WindowBackend* obj, WindowHandle window) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
     // TODO
     return 0;
 }
 
 float sdl2getWindowScaleFactor(struct WindowBackend* obj, WindowHandle window) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
     // TODO
     return 0;
 }
 
 void sdl2setWindowResizable(struct WindowBackend* obj, WindowHandle window, bool resizable) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
+    P_UNUSED(resizable);
     // TODO
 }
 
 bool sdl2getWindowResizable(struct WindowBackend* obj, WindowHandle window) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
     // TODO
     return false;
 }
 
 void sdl2setWindowMinimized(struct WindowBackend* obj, WindowHandle window, bool minimized) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
+    P_UNUSED(minimized);
     // TODO
 }
 
 bool sdl2getWindowMinimized(struct WindowBackend* obj, WindowHandle window) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
     // TODO
     return false;
 }
 
 void sdl2setWindowMaximized(struct WindowBackend* obj, WindowHandle window, bool maximized) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
+    P_UNUSED(maximized);
     // TODO
 }
 
 bool sdl2getWindowMaximized(struct WindowBackend* obj, WindowHandle window) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
     // TODO
     return false;
 }
 
 void sdl2setWindowFullscreen(struct WindowBackend* obj, WindowHandle window, bool fullscreen) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
+    P_UNUSED(fullscreen);
     // TODO
 }
 
 bool sdl2getWindowFullscreen(struct WindowBackend* obj, WindowHandle window) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
     // TODO
     return false;
 }
 
 void sdl2setWindowFocused(struct WindowBackend* obj, WindowHandle window, bool focused) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
+    P_UNUSED(focused);
     // TODO
 }
 
 bool sdl2getWindowFocused(struct WindowBackend* obj, WindowHandle window) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
     // TODO
     return false;
 }
 
 void sdl2setWindowHidden(struct WindowBackend* obj, WindowHandle window, bool hidden) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
+    P_UNUSED(hidden);
     // TODO
 }
 
 bool sdl2getWindowHidden(struct WindowBackend* obj, WindowHandle window) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
     // TODO
     return false;
 }
 
 void sdl2setVsync(struct WindowBackend* obj, bool vsync) {
+    P_UNUSED(obj);
+    P_UNUSED(vsync);
     // TODO
 }
 
 bool sdl2getVsync(struct WindowBackend* obj) {
+    P_UNUSED(obj);
     // TODO
     return false;
 }
 
 bool sdl2windowEventClosed(struct WindowBackend* obj, WindowHandle window) {
+    P_UNUSED(obj);
     Sdl2Window* windowObj = (Sdl2Window*)window;
     return windowObj->events.closed;
 }
 
-void sdl2windowPresentFramebuffer(struct WindowBackend* obj, WindowHandle window) {
+bool sdl2windowEventResized(struct WindowBackend* obj, WindowHandle window) {
+    P_UNUSED(obj);
+    P_UNUSED(window);
     // TODO
+    return false;
 }
 
+void sdl2windowPresentFramebuffer(struct WindowBackend* obj, WindowHandle window) {
+    Sdl2Window* windowObj = (Sdl2Window*)window;
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    this->libsdl2.glSwapWindow(windowObj->sdlWindow);
+}
+
+pinc_raw_opengl_support_status sdl2queryRawGlVersionSupported(struct WindowBackend* obj, uint32_t major, uint32_t minor, bool es) {
+    P_UNUSED(obj);
+    P_UNUSED(major);
+    P_UNUSED(minor);
+    P_UNUSED(es);
+    // SDL2 has no clean way to query OpenGL support before attempting to make a context.
+    // TODO: document in pinc.h that when this function returns 'maybe',
+    // that one should fall-back to using the tried-and-true method of trying to make a context with said version
+    // to see if it works. Also document that this function does not attempt to create a context to query the version.
+    return pinc_raw_opengl_support_status_maybe;
+}
+
+pinc_raw_opengl_support_status sdl2queryRawGlAccumulatorBits(struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t channel, uint32_t bits) {
+    P_UNUSED(obj);
+    P_UNUSED(framebuffer);
+    P_UNUSED(channel);
+    P_UNUSED(bits);
+    // TODO
+    PPANIC_NL("Not implemented\n");
+    return 0;
+}
+
+pinc_raw_opengl_support_status sdl2queryRawGlStereoBuffer(struct WindowBackend* obj, FramebufferFormat framebuffer) {
+    P_UNUSED(obj);
+    P_UNUSED(framebuffer);
+    // TODO
+    PPANIC_NL("Not implemented\n");
+    return 0;
+}
+
+pinc_raw_opengl_support_status sdl2queryRawGlContextDebug(struct WindowBackend* obj) {
+    P_UNUSED(obj);
+    // TODO
+    PPANIC_NL("Not implemented\n");
+    return 0;
+}
+
+pinc_raw_opengl_support_status sdl2queryRawGlForwardCompatible(struct WindowBackend* obj) {
+    P_UNUSED(obj);
+    // TODO
+    PPANIC_NL("Not implemented\n");
+    return 0;
+}
+
+pinc_raw_opengl_support_status sdl2queryRawGlRobustAccess(struct WindowBackend* obj) {
+    P_UNUSED(obj);
+    // TODO
+    PPANIC_NL("Not implemented\n");
+    return 0;
+}
+
+pinc_raw_opengl_support_status sdl2queryRawGlResetIsolation(struct WindowBackend* obj) {
+    P_UNUSED(obj);
+    // TODO
+    PPANIC_NL("Not implemented\n");
+    return 0;
+}
+
+RawOpenglContextHandle sdl2rawGlCompleteContext(struct WindowBackend* obj, IncompleteRawGlContext incompleteContext) {
+    // TODO: Actually use the context information
+    P_UNUSED(incompleteContext);
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    Sdl2Window* dummyWindow = _dummyWindow(this);
+    SDL_GLContext sdlGlContext = this->libsdl2.glCreateContext(dummyWindow->sdlWindow);
+    if(!sdlGlContext) {
+        PString errorMsg = PString_concat(2, (PString[]){
+            PString_makeDirect((char*)"SDL2 backend: Could not create OpenGl context: "),
+            // const is not an issue, this string will not be modified
+            PString_makeDirect((char*)this->libsdl2.getError()),
+        },tempAllocator);
+        PERROR(errorMsg.str, errorMsg.len);
+        PString_free(&errorMsg, tempAllocator);
+        return 0;
+    }
+    // Unlike a window, an OpenGl context contains no other information than just the opaque pointer
+    // So no need to wrap it in a struct or anything
+    return sdlGlContext;
+}
+
+pinc_return_code sdl2rawGlMakeCurrent(struct WindowBackend* obj, WindowHandle window, RawOpenglContextHandle context) {
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    Sdl2Window* windowObj = (Sdl2Window*)window;
+    // Unlike a window, an OpenGl context contains no other information than just the opaque pointer
+    // So no need to wrap it in a struct or anything
+    SDL_GLContext contextObj = (SDL_GLContext)context;
+    int result = this->libsdl2.glMakeCurrent(windowObj->sdlWindow, contextObj);
+    if(result != 0) {
+        PString errorMsg = PString_concat(2, (PString[]){
+            PString_makeDirect((char*)"SDL2 backend: Could not make context current: "),
+            PString_makeDirect((char*)this->libsdl2.getError()),
+        },tempAllocator);
+        PERROR(errorMsg.str, errorMsg.len);
+        PString_free(&errorMsg, tempAllocator);
+        return pinc_return_code_error;
+    }
+    return pinc_return_code_pass;
+}
+
+void* sdl2rawGlGetProc(struct WindowBackend* obj, char const* procname) {
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    // make sure the context is current.
+    // If there is no current context, that is a user error that should be reported.
+    // TODO: is it a good idea to print out what SDL_GetError() returns as well?
+    PUSEERROR_LIGHT_NL(this->libsdl2.glGetCurrentContext(), "Cannot get proc address of an OpenGL function without a current context");
+    return this->libsdl2.glGetProcAddress(procname);
+}

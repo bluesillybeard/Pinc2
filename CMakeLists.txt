@@ -26,6 +26,12 @@ project(pinc
     HOMEPAGE_URL "TODO"
     LANGUAGES C
 )
+# vars
+
+# TODO: more compilers than just clang
+# TODO: build time option for sanitize
+set(PINC_COMPILE_OPTIONS "-Werror" "-pedantic-errors" "-Wall" "-Wextra" "-Wconversion" "-Wno-unused-function" "-fsanitize=address,undefined" CACHE STRING "options used to compile Pinc and the examples")
+set(PINC_LINK_OPTIONS "-fsanitize=address,undefined" CACHE STRING "linker flags for pinc and examples")
 
 include(GNUInstallDirs)
 
@@ -50,15 +56,7 @@ target_compile_definitions(pinc
     PRIVATE PINC_HAVE_GRAPHICS_RAW_OPENGL=${PINC_HAVE_GRAPHICS_RAW_OPENGL}
 )
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    # We like all the warnings we can get (and to treat them as errors!)
-    # Except that blasted unused function warning - I get why it's useful, but not for this project.
-    target_compile_options(pinc PRIVATE -Werror -pedantic-errors -Wall, -Wextra -Wconversion -Wno-unused-function -fsanitize=address,undefined)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    # We like all the warnings we can get (and to treat them as errors!)
-    # Except that blasted unused function warning - I get why it's useful, but not for this project.
-    target_compile_options(pinc PRIVATE -Werror -pedantic-errors -Wall, -Wextra -Wconversion -Wno-unused-function -fsanitize=address,undefined)
-endif()
+target_compile_options(pinc PRIVATE ${PINC_COMPILE_OPTIONS})
 
 install(TARGETS pinc
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -78,6 +76,9 @@ add_executable(example_window
 target_include_directories(example_window PUBLIC include)
 target_include_directories(example_window PRIVATE examples)
 
+target_compile_options(example_window PRIVATE ${PINC_COMPILE_OPTIONS})
+target_link_options(example_window PRIVATE ${PINC_LINK_OPTIONS})
+
 target_link_libraries(example_window PUBLIC pinc)
 
 # Example 1_multi_init
@@ -89,4 +90,21 @@ add_executable(example_multi_init
 target_include_directories(example_multi_init PUBLIC include)
 target_include_directories(example_multi_init PRIVATE examples)
 
+target_compile_options(example_multi_init PRIVATE ${PINC_COMPILE_OPTIONS})
+target_link_options(example_multi_init PRIVATE ${PINC_LINK_OPTIONS})
+
 target_link_libraries(example_multi_init PUBLIC pinc)
+
+# Example 2_opengl
+
+add_executable(example_opengl
+    examples/2_opengl.c
+)
+
+target_include_directories(example_opengl PUBLIC include)
+target_include_directories(example_opengl PRIVATE examples)
+
+target_compile_options(example_opengl PRIVATE ${PINC_COMPILE_OPTIONS})
+target_link_options(example_opengl PRIVATE ${PINC_LINK_OPTIONS})
+
+target_link_libraries(example_opengl PUBLIC pinc)

@@ -69,7 +69,7 @@ size_t pStringLen(char const* str);
 /// @param source The source of the copy operation
 /// @param destination Destination of the copy operation
 /// @param numBytes The number of bytes to copy
-void pMemCopy(void const* source, void* destination, size_t numBytes);
+void pMemCopy(void const* restrict source, void* restrict destination, size_t numBytes);
 
 /// @brief Same thing as pMemCopy, but the source and destination may overlap.
 void pMemMove(void const* source, void* destination, size_t numBytes);
@@ -118,5 +118,14 @@ void pPrintFormat(char const* fmt, ...);
 
 // Returns the number of characters that would have been written given enough space
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v);
+
+// Useful macros that depend on the compiler
+
+# if __GNUC__ || __clang__
+#   define P_UNUSED(var) (void) var
+# else
+// Assume other compilers are not supported
+#   define P_UNUSED(var)
+#endif
 
 #endif

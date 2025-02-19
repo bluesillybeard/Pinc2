@@ -26,20 +26,28 @@
     SDL_FUNC(void*, setWindowData, SDL_SetWindowData, (SDL_Window* window, char const* name, void* userdata)) \
     SDL_FUNC(void*, getWindowData, SDL_GetWindowData, (SDL_Window* window, char const* name)) \
     SDL_FUNC(SDL_Window*, getWindowFromId, SDL_GetWindowFromID, (uint32_t id)) \
+    SDL_FUNC(void, glSwapWindow, SDL_GL_SwapWindow, (SDL_Window* window)) \
+    SDL_FUNC(SDL_GLContext, glCreateContext, SDL_GL_CreateContext, (SDL_Window* window)) \
+    SDL_FUNC(int, glMakeCurrent, SDL_GL_MakeCurrent, (SDL_Window* window, SDL_GLContext context)) \
+    SDL_FUNC(void*, glGetProcAddress, SDL_GL_GetProcAddress, (const char* proc)) \
+    SDL_FUNC(SDL_GLContext, glGetCurrentContext, SDL_GL_GetCurrentContext, (void)) \
 
 #undef SDL_FUNC
 
 #define SDL_FUNC(type, name, realName, args) typedef type (SDLCALL * PFN_##realName) args;
+
 SDL_FUNCTIONS
 #undef SDL_FUNC
 
 #define SDL_FUNC(type, name, realName, args) PFN_##realName name;
+
 typedef struct {
     SDL_FUNCTIONS
 } Sdl2Functions;
 #undef SDL_FUNC
 
-#define SDL_FUNC(type, name, realName, args) functions->name = pLibrarySymbol(lib, (uint8_t*)#realName, pStringLen(#realName));
+#define SDL_FUNC(type, name, realName, args) functions->name = (PFN_##realName) pLibrarySymbol(lib, (uint8_t*)#realName, pStringLen(#realName));
+
 void loadSdl2Functions(void* lib, Sdl2Functions* functions) {
     SDL_FUNCTIONS
 }

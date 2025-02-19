@@ -164,7 +164,7 @@ static void* Allocator_reallocate(Allocator a, void* ptr, size_t oldSize, size_t
 /// @param pointer Pointer to free. Must be the exact pointer from allocate, allocateAligned, or reallocate on the same allocator
 /// @param bytes Number of bytes to free. Must be the exact size given to allocate, allocateAligned, or reallocate on the same allocator
 static void Allocator_free(Allocator a, void* ptr, size_t size) {
-    return a.vtable->free(a.allocatorObjectPtr, ptr, size);
+    a.vtable->free(a.allocatorObjectPtr, ptr, size);
 }
 
 /// @brief Pinc primary "root" allocator

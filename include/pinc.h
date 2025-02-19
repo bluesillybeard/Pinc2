@@ -85,7 +85,7 @@
 
 /// @brief Window backend
 typedef enum {
-    pinc_window_backend_any = -1,
+    pinc_window_backend_any = 0,
     /// @brief No window backend, for doing offline / headless rendering
     pinc_window_backend_none,
     pinc_window_backend_sdl2,
@@ -119,8 +119,8 @@ typedef enum {
 #define pinc_return_code uint32_t
 
 typedef enum {
-    pinc_object_type_none = -1,
-    pinc_object_type_window = 0,
+    pinc_object_type_none = 0,
+    pinc_object_type_window,
     pinc_object_type_vertex_attributes,
     pinc_object_type_uniforms,
     pinc_object_type_shaders,
@@ -294,7 +294,7 @@ typedef pinc_object pinc_window;
 
 /// @subsection preinit functions
 
-/// @brief Error callback. message_buf is null terminated for convenience. message_buf is temporary and a reference to it should not be kept.
+/// @brief Error callback. message_buf may or may not be null terminated. message_buf is temporary and a reference to it should not be kept.
 typedef void ( PINC_PROC_CALL * pinc_error_callback) (uint8_t const * message_buf, uintptr_t message_len);
 
 /// @brief Set a function called when external issues occur. This should be set for ALL pinc applications. It is technically optional.
@@ -395,8 +395,9 @@ PINC_EXTERN uint32_t PINC_CALL pinc_query_graphics_alpha_options(pinc_graphics_b
 
 // use -1 to use a default framebuffer format
 // samples is for MSAA. 1 is guaranteed to be supported
-// A depth bits of 0 means no depth buffer. If you want a depth buffer but don't care how many bits it is, 
-PINC_EXTERN pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format framebuffer_format_id, uint32_t samples, uint32_t depthBits);
+// A depth bits of 0 means no depth buffer.
+// TODO: If you want a depth buffer but don't care how many bits it is
+PINC_EXTERN pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format framebuffer_format_id, uint32_t samples, uint32_t depth_buffer_bits);
 
 /// @subsection post initialization related functions
 
@@ -460,7 +461,7 @@ PINC_EXTERN uint32_t PINC_CALL pinc_window_get_title(pinc_window window, char* t
 /// @param width the width to set.
 PINC_EXTERN void PINC_CALL pinc_window_set_width(pinc_window window, uint32_t width);
 
-/// @brief get the width of a window, in pixels
+/// @brief get the width of a window's drawable area, in pixels
 /// @param window the window whose width to get. Asserts the object is valid, is a window, and has its width set (see pinc_window_has_width)
 /// @return the width of the window
 PINC_EXTERN uint32_t PINC_CALL pinc_window_get_width(pinc_window window);
@@ -470,7 +471,7 @@ PINC_EXTERN uint32_t PINC_CALL pinc_window_get_width(pinc_window window);
 /// @return 1 if the windows width is set, 0 if not.
 PINC_EXTERN uint32_t PINC_CALL pinc_window_has_width(pinc_window window);
 
-/// @brief set the height of a window, in pixels
+/// @brief set the height of a window's drawable area, in pixels
 /// @param window the window whose height to set. Asserts the object is valid, and is a window
 /// @param height the height to set.
 PINC_EXTERN void PINC_CALL pinc_window_set_height(pinc_window window, uint32_t height);

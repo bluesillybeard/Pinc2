@@ -49,6 +49,8 @@ The original version written in Zig can be found [here](https://github.com/blues
 - Make sure all of the important TODOs are handled
 - Make the library public
     - Not yet at where the Zig version is, but the library is usable.
+- Move the depth bits and samples ENTIRELY to the graphics backend to handle
+    - Perhaps two different framebuffer formats: the one for the graphics->window->display, and the one for the additional pieces like depth buffer and alpha channel.
 - finish pinc graphics header
     - Just base it off the original one.
     - Changes I want to make:
@@ -71,6 +73,7 @@ The original version written in Zig can be found [here](https://github.com/blues
 - warning print system
 - (proper) debug print system
 - Make sure all functions that take pinc_window_backend or pinc_graphics_backend can take 'any' to reference the default one.
+- add platform implementation for Windows
 
 ## Implemented platforms
 - Posix / Unix
@@ -89,7 +92,6 @@ The original version written in Zig can be found [here](https://github.com/blues
 
 ## Tested Compilers
 - Clang (the LLVM C compiler)
-- GNU C Compiler (gcc)
 
 ## Important notes
 
@@ -211,6 +213,9 @@ None of these are going to be implemented any time soon - if ever.
     - Not worth the effort. Xlib works fine for X11.
 
 ## TODO and missing features (LOOKING FOR CONTRIBUTORS / API DESIGN IDEAS)
+- Move most of Pinc's static state to use a single static object
+    - This would make it easier to 'expose' Pinc's static state outside pinc_main.c
+    - Help wrangle all of the state into a single place so it's not scattered everywhere
 - better text selection input. ex: SDL_TextSelectionEvent
 - window position
     - wayland be like:
@@ -259,6 +264,7 @@ None of these are going to be implemented any time soon - if ever.
     - This is an extremely common thing to do, so it may make sense to just add this into Pinc directly - maybe an official (but separate) module?
     - Would we want to do only basic text (ASCII), a partial implementation of unicode (ex: FreeType), or a full text shaping engine (ex: HarfBuz)?
 - test and get working on different compilers / implementations of libc
+    - gcc
     - MSVC, as much as their C compiler sucks
         - how far back do we want to support? MSVC from 2010?
     - emscripten (once web support is added)
@@ -273,8 +279,17 @@ None of these are going to be implemented any time soon - if ever.
 - expose (most of) platform.h so users can write code that is just as portable as Pinc itself while not giving up features that libc doesn't have
 - Add options / code / auto detection for where libraries come from
     - This is a requirement for supporting platforms without dynamic linking (such as the web)
-- move state to structs or add prefixes to avoid strange linker weirdness
 - set up clang-tidy or another linter
+- set up testing with valgrind or other runtime analysis tools
+- allocation tracking
 - Add option to capture mouse and lock mouse
     - Capture mouse just forces it to be in the window. As much as I hate this as a user, may as well just add it for completeness.
     - Lock mouse forces it to be in the window, and is used for first-person games for camera movement, and sometimes by applications (like Blender) to have infinite mouse movement for certain operations (like changing unbounded sliders or panning the camera).
+- More build systems
+    - scons
+    - premake
+    - zig
+    - GNU make
+    - nix
+    - meson?
+    - autoconf?

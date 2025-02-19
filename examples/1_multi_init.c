@@ -2,7 +2,7 @@
 
 #include "example.h"
 // open a quick window
-int main(int argc, char** argv) {
+int main(void) {
     // Do it twice
     for(int i=0; i<2; ++i){
         pinc_preinit_set_error_callback(example_error_callback);

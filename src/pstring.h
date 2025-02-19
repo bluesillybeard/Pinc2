@@ -42,8 +42,11 @@ static inline PString PString_copy(PString const str, Allocator alloc) {
     };
 }
 
-// Makes a new traditional C string from a PString
+// Makes a new traditional C string from a PString.
+// Returns null if the given string is null
 static inline char* PString_marshalAlloc(PString str, Allocator alloc) {
+    // If the length is zero, we can't return a pointer to a zero byte
+    // as the user explicitly called for it to be allocated on alloc.
     char* newStr = Allocator_allocate(alloc, str.len+1);
     pMemCopy(str.str, newStr, str.len);
     newStr[str.len] = 0;
@@ -52,6 +55,7 @@ static inline char* PString_marshalAlloc(PString str, Allocator alloc) {
 
 // Marshals str into dest, where dest has capacity characters it can hold (including null terminator)
 static inline void PString_marshalDirect(PString str, char* dest, size_t capacity) {
+    if(capacity == 0) return;
     if(capacity > str.len) {
         capacity = str.len;
     }
@@ -72,6 +76,30 @@ static inline void PString_free(PString* str, Allocator alloc) {
     Allocator_free(alloc, str->str, str->len);
     str->str = 0;
     str->len = 0;
+}
+
+/// @brief Concatenate multiple strings together
+/// @param numStrings the number of strings in the array to concatenate together 
+/// @param strings the strings to concatenate
+/// @param alloc The allocator that the new string will be allocated on. This function is guaranteed to only make a single allocation.
+/// @return the result of the concatenation, allocated with alloc.
+static inline PString PString_concat(size_t numStrings, PString strings[], Allocator alloc) {
+    size_t totalLen = 0;
+    for(size_t index = 0; index < numStrings; ++index) {
+        totalLen += strings[index].len;
+    }
+    PString newStr = (PString) {
+        .len = totalLen,
+        .str = Allocator_allocate(alloc, totalLen),
+    };
+    uint8_t* writePtr = newStr.str;
+    for(size_t index = 0; index < numStrings; ++index) {
+        PString str1 = strings[index];
+        if(str1.len == 0) continue;
+        pMemCopy(str1.str, writePtr, str1.len);
+        writePtr += str1.len;
+    }
+    return newStr;
 }
 
 #endif

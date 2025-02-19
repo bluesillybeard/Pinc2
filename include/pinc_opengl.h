@@ -15,7 +15,8 @@ typedef enum {
     pinc_raw_opengl_support_status_definitely,
 } pinc_raw_opengl_support_status;
 
-typedef uint32_t pinc_raw_opengl_context;
+/// @brief OpenGL context handle.
+typedef pinc_object pinc_raw_opengl_context;
 
 // evil enum trickery
 #undef pinc_raw_opengl_support_status
@@ -48,9 +49,11 @@ PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_context_debug
 PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_forward_compatible(pinc_raw_opengl_context incomplete_context, bool compatible);
 PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_robust_access(pinc_raw_opengl_context incomplete_context, bool robust);
 PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_reset_isolation(pinc_raw_opengl_context incomplete_context, bool isolation);
+PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_version(pinc_raw_opengl_context incomplete_context, uint32_t major, uint32_t minor, bool es, bool core);
 
 // Pinc will try its best to apply the given settings for the context, but they may be different from the requested ones.
-PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_context_complete(void);
+PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_context_complete(pinc_raw_opengl_context incomplete_context);
+PINC_EXTERN void PINC_CALL pinc_raw_opengl_context_deinit(pinc_raw_opengl_context context);
 
 PINC_EXTERN uint32_t PINC_CALL pinc_raw_opengl_get_context_accumulator_bits(pinc_raw_opengl_context incomplete_context, uint32_t channel);
 PINC_EXTERN bool PINC_CALL pinc_raw_opengl_get_context_stereo_buffer(pinc_raw_opengl_context incomplete_context);
@@ -60,14 +63,22 @@ PINC_EXTERN bool PINC_CALL pinc_raw_opengl_get_context_robust_access(pinc_raw_op
 PINC_EXTERN bool PINC_CALL pinc_raw_opengl_get_context_reset_isolation(pinc_raw_opengl_context incomplete_context);
 
 /// @brief Make pinc's OpenGL context current. Asserts that the current backend is an OpenGL backend.
-/// @param window the window whose framebuffer to bind to the opengl context.
-PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_make_current(pinc_window window);
+/// @param window the window whose framebuffer to bind to the opengl context, or 0 if it doesn't matter.
+/// @param context the opengl context to bind with. Must be a complete context.
+/// @return a pinc return code indicating the success of this function
+PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_make_current(pinc_window window, pinc_raw_opengl_context context);
 
 PINC_EXTERN pinc_window PINC_CALL pinc_raw_opengl_get_current(void);
 
-/// @brief Get the function pointer to an OpenGL function.
+/// @brief Get the function pointer to an OpenGL function. On most platforms, this requires a current OpenGL context.
+///     Note that every OpenGL implementation has its own ideas about what function pointers end up with which contexts.
+///     In general, it's safest to assume every context has its own set of function pointers.
+///     Do not assume a function is available if this returns non-null.
 /// @param procname A null terminated string with the name of an OpenGL function.
 /// @return the function pointer, or null if it could not be found.
-PINC_EXTERN void* PINC_CALL pinc_raw_opengl_get_proc(uint8_t const * procname);
+PINC_EXTERN void* PINC_CALL pinc_raw_opengl_get_proc(char const * procname);
+
+// TODO: query extensions
+// TODO: get current window and context
 
 #endif
