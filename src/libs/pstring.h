@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <platform/platform.h>
-#include <pinc_main.h>
+#include "dynamic_allocator.h"
 
 /// @brief A basic string type. This is a basic C string, but there is no null terminator, and the length is held in the struct.
 typedef struct PString {

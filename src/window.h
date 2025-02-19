@@ -5,7 +5,7 @@
 
 #include <pinc.h>
 #include "pinc_main.h"
-#include "pstring.h"
+#include "libs/pstring.h"
 #include <pinc_opengl.h>
 
 typedef struct {
