@@ -7,21 +7,25 @@
 // - no structs, at least for now. Structs can cause ABI issues, and can be harder to deal with when making bindings.
 // - typedefs for ID handles
 
-// Usage error policy:
-// Usage errors occur when invalid inputs are used in a function. For example, entering 0 for an object handle when it must be defined. See settings.md.
-// - Depends on build system settings and application structure
-//     - Errors can be set to disabled (0), rigorous (2), or light (1).
-//     - If errors are disabled, pinc does not validate any inputs and will crash or behave strangely when used incorrectly
-//     - Usage errors will trigger an error function defined by the user.
-//     - Rigorous is only meant to be used in debug mode when testing API usage, as it may impact performance significantly. It's meant to be treated like valgrind.
-//     - Light has pretty decent performance, and is meant to be potentially shipped to production if performance is not a top concern
+// Error Policy:
+// Pinc has 5 types of errors, all of which can be enabled, disabled, and configured to call user callbacks.
+// Ordered from lowest to biggest performance impact:
+// - External error: an error that occurred from an external library. This either indicates an issue with the system running the program, or within Pinc.
+// - Assert error: an internal assert failed, this is an issue within Pinc.
+// - User error: an error in the program's usage of Pinc.
+// - Sanitize error: similar to adding "-fsanitize=address,undefined" to Pinc's flags - general validation checks for integer overflows and such
+// - Validate error: an error that is tough to check, such as memory allocation tracking, global state validation, etc.
 
-// Other error policy:
-// - Pinc will trigger a function set by pinc_set_error_callback when something goes wrong outside of the code's direct control. Ex: no GPU available.
-//     - These can be disabled, but that is a bad idea unless you really know what you are doing
-// - Issues that occur due to pinc itself trigger panics / asserts. If this happens to you, please submit an issue with a reproduction test case.
-//     - If you can't make a minimal reproduction, at least report the error and the context in which it appeared.
-// - functions that may trigger an error will return a pinc_error_code
+// In general, here are some useful configurations:
+// sanitize: External, Assert, User, Sanitize, and Validation are enabled - worst performance possible for maximum validation
+// debug: External, Assert, User, and Sanitize - mediocre performance for debugging purposes
+// test: External, Assert, User - decent performance for general testing, this is the default!
+// release: External, Assert - pretty good performance for distribution
+// speed: (all disabled) - maximize performance over everything else, absolutely zero error checking of any kind
+
+// Assert, and User errors are often not recoverable, and even if your callback doesn't, Pinc will call the platform's assert/panic/crash function.
+// Sanitize and Validate errors are theoretically recoverable, however Pinc (currently) will call the platform's assert function if you don't.
+// External errors are usually recoverable, as long as your program has some way to gracefully handle them.
 
 // Memory policy: Ownership is never transferred between Pinc an the application. Pinc has its own allocation management system, and it should never mix with the applications.
 // This means that the application will always free its own allocations, and Pinc will never return a pointer unless it was created by the user.
@@ -294,22 +298,25 @@ typedef pinc_object pinc_window;
 
 /// @subsection preinit functions
 
-/// @brief Error callback. message_buf may or may not be null terminated. message_buf is temporary and a reference to it should not be kept.
-typedef void ( PINC_PROC_CALL * pinc_error_callback) (uint8_t const * message_buf, uintptr_t message_len);
+/// @brief See error policy at the top of pinc.h
+typedef enum {
+    /// @brief Unknown error type, this is something should almost never happen. Usually this is called when Pinc devs get lazy and forget to implement something.
+    pinc_error_type_unknown = -1,
+    pinc_error_type_external = 0,
+    pinc_error_type_assert,
+    pinc_error_type_user,
+    pinc_error_type_sanitize,
+    pinc_error_type_validate,
+} pinc_error_type;
 
-/// @brief Set a function called when external issues occur. This should be set for ALL pinc applications. It is technically optional.
+#undef pinc_error_type
+#define pinc_error_type int32_t
+
+/// @brief Error callback. message_buf will be null terminated. message_buf is temporary and a reference to it should not be kept.
+typedef void ( PINC_PROC_CALL * pinc_error_callback) (uint8_t const * message_buf, uintptr_t message_len, pinc_error_type error_type);
+
+/// @brief Set the function for handling errors. This is optional, however Pinc just calls assert(0) if this is not set.
 PINC_EXTERN void PINC_CALL pinc_preinit_set_error_callback(pinc_error_callback callback);
-
-/// @brief Set a function called when issues withing Pinc occur. This is completely optional.
-///     It exists primarily for language and engines with their own panic reporting / debugging system. 
-///     It is also used for testing that panics ARE caught.
-///     Too often, testing cases that are supposed to panic is not simple, so this function makes that a possibility.
-///     After a panic, pinc_deinit() should be called and Pinc should be completely re-initialized from scratch in order to restore any broken state.
-PINC_EXTERN void PINC_CALL pinc_preinit_set_panic_callback(pinc_error_callback callback);
-
-/// @brief Set a function called when pinc usage errors occur. This is completely optional.
-///     It exists primarily for language and engines with their own panic reporting / debugging system. 
-PINC_EXTERN void PINC_CALL pinc_preinit_set_user_error_callback(pinc_error_callback callback);
 
 /// @brief Callback to allocate some memory. Aligned depending on platform such that any structure can be placed into this memory.
 ///     Identical to libc's malloc function.

@@ -16,7 +16,11 @@ set(PINC_EXPORT "" CACHE STRING "export property before function definitions")
 set(PINC_CALL "" CACHE STRING "calling convention to use")
 set(PINC_PROC_CALL "" CACHE STRING "calling convention for user-defined functions")
 # private
-set(PINC_ERROR_SETTING 2 CACHE STRING "error reporting severity")
+option(PINC_ENABLE_ERROR_EXTERNAL "Enable external error checking" ON)
+option(PINC_ENABLE_ERROR_ASSERT "Enable assert error checking" ON)
+option(PINC_ENABLE_ERROR_USER "Enable user error checking" ON)
+option(PINC_ENABLE_ERROR_SANITIZE "Enable sanitize error checking" OFF)
+option(PINC_ENABLE_ERROR_VALIDATE "Enable validate error checking" OFF)
 option(PINC_HAVE_WINDOW_SDL2 "compile with SDL2 window backend" ON)
 option(PINC_HAVE_GRAPHICS_RAW_OPENGL, "compile with raw opengl graphics backend" ON)
 
@@ -51,7 +55,11 @@ target_compile_definitions(pinc
     PUBLIC PINC_EXPORT=${PINC_EXPORT}
     PUBLIC PINC_CALL=${PINC_CALL}
     PUBLIC PINC_PROC_CALL=${PINC_PROC_CALL}
-    PRIVATE PINC_ERROR_SETTING=${PINC_ERROR_SETTING}
+    PRIVATE PINC_ENABLE_ERROR_EXTERNAL=${PINC_ENABLE_ERROR_EXTERNAL}
+    PRIVATE PINC_ENABLE_ERROR_ASSERT=${PINC_ENABLE_ERROR_ASSERT}
+    PRIVATE PINC_ENABLE_ERROR_USER=${PINC_ENABLE_ERROR_USER}
+    PRIVATE PINC_ENABLE_ERROR_SANITIZE=${PINC_ENABLE_ERROR_SANITIZE}
+    PRIVATE PINC_ENABLE_ERROR_VALIDATE=${PINC_ENABLE_ERROR_VALIDATE}
     PRIVATE PINC_HAVE_WINDOW_SDL2=${PINC_HAVE_WINDOW_SDL2}
     PRIVATE PINC_HAVE_GRAPHICS_RAW_OPENGL=${PINC_HAVE_GRAPHICS_RAW_OPENGL}
 )

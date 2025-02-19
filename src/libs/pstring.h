@@ -64,8 +64,9 @@ static inline void PString_marshalDirect(PString str, char* dest, size_t capacit
 }
 
 static inline PString PString_slice(PString str, size_t start, size_t len) {
-    if(str.len <= start) PPANIC_NL("Slice invalid: start index is out of bounds");
-    if(str.len < len+start) PPANIC_NL("Slice invalid: slice extends beyond end of source string");
+    // TODO: make these asserts nicer. Maybe integrate them with Pinc's error system with macros or something
+    if(str.len <= start) pAssertFail(); // "Slice invalid: start index is out of bounds"
+    if(str.len < len+start) pAssertFail(); // "Slice invalid: slice extends beyond end of source string"
     return (PString) {
         .str = str.str+start,
         .len = len,

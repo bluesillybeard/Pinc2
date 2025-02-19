@@ -182,7 +182,8 @@ static Sdl2Window* _dummyWindow(Sdl2WindowBackend* this) {
         .hidden = true,
     };
     this->dummyWindow = sdl2completeWindow((struct WindowBackend*)this, &windowSettings);
-    if(!this->dummyWindow) PPANIC_NL("Could not create dummy window\n");
+    // TODO: make this possibly recoverable?
+    PErrorAssert(this->dummyWindow, "SDL2 Backend: Could not create dummy window");
     return this->dummyWindow;
 }
 
@@ -314,7 +315,7 @@ pinc_return_code sdl2completeInit(struct WindowBackend* obj, pinc_graphics_backe
         default:
             // We don't support this graphics backend.
             // Technically this code should never run, because the user API frontend should have caught this
-            PUSEERROR_LIGHT_NL(false, "Attempt to use SDL2 backend with an unsupported graphics backend\n");
+            PErrorUser(false, "Attempt to use SDL2 backend with an unsupported graphics backend\n");
             return pinc_return_code_error;
     }
     return pinc_return_code_pass;
@@ -341,9 +342,11 @@ void sdl2step(struct WindowBackend* obj) {
         switch (event.type) {
             case SDL_WINDOWEVENT: {
                 SDL_Window* sdlWin = this->libsdl2.getWindowFromId(event.window.windowID);
-                if(!sdlWin) PPANIC_NL("SDL2 window from WindowEvent is NULL!\n");
+                // External -> caused by SDL2 giving us events for nonexistent windows
+                PErrorExternal(sdlWin, "SDL2 window from WindowEvent is NULL!");
                 Sdl2Window* windowObj = (Sdl2Window*)this->libsdl2.getWindowData(sdlWin, "pincSdl2Window");
-                if(!windowObj) PPANIC_NL("Pinc SDL2 window object from WindowEvent is NULL!\n");
+                // Assert -> caused by Pinc not setting the window event data (supposedly)
+                PErrorAssert(windowObj, "Pinc SDL2 window object from WindowEvent is NULL!");
                 switch (event.window.event) {
                     case SDL_WINDOWEVENT_CLOSE:{
                         windowObj->events.closed = true;
@@ -625,7 +628,7 @@ pinc_raw_opengl_support_status sdl2queryRawGlAccumulatorBits(struct WindowBacken
     P_UNUSED(channel);
     P_UNUSED(bits);
     // TODO
-    PPANIC_NL("Not implemented\n");
+    PPANIC("Not implemented");
     return 0;
 }
 
@@ -633,35 +636,35 @@ pinc_raw_opengl_support_status sdl2queryRawGlStereoBuffer(struct WindowBackend* 
     P_UNUSED(obj);
     P_UNUSED(framebuffer);
     // TODO
-    PPANIC_NL("Not implemented\n");
+    PPANIC("Not implemented");
     return 0;
 }
 
 pinc_raw_opengl_support_status sdl2queryRawGlContextDebug(struct WindowBackend* obj) {
     P_UNUSED(obj);
     // TODO
-    PPANIC_NL("Not implemented\n");
+    PPANIC("Not implemented");
     return 0;
 }
 
 pinc_raw_opengl_support_status sdl2queryRawGlForwardCompatible(struct WindowBackend* obj) {
     P_UNUSED(obj);
     // TODO
-    PPANIC_NL("Not implemented\n");
+    PPANIC("Not implemented");
     return 0;
 }
 
 pinc_raw_opengl_support_status sdl2queryRawGlRobustAccess(struct WindowBackend* obj) {
     P_UNUSED(obj);
     // TODO
-    PPANIC_NL("Not implemented\n");
+    PPANIC("Not implemented");
     return 0;
 }
 
 pinc_raw_opengl_support_status sdl2queryRawGlResetIsolation(struct WindowBackend* obj) {
     P_UNUSED(obj);
     // TODO
-    PPANIC_NL("Not implemented\n");
+    PPANIC("Not implemented");
     return 0;
 }
 
@@ -672,12 +675,13 @@ RawOpenglContextHandle sdl2rawGlCompleteContext(struct WindowBackend* obj, Incom
     Sdl2Window* dummyWindow = _dummyWindow(this);
     SDL_GLContext sdlGlContext = this->libsdl2.glCreateContext(dummyWindow->sdlWindow);
     if(!sdlGlContext) {
+        // TODO: don't do this when external errors are disable - PErrorExternal will do nothing, but this string is still created
         PString errorMsg = PString_concat(2, (PString[]){
             PString_makeDirect((char*)"SDL2 backend: Could not create OpenGl context: "),
             // const is not an issue, this string will not be modified
             PString_makeDirect((char*)this->libsdl2.getError()),
         },tempAllocator);
-        PERROR(errorMsg.str, errorMsg.len);
+        PErrorExternalStr(false, errorMsg);
         PString_free(&errorMsg, tempAllocator);
         return 0;
     }
@@ -693,12 +697,13 @@ pinc_return_code sdl2rawGlMakeCurrent(struct WindowBackend* obj, WindowHandle wi
     // So no need to wrap it in a struct or anything
     SDL_GLContext contextObj = (SDL_GLContext)context;
     int result = this->libsdl2.glMakeCurrent(windowObj->sdlWindow, contextObj);
+    // TODO: Only do this when external errors are enabled - when disabled, the string will still be created, just never actually used
     if(result != 0) {
         PString errorMsg = PString_concat(2, (PString[]){
             PString_makeDirect((char*)"SDL2 backend: Could not make context current: "),
             PString_makeDirect((char*)this->libsdl2.getError()),
         },tempAllocator);
-        PERROR(errorMsg.str, errorMsg.len);
+        PErrorExternalStr(false, errorMsg);
         PString_free(&errorMsg, tempAllocator);
         return pinc_return_code_error;
     }
@@ -710,6 +715,6 @@ void* sdl2rawGlGetProc(struct WindowBackend* obj, char const* procname) {
     // make sure the context is current.
     // If there is no current context, that is a user error that should be reported.
     // TODO: is it a good idea to print out what SDL_GetError() returns as well?
-    PUSEERROR_LIGHT_NL(this->libsdl2.glGetCurrentContext(), "Cannot get proc address of an OpenGL function without a current context");
+    PErrorUser(this->libsdl2.glGetCurrentContext(), "Cannot get proc address of an OpenGL function without a current context");
     return this->libsdl2.glGetProcAddress(procname);
 }

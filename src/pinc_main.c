@@ -4,18 +4,43 @@
 
 #include "sdl2.h"
 
+// Implementations of things in pinc_main.h
+
+Allocator pinc_intern_rootAllocator;
+Allocator pinc_intern_tempAllocator;
+
 pinc_error_callback pfn_pinc_error_callback = 0;
-pinc_error_callback pfn_pinc_panic_callback = 0;
-pinc_error_callback pfn_pinc_user_error_callback = 0;
+
+void pinc_intern_callError(PString message, pinc_error_type type) {
+    if(rootAllocator.vtable == 0) {
+        // This assert is not part of the Pinc error system... because if it was, we would have an infinite loop!
+        // The temp allocator is set before any errors have the potential to occur, so this should never happen.
+        pAssertFail();
+    }
+    if(pfn_pinc_error_callback) {
+        // Let's be nice and let the user have their null terminator
+        uint8_t* msgNullTerm = (uint8_t*)PString_marshalAlloc(message, tempAllocator);
+        pfn_pinc_error_callback(msgNullTerm, message.len, type);
+        Allocator_free(tempAllocator, msgNullTerm, message.len+1);
+        switch (type)
+        {
+        case pinc_error_type_unknown:
+            break;
+        default:
+            pAssertFail();
+            break;
+        }
+    } else {
+        pPrintError(message.str, message.len);
+        pAssertFail();
+    }
+}
 
 void* ptr_user_alloc = 0;
 pinc_alloc_callback pfn_user_alloc = 0;
 pinc_alloc_aligned_callback pfn_user_alloc_aligned = 0;
 pinc_realloc_callback pfn_user_realloc = 0;
 pinc_free_callback pfn_user_free = 0;
-
-Allocator rootAllocator;
-Allocator tempAllocator;
 
 // Implementation of pinc's root allocator on top of platform.h
 static void* pinc_root_platform_allocate(void* obj, size_t size) {
@@ -119,14 +144,16 @@ static pinc_object PincObject_allocate(void) {
     }
     // TODO: get an empty spot instead of growing the list indefinitely
     objectsNum++;
-    if(objectsNum >= UINT32_MAX) PPANIC_NL("Integer Overflow\n");
+    PErrorSanitize(objectsNum < UINT32_MAX, "Integer overflow");
     pinc_object id = (pinc_object)objectsNum;
     return id;
 }
 
 static PincObject* PincObject_ref(pinc_object handle) {
-    if(handle == 0) PPANIC_NL("Object handle is null\n");
-    if(handle > objectsNum) PPANIC_NL("Object handle is outside the range\n");
+    // These are set as user errors because I can't imagine these happening in any other case.
+    // Another option would be to return null in either of these cases, and let downstream functions deal with it.
+    PErrorUser(handle != 0, "Object handle is null");
+    PErrorUser(handle <= objectsNum, "Object is invalid");
     return &objects[handle-1];
 }
 
@@ -148,14 +175,6 @@ PINC_EXPORT void PINC_CALL pinc_preinit_set_error_callback(pinc_error_callback c
     pfn_pinc_error_callback = callback;
 }
 
-PINC_EXPORT void PINC_CALL pinc_preinit_set_panic_callback(pinc_error_callback callback) {
-    pfn_pinc_panic_callback = callback;
-}
-
-PINC_EXPORT void PINC_CALL pinc_preinit_set_user_error_callback(pinc_error_callback callback) {
-    pfn_pinc_user_error_callback = callback;
-}
-
 PINC_EXPORT void PINC_CALL pinc_preinit_set_alloc_callbacks(void* user_ptr, pinc_alloc_callback alloc, pinc_alloc_aligned_callback alloc_aligned, pinc_realloc_callback realloc, pinc_free_callback free) {
     ptr_user_alloc = user_ptr;
     pfn_user_alloc = alloc;
@@ -166,10 +185,10 @@ PINC_EXPORT void PINC_CALL pinc_preinit_set_alloc_callbacks(void* user_ptr, pinc
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_incomplete_init(void) {
     // First up, allocator needs set up
-    PUSEERROR_LIGHT_NL(
+    PErrorUser(
         (pfn_user_alloc && pfn_user_alloc_aligned && pfn_user_realloc && pfn_user_free)
         || !(pfn_user_alloc || pfn_user_alloc_aligned || pfn_user_realloc || pfn_user_free), 
-        "Pinc allocator callbacks must either be all set or all null!\n");
+        "Pinc allocator callbacks must either be all set or all null!");
     
     if(pfn_user_alloc) {
         // User callbacks are set
@@ -194,7 +213,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_incomplete_init(void) {
     bool sdl2InitRes = psdl2Init(&sdl2WindowBackend);
 
     if(!sdl2InitRes) {
-        PERROR_NL("No supported window backends available!\n");
+        PErrorExternal(false, "No supported window backends available!");
         return pinc_return_code_error;
     }
 
@@ -227,7 +246,7 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_graphics_backends(pinc_window_backend 
     if(backend_dest) {
         pMemCopy(supportedBackends, backend_dest, numToCopy);
     }
-    if(numGraphicsBackends > UINT32_MAX) PPANIC_NL("Integer Overflow\n");
+    PErrorSanitize(numGraphicsBackends <= UINT32_MAX, "Integer overflow");
     return (uint32_t)numGraphicsBackends;
 }
 
@@ -239,9 +258,9 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_bac
     // TODO: is it really safe to assume that we can just filter the formats that are the same between the two backends and call all of those supported?
     // In other words, if both the window backend and graphics backend both support a given framebuffer format,
     // is it safe to assume that it can be used if that specific combination of window/graphics backend is chosen?
-    PUSEERROR_LIGHT_NL(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?\n");
-    if(framebufferFormatNum > INT32_MAX) PPANIC_NL("Integer Overflow\n");
-    if(capacity > INT32_MAX) PPANIC_NL("Integer Overflow\n");
+    PErrorUser(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
+    PErrorSanitize(framebufferFormatNum < INT32_MAX, "Integer overflow");
+    PErrorSanitize(capacity < INT32_MAX, "Integer overflow");
 
     if(ids_dest) {
         // Since there's only one window backend and only one graphics backend, just return the list we have as-is
@@ -254,27 +273,27 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_bac
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_channels(pinc_framebuffer_format format_id) {
     // TODO: shortcuts were taken, see pinc_query_framebuffer_format_ids
-    if(framebufferFormatNum > INT32_MAX) PPANIC_NL("Integer Overflow");
-    PUSEERROR_LIGHT_NL(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?\n");
-    PUSEERROR_LIGHT_NL(format_id < (int32_t)framebufferFormatNum && format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?\n");
+    PErrorSanitize(framebufferFormatNum < INT32_MAX, "Integer overflow");
+    PErrorUser(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
+    PErrorUser(format_id < (int32_t)framebufferFormatNum && format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
     return framebufferFormats[format_id].channels;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_channel_bits(pinc_framebuffer_format format_id, uint32_t channel) {
     // TODO: shortcuts were taken, see pinc_query_framebuffer_format_ids
-    if(framebufferFormatNum > INT32_MAX) PPANIC_NL("Integer Overflow");
-    PUSEERROR_LIGHT_NL(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?\n");
-    PUSEERROR_LIGHT_NL(format_id < (int32_t)framebufferFormatNum && format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?\n");
+    PErrorSanitize(framebufferFormatNum < INT32_MAX, "Integer overflow");
+    PErrorUser(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
+    PErrorUser(format_id < (int32_t)framebufferFormatNum && format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
     FramebufferFormat* fmt = &framebufferFormats[format_id];
-    PUSEERROR_LIGHT_NL(channel < fmt->channels, "channel index out of bounds - did you make sure it's less than what pinc_query_framebuffer_format_channels returns for this format?\n");
+    PErrorUser(channel < fmt->channels, "channel index out of bounds - did you make sure it's less than what pinc_query_framebuffer_format_channels returns for this format?");
     return fmt->channel_bits[channel];
 }
 
 PINC_EXPORT pinc_color_space PINC_CALL pinc_query_framebuffer_format_color_space(pinc_framebuffer_format format_id) {
     // TODO: shortcuts were taken, see pinc_query_framebuffer_format_ids
-    if(framebufferFormatNum > INT32_MAX) PPANIC_NL("Integer Overflow");
-    PUSEERROR_LIGHT_NL(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?\n");
-    PUSEERROR_LIGHT_NL(format_id < (int32_t)framebufferFormatNum && format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?\n");
+    PErrorSanitize(framebufferFormatNum < INT32_MAX, "Integer overflow");
+    PErrorUser(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
+    PErrorUser(format_id < (int32_t)framebufferFormatNum && format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
     return framebufferFormats[format_id].color_space;
 }
 
@@ -283,7 +302,7 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_graphics_samples_options(pinc_graphics
     P_UNUSED(format_id);
     P_UNUSED(samples_dest);
     P_UNUSED(capacity);
-    PPANIC_NL("pinc_query_graphics_samples_options is not implemented");
+    PPANIC("pinc_query_graphics_samples_options is not implemented");
     return 0;
 }
 
@@ -292,7 +311,7 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_graphics_depth_options(pinc_graphics_b
     P_UNUSED(format_id);
     P_UNUSED(depth_bits_dest);
     P_UNUSED(capacity);
-    PPANIC_NL("pinc_query_graphics_depth_options is not implemented");
+    PPANIC("pinc_query_graphics_depth_options is not implemented");
     return 0;
 }
 
@@ -307,13 +326,13 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_graphics_alpha_options(pinc_graphics_b
     P_UNUSED(format_id);
     P_UNUSED(alpha_bits_dest);
     P_UNUSED(capacity);
-    PPANIC_NL("pinc_query_graphics_alpha_options is not implemented");
+    PPANIC("pinc_query_graphics_alpha_options is not implemented");
     return 0;
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format framebuffer_format_id, uint32_t samples, uint32_t depth_buffer_bits) {
     // TODO: only window backend is SDL2, shortcuts are taken
-    PUSEERROR_LIGHT_NL(window_backend != pinc_window_backend_none, "Unsupported window backend\n");
+    PErrorUser(window_backend != pinc_window_backend_none, "Unsupported window backend");
     if(window_backend == pinc_window_backend_any) {
         window_backend = pinc_window_backend_sdl2;
     }
@@ -325,9 +344,9 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend wi
         // TODO: actually choose the best one instead of just grabbing the first one
         framebuffer_format_id = 0;
     }
-    PUSEERROR_LIGHT_NL(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?\n");
-    if(framebufferFormatNum > INT32_MAX) PPANIC_NL("Integer Overflow");
-    PUSEERROR_LIGHT_NL(framebuffer_format_id < (int32_t)framebufferFormatNum && framebuffer_format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?\n");
+    PErrorUser(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
+    PErrorSanitize(framebufferFormatNum <= INT32_MAX, "Integer overflow");
+    PErrorUser(framebuffer_format_id < (int32_t)framebufferFormatNum && framebuffer_format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
     FramebufferFormat framebuffer = framebufferFormats[framebuffer_format_id];
     pinc_return_code result = WindowBackend_completeInit(&sdl2WindowBackend, graphics_backend, framebuffer, samples, depth_buffer_bits);
     if(result == pinc_return_code_error) {
@@ -374,36 +393,36 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
                 }
                 case pinc_object_type_vertex_attributes: {
                     // TODO
-                    PPANIC_NL("Not Implemented");
+                    PPANIC("Not Implemented");
                     break;
                 }
                 case pinc_object_type_uniforms: {
                     // TODO
-                    PPANIC_NL("Not Implemented");
+                    PPANIC("Not Implemented");
                     break;
                 }
                 case pinc_object_type_shaders: {
                     // TODO
-                    PPANIC_NL("Not Implemented");
+                    PPANIC("Not Implemented");
                     break;
                 }
                 case pinc_object_type_pipeline: {
                     // TODO
-                    PPANIC_NL("Not Implemented");
+                    PPANIC("Not Implemented");
                     break;
                 }
                 case pinc_object_type_vertex_array: {
                     // TODO
-                    PPANIC_NL("Not Implemented");
+                    PPANIC("Not Implemented");
                     break;
                 }
                 case pinc_object_type_texture: {
                     // TODO
-                    PPANIC_NL("Not Implemented");
+                    PPANIC("Not Implemented");
                     break;
                 }
                 default:
-                    PPANIC_NL("Invalid object type! This is an error in Pinc itself.\n");
+                    PErrorAssert(false, "Invalid object type! This is an error in Pinc itself.");
             }
         }
     }
@@ -419,17 +438,17 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
 }
 
 PINC_EXPORT pinc_window_backend PINC_CALL pinc_query_set_window_backend(void) {
-    PPANIC_NL("pinc_query_set_window_backend not implemented");
+    PPANIC("pinc_query_set_window_backend not implemented");
     return 0;
 }
 
 PINC_EXPORT pinc_graphics_backend PINC_CALL pinc_query_set_graphics_backend(void) {
-    PPANIC_NL("pinc_query_set_graphics_backend not implemented");
+    PPANIC("pinc_query_set_graphics_backend not implemented");
     return 0;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_set_framebuffer_format(void) {
-    PPANIC_NL("pinc_query_set_framebuffer_format not implemented");
+    PPANIC("pinc_query_set_framebuffer_format not implemented");
     return 0;
 }
 
@@ -447,18 +466,18 @@ PINC_EXPORT pinc_object_type PINC_CALL pinc_get_object_type(pinc_object obj) {
     case PincObjectDiscriminator_incompleteRawGlContext:
         return pinc_object_type_none;
     default:
-        PPANIC_NL("Invalid object type - this is an error within Pinc!\n");
+        PErrorAssert(false, "Invalid object type - this is an error within Pinc!");
     }
 }
 
 PINC_EXPORT bool PINC_CALL pinc_get_object_complete(pinc_object obj) {
     P_UNUSED(obj);
-    PPANIC_NL("pinc_get_object_complete not implemented");
+    PPANIC("pinc_get_object_complete not implemented");
     return false;
 }
 
 PINC_EXPORT pinc_window PINC_CALL pinc_window_create_incomplete(void) {
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
+    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     pinc_window handle = PincObject_allocate();
     PincObject* window = PincObject_ref(handle);
     window->discriminator = PincObjectDiscriminator_incompleteWindow;
@@ -487,9 +506,9 @@ PINC_EXPORT pinc_window PINC_CALL pinc_window_create_incomplete(void) {
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_window_complete(pinc_window window) {
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
+    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     PincObject* object = PincObject_ref(window);
-    PUSEERROR_LIGHT_NL(object->discriminator == PincObjectDiscriminator_incompleteWindow, "Window is not an incomplete window object\n");
+    PErrorUser(object->discriminator == PincObjectDiscriminator_incompleteWindow, "Window is not an incomplete window object");
     WindowHandle handle = WindowBackend_completeWindow(&windowBackend, &object->data.incompleteWindow);
     if(!handle) {
         return pinc_return_code_error;
@@ -500,7 +519,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_window_complete(pinc_window window) 
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_deinit(pinc_window window) {
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
+    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     PincObject* object = PincObject_ref(window);
     switch(object->discriminator) {
         case PincObjectDiscriminator_incompleteWindow:{
@@ -512,18 +531,18 @@ PINC_EXPORT void PINC_CALL pinc_window_deinit(pinc_window window) {
             break;
         }
         default:{
-            PUSEERROR_LIGHT_NL(object->discriminator == PincObjectDiscriminator_incompleteWindow, "Window is not a window object\n");
+            PErrorUser(object->discriminator == PincObjectDiscriminator_incompleteWindow, "Window is not a window object");
             break;
         }
     }
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_title(pinc_window window, const char* title_buf, uint32_t title_len) {
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
+    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     PincObject* object = PincObject_ref(window);
     if(title_len == 0) {
         size_t realTitleLen = pStringLen(title_buf);
-        if(realTitleLen > UINT32_MAX) PPANIC_NL("Integer overflow");
+        PErrorSanitize(realTitleLen <= UINT32_MAX, "Integer overflow");
         title_len = (uint32_t)realTitleLen;
     }
     // this is over here because reasons
@@ -542,7 +561,7 @@ PINC_EXPORT void PINC_CALL pinc_window_set_title(pinc_window window, const char*
             WindowBackend_setWindowTitle(&windowBackend, object->data.window, titlePtr, title_len);
             break;
         default:
-            PUSEERROR_LIGHT_NL(false, "Window is not a window object\n");
+            PErrorUser(false, "Window is not a window object");
             break;
     }
 }
@@ -551,191 +570,191 @@ PINC_EXPORT uint32_t PINC_CALL pinc_window_get_title(pinc_window window, char* t
     P_UNUSED(window);
     P_UNUSED(title_buf);
     P_UNUSED(title_capacity);
-    PPANIC_NL("pinc_window_get_title not implemented");
+    PPANIC("pinc_window_get_title not implemented");
     return false;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_width(pinc_window window, uint32_t width) {
     P_UNUSED(window);
     P_UNUSED(width);
-    PPANIC_NL("pinc_window_set_width not implemented");
+    PPANIC("pinc_window_set_width not implemented");
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_window_get_width(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_window_get_width not implemented");
+    PPANIC("pinc_window_get_width not implemented");
     return 0;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_window_has_width(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_window_has_width not implemented");
+    PPANIC("pinc_window_has_width not implemented");
     return 0;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_height(pinc_window window, uint32_t height) {
     P_UNUSED(window);
     P_UNUSED(height);
-    PPANIC_NL("pinc_window_set_height not implemented");
+    PPANIC("pinc_window_set_height not implemented");
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_window_get_height(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_window_get_height not implemented");
+    PPANIC("pinc_window_get_height not implemented");
     return 0;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_has_height(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_window_has_height not implemented");
+    PPANIC("pinc_window_has_height not implemented");
     return false;
 }
 
 PINC_EXPORT float PINC_CALL pinc_window_get_scale_factor(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_window_get_scale_factor not implemented");
+    PPANIC("pinc_window_get_scale_factor not implemented");
     return 0;
 }
 
 PINC_EXPORT int PINC_CALL pinc_window_has_scale_factor(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_window_has_scale_factor not implemented");
+    PPANIC("pinc_window_has_scale_factor not implemented");
     return 0;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_resizable(pinc_window window, bool resizable) {\
     P_UNUSED(window);
     P_UNUSED(resizable);
-    PPANIC_NL("pinc_window_set_resizable not implemented");
+    PPANIC("pinc_window_set_resizable not implemented");
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_get_resizable(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_window_get_resizable not implemented");
+    PPANIC("pinc_window_get_resizable not implemented");
     return false;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_minimized(pinc_window window, bool minimized) {
     P_UNUSED(window);
     P_UNUSED(minimized);
-    PPANIC_NL("pinc_window_set_minimized not implemented");
+    PPANIC("pinc_window_set_minimized not implemented");
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_get_minimized(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_window_get_minimized not implemented");
+    PPANIC("pinc_window_get_minimized not implemented");
     return false;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_maximized(pinc_window window, bool maximized) {
     P_UNUSED(window);
     P_UNUSED(maximized);
-    PPANIC_NL("pinc_window_set_maximized not implemented");
+    PPANIC("pinc_window_set_maximized not implemented");
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_get_maximized(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_window_get_maximized not implemented");
+    PPANIC("pinc_window_get_maximized not implemented");
     return false;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_fullscreen(pinc_window window, bool fullscreen) {
     P_UNUSED(window);
     P_UNUSED(fullscreen);
-    PPANIC_NL("pinc_window_set_fullscreen not implemented");
+    PPANIC("pinc_window_set_fullscreen not implemented");
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_get_fullscreen(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_window_get_fullscreen not implemented");
+    PPANIC("pinc_window_get_fullscreen not implemented");
     return false;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_focused(pinc_window window, bool focused) {
     P_UNUSED(window);
     P_UNUSED(focused);
-    PPANIC_NL("pinc_window_set_focused not implemented");
+    PPANIC("pinc_window_set_focused not implemented");
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_get_focused(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_window_get_focused not implemented");
+    PPANIC("pinc_window_get_focused not implemented");
     return false;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_hidden(pinc_window window, bool hidden) {
     P_UNUSED(window);
     P_UNUSED(hidden);
-    PPANIC_NL("pinc_window_set_hidden not implemented");
+    PPANIC("pinc_window_set_hidden not implemented");
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_get_hidden(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_window_get_hidden not implemented");
+    PPANIC("pinc_window_get_hidden not implemented");
     return false;
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_set_vsync(bool sync) {
     P_UNUSED(sync);
-    PPANIC_NL("pinc_set_vsync not implemented");
+    PPANIC("pinc_set_vsync not implemented");
     return pinc_return_code_error;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_get_vsync(void) {
-    PPANIC_NL("pinc_get_vsync not implemented");
+    PPANIC("pinc_get_vsync not implemented");
     return false;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_present_framebuffer(pinc_window window) {
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
+    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     PincObject* object = PincObject_ref(window);
-    PUSEERROR_LIGHT_NL(object->discriminator == PincObjectDiscriminator_window, "Window must be a window object\n");
+    PErrorUser(object->discriminator == PincObjectDiscriminator_window, "Window must be a window object");
     WindowBackend_windowPresentFramebuffer(&windowBackend, object->data.window);
 }
 
 PINC_EXPORT bool PINC_CALL pinc_mouse_button_get(int button) {
     P_UNUSED(button);
-    PPANIC_NL("pinc_mouse_button_get not implemented");
+    PPANIC("pinc_mouse_button_get not implemented");
     return false;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_keyboard_key_get(pinc_keyboard_key button) {
     P_UNUSED(button);
-    PPANIC_NL("pinc_keyboard_key_get not implemented");
+    PPANIC("pinc_keyboard_key_get not implemented");
     return false;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_get_cursor_x(void) {
-    PPANIC_NL("pinc_get_cursor_x not implemented");
+    PPANIC("pinc_get_cursor_x not implemented");
     return 0;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_get_cursor_y(void) {
-    PPANIC_NL("pinc_get_cursor_y not implemented");
+    PPANIC("pinc_get_cursor_y not implemented");
     return 0;
 }
 
 PINC_EXPORT pinc_window PINC_CALL pinc_get_cursor_window(void) {
-    PPANIC_NL("pinc_get_cursor_window not implemented");
+    PPANIC("pinc_get_cursor_window not implemented");
     return 0;
 }
 
 PINC_EXPORT void PINC_CALL pinc_step(void) {
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
+    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     WindowBackend_step(&windowBackend);
     // TODO: clear temp allocator
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_closed(pinc_window window) {
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
+    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     PincObject* object = PincObject_ref(window);
-    PUSEERROR_LIGHT_NL(object->discriminator == PincObjectDiscriminator_window, "Window must be a window object\n");
+    PErrorUser(object->discriminator == PincObjectDiscriminator_window, "Window must be a window object");
     return WindowBackend_windowEventClosed(&windowBackend, object->data.window);
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_mouse_button(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_event_window_mouse_button not implemented");
+    PPANIC("pinc_event_window_mouse_button not implemented");
     return false;
 }
 
@@ -747,19 +766,19 @@ PINC_EXPORT bool PINC_CALL pinc_event_window_resized(pinc_window window) {
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_focused(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_event_window_focused not implemented");
+    PPANIC("pinc_event_window_focused not implemented");
     return false;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_unfocused(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_event_window_unfocused not implemented");
+    PPANIC("pinc_event_window_unfocused not implemented");
     return false;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_exposed(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_event_window_exposed not implemented");
+    PPANIC("pinc_event_window_exposed not implemented");
     return false;
 }
 
@@ -767,7 +786,7 @@ PINC_EXPORT uint32_t PINC_CALL pinc_event_window_keyboard_button_get(pinc_window
     P_UNUSED(window);
     P_UNUSED(key_buffer);
     P_UNUSED(capacity);
-    PPANIC_NL("pinc_event_window_keyboard_button_get not implemented");
+    PPANIC("pinc_event_window_keyboard_button_get not implemented");
     return 0;
 }
 
@@ -775,25 +794,25 @@ PINC_EXPORT uint32_t PINC_CALL pinc_event_window_keyboard_button_get_repeat(pinc
     P_UNUSED(window);
     P_UNUSED(repeat_buffer);
     P_UNUSED(capacity);
-    PPANIC_NL("pinc_event_window_keyboard_button_get_repeat not implemented");
+    PPANIC("pinc_event_window_keyboard_button_get_repeat not implemented");
     return 0;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_cursor_move(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_event_window_cursor_move not implemented");
+    PPANIC("pinc_event_window_cursor_move not implemented");
     return false;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_cursor_exit(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_event_window_cursor_exit not implemented");
+    PPANIC("pinc_event_window_cursor_exit not implemented");
     return false;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_cursor_enter(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_event_window_cursor_enter not implemented");
+    PPANIC("pinc_event_window_cursor_enter not implemented");
     return false;
 }
 
@@ -801,19 +820,19 @@ PINC_EXPORT uint32_t PINC_CALL pinc_event_window_text_get(pinc_window window, ui
     P_UNUSED(window);
     P_UNUSED(return_buf);
     P_UNUSED(capacity);
-    PPANIC_NL("pinc_event_window_text_get not implemented");
+    PPANIC("pinc_event_window_text_get not implemented");
     return 0;
 }
 
 PINC_EXPORT float PINC_CALL pinc_window_scroll_vertical(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_window_scroll_vertical not implemented");
+    PPANIC("pinc_window_scroll_vertical not implemented");
     return 0;
 }
 
 PINC_EXPORT float PINC_CALL pinc_window_scroll_horizontal(pinc_window window) {
     P_UNUSED(window);
-    PPANIC_NL("pinc_window_scroll_horizontal not implemented");
+    PPANIC("pinc_window_scroll_horizontal not implemented");
     return 0;
 }
 
@@ -828,8 +847,8 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_versi
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
-    PUSEERROR_LIGHT_NL(backend == pinc_window_backend_sdl2, "Unsupported window backend\n");
-    PUSEERROR_LIGHT_NL(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?\n");
+    PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
+    PErrorUser(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
 
     return WindowBackend_queryRawGlVersionSupported(&sdl2WindowBackend, major, minor, es);
 }
@@ -839,11 +858,12 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_accum
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
-    PUSEERROR_LIGHT_NL(backend == pinc_window_backend_sdl2, "Unsupported window backend\n");
-    PUSEERROR_LIGHT_NL(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?\n");
+    PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
+    PErrorUser(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
     // TODO: -1 for default framebuffer format
-    if(framebufferFormatNum > INT32_MAX) PPANIC_NL("Integer overflow");
-    PUSEERROR_LIGHT_NL(framebuffer < (int32_t)framebufferFormatNum, "Invalid framebuffer format ID\n");
+    // TODO: Actually, I want to change 0 to be default / null, and turn framebuffer formats (more or less) into regular Pinc objects
+    PErrorSanitize(framebufferFormatNum <= INT32_MAX, "Integer overflow");
+    PErrorUser(framebuffer < (int32_t)framebufferFormatNum, "Invalid framebuffer format ID");
     FramebufferFormat framebufferFormat = framebufferFormats[framebuffer];
     return WindowBackend_queryRawGlAccumulatorBits(&sdl2WindowBackend, framebufferFormat, channel, bits);
 }
@@ -853,11 +873,11 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_stere
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
-    PUSEERROR_LIGHT_NL(backend == pinc_window_backend_sdl2, "Unsupported window backend\n");
-    PUSEERROR_LIGHT_NL(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?\n");
+    PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
+    PErrorUser(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
     // TODO: -1 for default framebuffer format
-    if(framebufferFormatNum > INT32_MAX) PPANIC_NL("Integer Overflow");
-    PUSEERROR_LIGHT_NL(framebuffer < (int32_t)framebufferFormatNum, "Invalid framebuffer format ID\n");
+    PErrorSanitize(framebufferFormatNum <= INT32_MAX, "Integer overflow");
+    PErrorUser(framebuffer < (int32_t)framebufferFormatNum, "Invalid framebuffer format ID");
     FramebufferFormat framebufferFormat = framebufferFormats[framebuffer];
     return WindowBackend_queryRawGlStereoBuffer(&sdl2WindowBackend, framebufferFormat);
 }
@@ -867,8 +887,8 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_conte
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
-    PUSEERROR_LIGHT_NL(backend == pinc_window_backend_sdl2, "Unsupported window backend\n");
-    PUSEERROR_LIGHT_NL(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?\n");
+    PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
+    PErrorUser(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
     return WindowBackend_queryRawGlContextDebug(&sdl2WindowBackend);
 }
 
@@ -877,8 +897,8 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_forwa
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
-    PUSEERROR_LIGHT_NL(backend == pinc_window_backend_sdl2, "Unsupported window backend\n");
-    PUSEERROR_LIGHT_NL(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?\n");
+    PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
+    PErrorUser(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
     return WindowBackend_queryRawGlForwardCompatible(&sdl2WindowBackend);
 }
 
@@ -887,8 +907,8 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_robus
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
-    PUSEERROR_LIGHT_NL(backend == pinc_window_backend_sdl2, "Unsupported window backend\n");
-    PUSEERROR_LIGHT_NL(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?\n");
+    PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
+    PErrorUser(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
     return WindowBackend_queryRawGlRobustAccess(&sdl2WindowBackend);
 }
 
@@ -897,8 +917,8 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_reset
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
-    PUSEERROR_LIGHT_NL(backend == pinc_window_backend_sdl2, "Unsupported window backend\n");
-    PUSEERROR_LIGHT_NL(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?\n");
+    PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
+    PErrorUser(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
     return WindowBackend_queryRawGlResetIsolation(&sdl2WindowBackend);
 }
 
@@ -927,7 +947,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_accumulator_b
     P_UNUSED(channel);
     P_UNUSED(bits);
     // TODO
-    PPANIC_NL("Not Implemented");
+    PPANIC("Not implemented");
     return pinc_return_code_error;
 }
 
@@ -935,7 +955,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_stereo_buffer
     P_UNUSED(incomplete_context);
     P_UNUSED(stereo);
     // TODO
-    PPANIC_NL("Not Implemented");
+    PPANIC("Not implemented");
     return pinc_return_code_error;
 }
 
@@ -943,7 +963,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_context_debug
     P_UNUSED(incomplete_context);
     P_UNUSED(debug);
     // TODO
-    PPANIC_NL("Not Implemented");
+    PPANIC("Not implemented");
     return pinc_return_code_error;
 }
 
@@ -951,7 +971,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_forward_compa
     P_UNUSED(incomplete_context);
     P_UNUSED(compatible);
     // TODO
-    PPANIC_NL("Not Implemented");
+    PPANIC("Not implemented");
     return pinc_return_code_error;
 }
 
@@ -959,7 +979,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_robust_access
     P_UNUSED(incomplete_context);
     P_UNUSED(robust);
     // TODO
-    PPANIC_NL("Not Implemented");
+    PPANIC("Not implemented");
     return pinc_return_code_error;
 }
 
@@ -967,32 +987,32 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_reset_isolati
     P_UNUSED(incomplete_context);
     P_UNUSED(isolation);
     // TODO
-    PPANIC_NL("Not Implemented");
+    PPANIC("Not implemented");
     return pinc_return_code_error;
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_version(pinc_raw_opengl_context incomplete_context, uint32_t major, uint32_t minor, bool es, bool core) {
     // TODO validation
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
+    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     // TODO check that this version is available
 
     PincObject* contextObj = PincObject_ref(incomplete_context);
-    PUSEERROR_LIGHT_NL(contextObj->discriminator == PincObjectDiscriminator_incompleteRawGlContext, "pinc_raw_opengl_set_context_version: Object must be an incomplete raw OpenGl context\n");
+    PErrorUser(contextObj->discriminator == PincObjectDiscriminator_incompleteRawGlContext, "pinc_raw_opengl_set_context_version: Object must be an incomplete raw OpenGl context");
     contextObj->data.incompleteRawGlContext.versionMajor = major;
     contextObj->data.incompleteRawGlContext.versionMinor = minor;
     contextObj->data.incompleteRawGlContext.versionEs = es;
     contextObj->data.incompleteRawGlContext.core = core;
     contextObj->data.incompleteRawGlContext.forwardCompatible = !core;
-    PUSEERROR_LIGHT_NL((!es) && (!core), "pinc_raw_opengl_set_context_version: OpenGl context can either be core or ES, not both\n");
+    PErrorUser((!es) && (!core), "pinc_raw_opengl_set_context_version: OpenGl context can either be core or ES, not both");
     return pinc_return_code_pass;
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_context_complete(pinc_raw_opengl_context incomplete_context) {
     // TODO validation
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
+    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
 
     PincObject* contextObj = PincObject_ref(incomplete_context);
-    PUSEERROR_LIGHT_NL(contextObj->discriminator == PincObjectDiscriminator_incompleteRawGlContext, "pinc_raw_opengl_context_complete: Object must be an incomplete raw OpenGl context\n");
+    PErrorUser(contextObj->discriminator == PincObjectDiscriminator_incompleteRawGlContext, "pinc_raw_opengl_context_complete: Object must be an incomplete raw OpenGl context");
     RawOpenglContextHandle contextHandle = WindowBackend_rawGlCompleteContext(&windowBackend, contextObj->data.incompleteRawGlContext);
     if(contextHandle == 0) {
         return pinc_return_code_error;
@@ -1012,66 +1032,66 @@ PINC_EXPORT uint32_t PINC_CALL pinc_raw_opengl_get_context_accumulator_bits(pinc
     P_UNUSED(incomplete_context);
     P_UNUSED(channel);
     // TODO
-    PPANIC_NL("Not Implemented");
+    PPANIC("Not implemented");
     return 0;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_raw_opengl_get_context_stereo_buffer(pinc_raw_opengl_context incomplete_context) {
     P_UNUSED(incomplete_context);
     // TODO
-    PPANIC_NL("Not Implemented");
+    PPANIC("Not implemented");
     return false;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_raw_opengl_get_context_context_debug(pinc_raw_opengl_context incomplete_context) {
     P_UNUSED(incomplete_context);
     // TODO
-    PPANIC_NL("Not Implemented");
+    PPANIC("Not implemented");
     return false;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_raw_opengl_get_context_forward_compatible(pinc_raw_opengl_context incomplete_context) {
     P_UNUSED(incomplete_context);
     // TODO
-    PPANIC_NL("Not Implemented");
+    PPANIC("Not implemented");
     return false;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_raw_opengl_get_context_robust_access(pinc_raw_opengl_context incomplete_context) {
     P_UNUSED(incomplete_context);
     // TODO
-    PPANIC_NL("Not Implemented");
+    PPANIC("Not implemented");
     return false;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_raw_opengl_get_context_reset_isolation(pinc_raw_opengl_context incomplete_context) {
     P_UNUSED(incomplete_context);
     // TODO
-    PPANIC_NL("Not Implemented");
+    PPANIC("Not implemented");
     return false;
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_make_current(pinc_window window, pinc_raw_opengl_context context) {
     // TODO validation
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
+    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
 
     PincObject* windowObj = PincObject_ref(window);
-    PUSEERROR_LIGHT_NL(windowObj->discriminator == PincObjectDiscriminator_window, "pinc_raw_opengl_make_current: window must be a complete window object\n");
+    PErrorUser(windowObj->discriminator == PincObjectDiscriminator_window, "pinc_raw_opengl_make_current: window must be a complete window object");
     PincObject* contextObj = PincObject_ref(context);
-    PUSEERROR_LIGHT_NL(windowObj->discriminator == PincObjectDiscriminator_rawGlContext, "pinc_raw_opengl_make_current: context must be a complete raw OpenGL object\n");
+    PErrorUser(windowObj->discriminator == PincObjectDiscriminator_rawGlContext, "pinc_raw_opengl_make_current: context must be a complete raw OpenGL object");
 
     return WindowBackend_rawGlMakeCurrent(&windowBackend, windowObj->data.window, contextObj->data.rawGlContext);
 }
 
 PINC_EXPORT pinc_window PINC_CALL pinc_raw_opengl_get_current(void) {
     // TODO
-    PPANIC_NL("Not Implemented");
+    PPANIC("Not implemented");
     return 0;
 }
 
 PINC_EXPORT void* PINC_CALL pinc_raw_opengl_get_proc(char const * procname) {
     // TODO validation
-    PUSEERROR_LIGHT_NL(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?\n");
+    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
 
     return WindowBackend_rawGlGetProc(&windowBackend, procname);
 }
