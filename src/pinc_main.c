@@ -25,6 +25,7 @@ void pinc_intern_callError(PString message, pinc_error_type type) {
         switch (type)
         {
         case pinc_error_type_unknown:
+        case pinc_error_type_external:
             break;
         default:
             pAssertFail();
@@ -527,7 +528,8 @@ PINC_EXPORT void PINC_CALL pinc_window_deinit(pinc_window window) {
             break;
         }
         case PincObjectDiscriminator_window:{
-            WindowBackend_deinitWindow(&windowBackend, &object->data.window);
+            WindowBackend_deinitWindow(&windowBackend, object->data.window);
+            PincObject_free(window);
             break;
         }
         default:{
@@ -581,9 +583,9 @@ PINC_EXPORT void PINC_CALL pinc_window_set_width(pinc_window window, uint32_t wi
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_window_get_width(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_window_get_width not implemented");
-    return 0;
+    // TODO: implement this properly
+    PincObject* windowObj = PincObject_ref(window);
+    return WindowBackend_getWindowWidth(&windowBackend, windowObj->data.window);
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_window_has_width(pinc_window window) {
@@ -599,9 +601,9 @@ PINC_EXPORT void PINC_CALL pinc_window_set_height(pinc_window window, uint32_t h
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_window_get_height(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_window_get_height not implemented");
-    return 0;
+    // TODO: implement this properly
+    PincObject* windowObj = PincObject_ref(window);
+    return WindowBackend_getWindowHeight(&windowBackend, windowObj->data.window);
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_has_height(pinc_window window) {
@@ -1078,7 +1080,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_make_current(pinc_window 
     PincObject* windowObj = PincObject_ref(window);
     PErrorUser(windowObj->discriminator == PincObjectDiscriminator_window, "pinc_raw_opengl_make_current: window must be a complete window object");
     PincObject* contextObj = PincObject_ref(context);
-    PErrorUser(windowObj->discriminator == PincObjectDiscriminator_rawGlContext, "pinc_raw_opengl_make_current: context must be a complete raw OpenGL object");
+    PErrorUser(contextObj->discriminator == PincObjectDiscriminator_rawGlContext, "pinc_raw_opengl_make_current: context must be a complete raw OpenGL object");
 
     return WindowBackend_rawGlMakeCurrent(&windowBackend, windowObj->data.window, contextObj->data.rawGlContext);
 }

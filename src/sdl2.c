@@ -5,10 +5,12 @@
 
 typedef struct Sdl2WindowEvents {
     bool closed;
+    bool resized;
 } Sdl2WindowEvents;
 
 #define PINC_SDL2_EMPTY_WINDOW_EVENTS (Sdl2WindowEvents) {\
     .closed = false,\
+    .resized = false,\
 }
 
 typedef struct {
@@ -62,6 +64,9 @@ void sdl2RemoveWindow(Sdl2WindowBackend* this, Sdl2Window* window) {
         }
     }
     if(!indexFound) return;
+    if(this->windows[index] == this->dummyWindow) {
+        this->dummyWindowInUse = false;
+    }
     // Order of windows is not important, swap remove
     this->windows[index] = this->windows[this->windowsNum-1];
     this->windows[this->windowsNum-1] = NULL;
@@ -108,7 +113,7 @@ bool psdl2Init(WindowBackend* obj) {
     // The only thing required for SDL2 support is for the SDL2 library to be present
     void* lib = sdl2LoadLib();
     if(!lib) {
-        pPrintFormat("SDL2 could not be loaded, disabling SDL2 backend\n\n");
+        pPrintFormat("SDL2 could not be loaded, disabling SDL2 backend.\n");
         // sdl2UnloadLib(lib);
         return false;
     }
@@ -141,6 +146,13 @@ bool psdl2Init(WindowBackend* obj) {
 
 void psdl2Deinit(WindowBackend* obj) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    // Make sure the frontend deleted all of the windows already
+    PErrorAssert(this->windowsNum == 0, "Internal pinc error: the frontend didn't delete the windows before calling backend deinit");
+    
+    this->libsdl2.destroyWindow(this->dummyWindow->sdlWindow);
+    PString_free(&this->dummyWindow->title, rootAllocator);
+    Allocator_free(rootAllocator, this->dummyWindow, sizeof(Sdl2Window));
+
     this->libsdl2.quit();
     Allocator_free(rootAllocator, this->windows, sizeof(Sdl2Window*) * this->windowsCapacity);
     Allocator_free(rootAllocator, this, sizeof(Sdl2WindowBackend));
@@ -159,7 +171,8 @@ static uint32_t bitCount32(uint32_t n) {
     return counter;
 }
 
-static Sdl2Window* _dummyWindow(Sdl2WindowBackend* this) {
+static Sdl2Window* _dummyWindow(struct WindowBackend* obj) {
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     if(this->dummyWindow) {
         return this->dummyWindow;
     }
@@ -181,7 +194,10 @@ static Sdl2Window* _dummyWindow(Sdl2WindowBackend* this) {
         .focused = false,
         .hidden = true,
     };
-    this->dummyWindow = sdl2completeWindow((struct WindowBackend*)this, &windowSettings);
+    this->dummyWindow = sdl2completeWindow(obj, &windowSettings);
+    // sdl2completeWindow sets this to true, under the assumption the user called it.
+    // We are requesting the dummy window not for the user's direct use, so it's NOT in use.
+    this->dummyWindowInUse = false;
     // TODO: make this possibly recoverable?
     PErrorAssert(this->dummyWindow, "SDL2 Backend: Could not create dummy window");
     return this->dummyWindow;
@@ -315,7 +331,7 @@ pinc_return_code sdl2completeInit(struct WindowBackend* obj, pinc_graphics_backe
         default:
             // We don't support this graphics backend.
             // Technically this code should never run, because the user API frontend should have caught this
-            PErrorUser(false, "Attempt to use SDL2 backend with an unsupported graphics backend\n");
+            PErrorUser(false, "Attempt to use SDL2 backend with an unsupported graphics backend");
             return pinc_return_code_error;
     }
     return pinc_return_code_pass;
@@ -352,6 +368,10 @@ void sdl2step(struct WindowBackend* obj) {
                         windowObj->events.closed = true;
                         break;
                     }
+                    case SDL_WINDOWEVENT_RESIZED:{
+                        windowObj->events.resized = true;
+                        break;
+                    }
                     default:{
                         // TODO: once all window events are handled, assert.
                         break;
@@ -368,22 +388,7 @@ void sdl2step(struct WindowBackend* obj) {
 }
 
 WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow const * incomplete) {
-    // TODO: only graphics backend is OpenGL, shortcuts are taken
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
-    // TODO: reuse dummy window
-    // if(!this->dummyWindowInUse && this->dummyWindow) {
-    //     this->dummyWindowInUse = true;
-    //     if(incomplete->hasWidth) {
-    //         sdl2setWindowWidth(this, this->dummyWindow, incomplete->width);
-    //     }
-    //     if(incomplete->hasHeight) {
-    //         sdl2setWindowHeight(this, this->dummyWindow, incomplete->height);
-    //     }    
-    // }
-    // SDL expects a null-terminated title, while our actual title is not null terminated
-    // (How come nobody ever makes options for those using non null-terminated strings?)
-    // Reminder: SDL2 uses UTF8 encoding for pretty much all strings
-    char* titleNullTerm = PString_marshalAlloc(incomplete->title, tempAllocator);
     // TODO: is ResetHints a good idea?
     uint32_t windowFlags = 0;
     if(incomplete->resizable) {
@@ -407,36 +412,106 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
     if(incomplete->hidden) {
         windowFlags |= SDL_WINDOW_HIDDEN;
     }
-    SDL_Window* win = this->libsdl2.createWindow(titleNullTerm, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 256, 256, windowFlags);
-    // I'm so paranoid, I actually went through the SDL2 source code to make sure it actually duplicates the window title to avoid a use-after-free
-    // Better too worried than not enough I guess
-    Allocator_free(tempAllocator, titleNullTerm, incomplete->title.len+1);
+    // TODO: Only graphics backend is OpenGL, shortcuts are taken
+    windowFlags |= SDL_WINDOW_OPENGL;
 
-    Sdl2Window* windowObj = Allocator_allocate(rootAllocator, sizeof(Sdl2Window));
-    
-    // Title's ownership is in the window object itself
-    windowObj->sdlWindow = win;
-    windowObj->title = incomplete->title;
+    if(!this->dummyWindowInUse && this->dummyWindow) {
+        Sdl2Window* dummyWindow = this->dummyWindow;
+        uint32_t realFlags = this->libsdl2.getWindowFlags(dummyWindow->sdlWindow);
 
-    // So we can easily get one of our windows out of the SDL2 window handle
-    this->libsdl2.setWindowData(win, "pincSdl2Window", windowObj);
+        // If we need opengl but the dummy window doesn't have it,
+        // Then, as long as Pinc doesn't start supporting a different graphics backend for each window,
+        // the dummy window is fully useless and it should be replaced.
+        // SDL does not support changing a window to have opengl after it was created without it.
+        if((windowFlags&SDL_WINDOW_OPENGL) && !(realFlags&SDL_WINDOW_OPENGL)) {
+            this->libsdl2.destroyWindow(dummyWindow->sdlWindow);
+            PString_free(&this->dummyWindow->title, rootAllocator);
+            Allocator_free(rootAllocator, dummyWindow, sizeof(Sdl2Window));
+            goto SDL_MAKE_NEW_WINDOW;
+        }
 
-    // Add it to the list of windows
-    sdl2AddWindow(this, windowObj);
+        // All of the other flags can be changed
+        if((windowFlags&SDL_WINDOW_RESIZABLE) != (realFlags&SDL_WINDOW_RESIZABLE)) {
+            sdl2setWindowResizable(obj, dummyWindow, (windowFlags&SDL_WINDOW_RESIZABLE) != 0);
+        }
+        if((windowFlags&SDL_WINDOW_MINIMIZED) != (realFlags&SDL_WINDOW_MINIMIZED)) {
+            sdl2setWindowMinimized(obj, dummyWindow, (windowFlags&SDL_WINDOW_MINIMIZED) != 0);
+        }
+        if((windowFlags&SDL_WINDOW_MAXIMIZED) != (realFlags&SDL_WINDOW_MAXIMIZED)) {
+            sdl2setWindowMaximized(obj, dummyWindow, (windowFlags&SDL_WINDOW_MAXIMIZED) != 0);
+        }
+        if((windowFlags&SDL_WINDOW_FULLSCREEN) != (realFlags&SDL_WINDOW_FULLSCREEN)) {
+            sdl2setWindowFullscreen(obj, dummyWindow, (windowFlags&SDL_WINDOW_FULLSCREEN) != 0);
+        }
+        if((windowFlags&SDL_WINDOW_INPUT_FOCUS) != (realFlags&SDL_WINDOW_INPUT_FOCUS)) {
+            sdl2setWindowFocused(obj, dummyWindow, (windowFlags&SDL_WINDOW_INPUT_FOCUS) != 0);
+        }
+        if((windowFlags&SDL_WINDOW_HIDDEN) != (realFlags&SDL_WINDOW_HIDDEN)) {
+            sdl2setWindowHidden(obj, dummyWindow, (windowFlags&SDL_WINDOW_HIDDEN) != 0);
+        }
 
-    // If the dummy window is not set, make this the dummy window
-    if(!this->dummyWindow) {
-        this->dummyWindow = windowObj;
         this->dummyWindowInUse = true;
+        if(incomplete->hasWidth) {
+            sdl2setWindowWidth(obj, this->dummyWindow, incomplete->width);
+        }
+        if(incomplete->hasHeight) {
+            sdl2setWindowHeight(obj, this->dummyWindow, incomplete->height);
+        }
+        // Title's ownership is in the window object itself
+        dummyWindow->title = incomplete->title;
+        char* titleNullTerm = PString_marshalAlloc(incomplete->title, tempAllocator);
+        this->libsdl2.setWindowTitle(dummyWindow->sdlWindow, titleNullTerm);
+        Allocator_free(tempAllocator, titleNullTerm, incomplete->title.len+1);
+        return dummyWindow;
     }
+    SDL_MAKE_NEW_WINDOW:
+    // Seriously, why did it take until C23 for us lowly C programmers to declare variables after a label
+    // Now I have to put this in a scope
+    {
+        // SDL expects a null-terminated title, while our actual title is not null terminated
+        // (How come nobody ever makes options for those using non null-terminated strings?)
+        // Reminder: SDL2 uses UTF8 encoding for pretty much all strings
+        char* titleNullTerm = PString_marshalAlloc(incomplete->title, tempAllocator);
+        SDL_Window* win = this->libsdl2.createWindow(titleNullTerm, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 256, 256, windowFlags);
+        // I'm so paranoid, I actually went through the SDL2 source code to make sure it actually duplicates the window title to avoid a use-after-free
+        // Better too worried than not enough I guess
+        Allocator_free(tempAllocator, titleNullTerm, incomplete->title.len+1);
 
-    return (WindowHandle)windowObj;
+        Sdl2Window* windowObj = Allocator_allocate(rootAllocator, sizeof(Sdl2Window));
+        
+        // Title's ownership is in the window object itself
+        windowObj->sdlWindow = win;
+        windowObj->title = incomplete->title;
+
+        // So we can easily get one of our windows out of the SDL2 window handle
+        this->libsdl2.setWindowData(win, "pincSdl2Window", windowObj);
+
+        // Add it to the list of windows
+        sdl2AddWindow(this, windowObj);
+
+        // If the dummy window is not set, make this the dummy window
+        if(!this->dummyWindow) {
+            this->dummyWindow = windowObj;
+            this->dummyWindowInUse = true;
+        }
+        return (WindowHandle)windowObj;
+    }
 }
 
 void sdl2deinitWindow(struct WindowBackend* obj, WindowHandle windowHandle) {
-    P_UNUSED(obj);
-    P_UNUSED(windowHandle);
-    // TODO
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    Sdl2Window* window = (Sdl2Window*)windowHandle;
+    // TODO: add validation that the dummy window in use variable is synchronized with the list of windows
+    // if the dummy window is in use, it should be in the list. If not, it should not be in the list.
+    sdl2RemoveWindow(this, window);
+    if(window == this->dummyWindow) {
+        // Don't want to accidentally delete the dummy window
+        this->dummyWindowInUse = false;
+        return;
+    }
+    this->libsdl2.destroyWindow(window->sdlWindow);
+    PString_free(&window->title, rootAllocator);
+    Allocator_free(rootAllocator, window, sizeof(Sdl2Window));
 }
 
 void sdl2setWindowTitle(struct WindowBackend* obj, WindowHandle windowHandle, uint8_t* title, size_t titleLen) {
@@ -468,10 +543,24 @@ void sdl2setWindowWidth(struct WindowBackend* obj, WindowHandle window, uint32_t
 }
 
 uint32_t sdl2getWindowWidth(struct WindowBackend* obj, WindowHandle window) {
-    P_UNUSED(obj);
-    P_UNUSED(window);
-    // TODO
-    return 0;
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    Sdl2Window* windowObj = (Sdl2Window*)window;
+    // SDL has a history of annoying issues around the size of a window in actual pixels
+    int width = 0;
+    if(this->libsdl2.getWindowSizeInPixels) {
+        this->libsdl2.getWindowSizeInPixels(windowObj->sdlWindow, &width, NULL);
+    } else if(this->libsdl2.glGetDrawableSize) {
+        // TODO: only graphics backend is OpenGl, shortcuts are made
+        this->libsdl2.glGetDrawableSize(windowObj->sdlWindow, &width, NULL);
+    } else {
+        // If the previously tried functions don't work, then it means this is a version of SDL from before it became hidpi aware.
+        // There's not a lot we can do. If I'm not mistaken, non-dpi aware applications (in windows) are just fed incorrect window size values,
+        // which can cause all kinds of issues.
+        // Just assume the window size is equal to pixels. It's unlikely anyone is using an SDL2 version this old anyway.
+        this->libsdl2.getWindowSize(windowObj->sdlWindow, &width, NULL);
+    }
+    PErrorSanitize(width <= UINT32_MAX && width > 0, "Integer overflow");
+    return (uint32_t)width;
 }
 
 void sdl2setWindowHeight(struct WindowBackend* obj, WindowHandle window, uint32_t height) {
@@ -482,10 +571,24 @@ void sdl2setWindowHeight(struct WindowBackend* obj, WindowHandle window, uint32_
 }
 
 uint32_t sdl2getWindowHeight(struct WindowBackend* obj, WindowHandle window) {
-    P_UNUSED(obj);
-    P_UNUSED(window);
-    // TODO
-    return 0;
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    Sdl2Window* windowObj = (Sdl2Window*)window;
+    // SDL has a history of annoying issues around the size of a window in actual pixels
+    int height = 0;
+    if(this->libsdl2.getWindowSizeInPixels) {
+        this->libsdl2.getWindowSizeInPixels(windowObj->sdlWindow, NULL, &height);
+    } else if(this->libsdl2.glGetDrawableSize) {
+        // TODO: only graphics backend is OpenGl, shortcuts are made
+        this->libsdl2.glGetDrawableSize(windowObj->sdlWindow, NULL, &height);
+    } else {
+        // If the previously tried functions don't work, then it means this is a version of SDL from before it became hidpi aware.
+        // There's not a lot we can do. If I'm not mistaken, non-dpi aware applications (in windows) are just fed incorrect window size values,
+        // which can cause all kinds of issues.
+        // Just assume the window size is equal to pixels. It's unlikely anyone is using an SDL2 version this old anyway.
+        this->libsdl2.getWindowSize(windowObj->sdlWindow, NULL, &height);
+    }
+    PErrorSanitize(height <= UINT32_MAX && height > 0, "Integer overflow");
+    return (uint32_t)height;
 }
 
 float sdl2getWindowScaleFactor(struct WindowBackend* obj, WindowHandle window) {
@@ -599,9 +702,8 @@ bool sdl2windowEventClosed(struct WindowBackend* obj, WindowHandle window) {
 
 bool sdl2windowEventResized(struct WindowBackend* obj, WindowHandle window) {
     P_UNUSED(obj);
-    P_UNUSED(window);
-    // TODO
-    return false;
+    Sdl2Window* windowObj = (Sdl2Window*)window;
+    return windowObj->events.resized;
 }
 
 void sdl2windowPresentFramebuffer(struct WindowBackend* obj, WindowHandle window) {
@@ -672,7 +774,7 @@ RawOpenglContextHandle sdl2rawGlCompleteContext(struct WindowBackend* obj, Incom
     // TODO: Actually use the context information
     P_UNUSED(incompleteContext);
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
-    Sdl2Window* dummyWindow = _dummyWindow(this);
+    Sdl2Window* dummyWindow = _dummyWindow(obj);
     SDL_GLContext sdlGlContext = this->libsdl2.glCreateContext(dummyWindow->sdlWindow);
     if(!sdlGlContext) {
         // TODO: don't do this when external errors are disable - PErrorExternal will do nothing, but this string is still created
