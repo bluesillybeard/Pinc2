@@ -33,9 +33,8 @@ project(pinc
 # vars
 
 # TODO: more compilers than just clang
-# TODO: build time option for sanitize
-set(PINC_COMPILE_OPTIONS "-Werror" "-pedantic-errors" "-Wall" "-Wextra" "-Wconversion" "-Wno-unused-function" "-fsanitize=address,undefined" CACHE STRING "options used to compile Pinc and the examples")
-set(PINC_LINK_OPTIONS "-fsanitize=address,undefined" CACHE STRING "linker flags for pinc and examples")
+set(PINC_COMPILE_OPTIONS "-Werror" "-pedantic-errors" "-Wall" "-Wextra" "-Wconversion" "-Wno-unused-function" CACHE STRING "options used to compile Pinc and the examples")
+set(PINC_LINK_OPTIONS CACHE STRING "linker flags for pinc and examples")
 
 include(GNUInstallDirs)
 
