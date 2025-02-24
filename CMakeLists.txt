@@ -40,9 +40,19 @@ set(PINC_LINK_OPTIONS "-fsanitize=address,undefined" CACHE STRING "linker flags 
 include(GNUInstallDirs)
 
 add_library(pinc
+    # Actual source files
     src/pinc_main.c
     src/platform/platform.c
     src/sdl2.c
+    # Internal headers - these are so the LSP works correctly, and have nothing to do with the build itself
+    # there are a lot of these because implementations of functions tend to get grouped together more than macros and types
+    src/pinc_error.h
+    src/pinc_main.h
+    src/pinc_options.h
+    src/pinc_types.h
+    src/sdl2.h
+    src/sdl2load.h
+    src/window.h
 )
 set_target_properties(pinc PROPERTIES C_STANDARD 99)
 set_target_properties(pinc PROPERTIES VERSION ${PROJECT_VERSION})
@@ -73,7 +83,7 @@ install(TARGETS pinc
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-# examples
+# examples - Everything beyond this point is OPTIONAL for additional build systems.
 
 # Example 0_window
 

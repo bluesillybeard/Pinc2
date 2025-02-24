@@ -1,3 +1,7 @@
+#include "pinc_options.h"
+// To make the build system as simple as possible, backend source files must remove themselves rather than rely on the build system
+#if PINC_HAVE_WINDOW_SDL2==1
+
 #include "platform/platform.h"
 #include "pinc_main.h"
 #include "window.h"
@@ -821,3 +825,5 @@ void* sdl2rawGlGetProc(struct WindowBackend* obj, char const* procname) {
     PErrorUser(this->libsdl2.glGetCurrentContext(), "Cannot get proc address of an OpenGL function without a current context");
     return this->libsdl2.glGetProcAddress(procname);
 }
+
+#endif
