@@ -34,8 +34,6 @@ void pinc_intern_callError(PString message, pinc_error_type type) {
 
 PincStaticState pinc_intern_staticState = PINC_PREINIT_STATE;
 
-// TODO: move these to main state struct
-
 // Implementation of pinc's root allocator on top of platform.h
 static void* pinc_root_platform_allocate(void* obj, size_t size) {
     P_UNUSED(obj);
@@ -91,7 +89,7 @@ static const AllocatorVtable user_alloc_vtable = (AllocatorVtable) {
 };
 
 static pinc_object PincObject_allocate(void) {
-    if(staticState.objectsCapacity - staticState.objectsNum == 0) {
+    if(staticState.objectsCapacity == staticState.objectsNum) {
         if(!staticState.objects) {
             staticState.objects = Allocator_allocate(rootAllocator, sizeof(PincObject) * 8);
             staticState.objectsCapacity = 8;
@@ -100,6 +98,11 @@ static pinc_object PincObject_allocate(void) {
             staticState.objects = Allocator_reallocate(rootAllocator, staticState.objects, sizeof(PincObject) * staticState.objectsCapacity, sizeof(PincObject) * newObjectsCapacity);
             staticState.objectsCapacity = newObjectsCapacity;
         }
+    }
+    if(staticState.freeObjects && staticState.freeObjectsNum > 0) {
+        staticState.freeObjectsNum--;
+        pinc_object id = (pinc_object) staticState.freeObjects[staticState.freeObjectsNum];
+        return id;
     }
     // TODO: get an empty spot instead of growing the list indefinitely
     staticState.objectsNum++;
@@ -113,6 +116,7 @@ static PincObject* PincObject_ref(pinc_object handle) {
     // Another option would be to return null in either of these cases, and let downstream functions deal with it.
     PErrorUser(handle != 0, "Object handle is null");
     PErrorUser(handle <= staticState.objectsNum, "Object is invalid");
+    // TODO: if full validation errors are enabled, validate that the object being referenced is not in the free list
     return &staticState.objects[handle-1];
 }
 
@@ -121,6 +125,19 @@ static void PincObject_free(pinc_object handle) {
     pMemSet(0, (uint8_t*)obj, sizeof(PincObject));
     if(handle == staticState.objectsNum) {
         staticState.objectsNum--;
+    } else {
+        if(staticState.freeObjectsCapacity == staticState.freeObjectsNum) {
+            if(!staticState.freeObjects) {
+                staticState.freeObjects = Allocator_allocate(rootAllocator, sizeof(pinc_object) * 8);
+                staticState.freeObjectsCapacity = 8;
+            } else {
+                size_t newObjectsCapacity = staticState.freeObjectsCapacity * 2;
+                staticState.freeObjects = Allocator_reallocate(rootAllocator, staticState.freeObjects, sizeof(pinc_object) * staticState.freeObjectsCapacity, sizeof(pinc_object) * newObjectsCapacity);
+                staticState.freeObjectsCapacity = newObjectsCapacity;
+            }
+        }
+        staticState.freeObjects[staticState.freeObjectsNum] = handle;
+        staticState.freeObjectsNum++;
     }
 }
 
@@ -382,7 +399,7 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
     // deinit backends
     // TODO: only window backend is sdl2, shortcuts are taken
     if(windowBackendSet) {
-        psdl2Deinit(&windowBackend);
+        WindowBackend_deinit(&windowBackend);
         windowBackendSet = false;
         windowBackend.obj = 0;
         staticState.sdl2WindowBackend.obj = 0;
@@ -398,6 +415,10 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
 
     if(staticState.objects) {
         Allocator_free(rootAllocator, staticState.objects, staticState.objectsNum * sizeof(PincObject));
+    }
+
+    if(staticState.freeObjects) {
+        Allocator_free(rootAllocator, staticState.freeObjects, staticState.freeObjectsNum * sizeof(pinc_object));
     }
 
     // Full reset the state

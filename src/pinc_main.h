@@ -59,8 +59,13 @@ typedef struct {
     PincObject* objects;
     size_t objectsNum;
     size_t objectsCapacity;
+    // On the root allocator, Live for init
+    pinc_object* freeObjects;
+    size_t freeObjectsNum;
+    size_t freeObjectsCapacity;
 
-    // TODO: name these nicer
+    // Defined by the user, These are either all live or none live
+    // userAllocObj can be null while these are live
     void* userAllocObj;
     pinc_alloc_callback userAllocFn;
     pinc_alloc_aligned_callback userAllocAlignedFn;

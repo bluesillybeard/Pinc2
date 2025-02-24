@@ -3,5 +3,3 @@
 #include <stdbool.h>
 
 bool psdl2Init(WindowBackend* obj);
-
-void psdl2Deinit(WindowBackend* obj);

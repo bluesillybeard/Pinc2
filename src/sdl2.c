@@ -149,22 +149,6 @@ bool psdl2Init(WindowBackend* obj) {
     return true;
 }
 
-void psdl2Deinit(WindowBackend* obj) {
-    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
-    // Make sure the frontend deleted all of the windows already
-    PErrorAssert(this->windowsNum == 0, "Internal pinc error: the frontend didn't delete the windows before calling backend deinit");
-    
-    this->libsdl2.destroyWindow(this->dummyWindow->sdlWindow);
-    PString_free(&this->dummyWindow->title, rootAllocator);
-    Allocator_free(rootAllocator, this->dummyWindow, sizeof(Sdl2Window));
-
-    this->libsdl2.quit();
-    Allocator_free(rootAllocator, this->windows, sizeof(Sdl2Window*) * this->windowsCapacity);
-    Allocator_free(rootAllocator, this, sizeof(Sdl2WindowBackend));
-    sdl2UnloadLib(sdl2Lib);
-    sdl2Lib = 0;
-}
-
 // Fingers crossed the compiler sees that this obviously counts the number of set bits and uses a more efficient method
 // TODO: actually check this
 static uint32_t bitCount32(uint32_t n) {
@@ -343,8 +327,19 @@ pinc_return_code sdl2completeInit(struct WindowBackend* obj, pinc_graphics_backe
 }
 
 void sdl2deinit(struct WindowBackend* obj) {
-    P_UNUSED(obj);
-    // TODO
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    // Make sure the frontend deleted all of the windows already
+    PErrorAssert(this->windowsNum == 0, "Internal pinc error: the frontend didn't delete the windows before calling backend deinit");
+    
+    this->libsdl2.destroyWindow(this->dummyWindow->sdlWindow);
+    PString_free(&this->dummyWindow->title, rootAllocator);
+    Allocator_free(rootAllocator, this->dummyWindow, sizeof(Sdl2Window));
+
+    this->libsdl2.quit();
+    Allocator_free(rootAllocator, this->windows, sizeof(Sdl2Window*) * this->windowsCapacity);
+    Allocator_free(rootAllocator, this, sizeof(Sdl2WindowBackend));
+    sdl2UnloadLib(sdl2Lib);
+    sdl2Lib = 0;
 }
 
 
