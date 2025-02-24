@@ -25,6 +25,7 @@ typedef struct {
 
 typedef struct {
     Sdl2Functions libsdl2;
+    void* sdl2Lib;
     // May be null.
     Sdl2Window* dummyWindow;
     // Whether the dummy window is also in use as a user-facing window object
@@ -77,9 +78,6 @@ void sdl2RemoveWindow(Sdl2WindowBackend* this, Sdl2Window* window) {
     this->windowsNum--;
 }
 
-// TODO: what do we do with this tiny bit of static state
-static void* sdl2Lib = 0;
-
 static void* sdl2LoadLib(void) {
     // TODO: what are all the library name possibilities?
     // Note: For now, we only use functionality from the original 2.0.0 release
@@ -112,9 +110,9 @@ PINC_WINDOW_INTERFACE
 #undef PINC_WINDOW_INTERFACE_PROCEDURE
 
 bool psdl2Init(WindowBackend* obj) {
-    if(sdl2Lib) {
-        return true;
-    }
+    obj->obj = Allocator_allocate(rootAllocator, sizeof(Sdl2WindowBackend));
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    pMemSet(0, this, sizeof(Sdl2WindowBackend));
     // The only thing required for SDL2 support is for the SDL2 library to be present
     void* lib = sdl2LoadLib();
     if(!lib) {
@@ -122,11 +120,9 @@ bool psdl2Init(WindowBackend* obj) {
         // sdl2UnloadLib(lib);
         return false;
     }
-    sdl2Lib = lib;
-    obj->obj = Allocator_allocate(rootAllocator, sizeof(Sdl2WindowBackend));
-    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
-    pMemSet(0, this, sizeof(Sdl2WindowBackend));
-    loadSdl2Functions(sdl2Lib, &this->libsdl2);
+    this->sdl2Lib = lib;
+
+    loadSdl2Functions(this->sdl2Lib, &this->libsdl2);
     // TODO: warn for any functions that were not loaded
     SDL_version sdlVersion;
     this->libsdl2.getVersion(&sdlVersion);
@@ -336,10 +332,9 @@ void sdl2deinit(struct WindowBackend* obj) {
     Allocator_free(rootAllocator, this->dummyWindow, sizeof(Sdl2Window));
 
     this->libsdl2.quit();
+    sdl2UnloadLib(this->sdl2Lib);
     Allocator_free(rootAllocator, this->windows, sizeof(Sdl2Window*) * this->windowsCapacity);
     Allocator_free(rootAllocator, this, sizeof(Sdl2WindowBackend));
-    sdl2UnloadLib(sdl2Lib);
-    sdl2Lib = 0;
 }
 
 
