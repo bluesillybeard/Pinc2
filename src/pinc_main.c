@@ -17,19 +17,27 @@ void pinc_intern_callError(PString message, pinc_error_type type) {
         uint8_t* msgNullTerm = (uint8_t*)PString_marshalAlloc(message, tempAllocator);
         staticState.userCallError(msgNullTerm, message.len, type);
         Allocator_free(tempAllocator, msgNullTerm, message.len+1);
-        switch (type)
-        {
-        case pinc_error_type_unknown:
-        case pinc_error_type_external:
-            break;
-        default:
-            pAssertFail();
-            break;
-        }
     } else {
         pPrintError(message.str, message.len);
+    }
+    pTriggerDebugger();
+}
+
+P_NORETURN void pinc_intern_callFatalError(PString message, pinc_error_type type) {
+    if(rootAllocator.vtable == 0) {
+        // This assert is not part of the Pinc error system... because if it was, we would have an infinite loop!
+        // The temp allocator is set before any errors have the potential to occur, so this should never happen.
         pAssertFail();
     }
+    if(staticState.userCallError) {
+        // Let's be nice and let the user have their null terminator
+        uint8_t* msgNullTerm = (uint8_t*)PString_marshalAlloc(message, tempAllocator);
+        staticState.userCallError(msgNullTerm, message.len, type);
+        Allocator_free(tempAllocator, msgNullTerm, message.len+1);
+    } else {
+        pPrintError(message.str, message.len);
+    }
+    pAssertFail();
 }
 
 PincStaticState pinc_intern_staticState = PINC_PREINIT_STATE;

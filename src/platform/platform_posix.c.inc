@@ -6,7 +6,6 @@
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -24,7 +23,7 @@ void* pAllocAligned(size_t bytes, size_t alignment) {
     P_UNUSED(alignment);
     // Aligned alloc is not implemented for older than C11....
     // Oh well. Pinc is unlikely to use this. In other words: only bother fixing this if an error occurs.
-    assert(0);
+    pAssertFail();
     return 0;
     #endif
 }
@@ -97,9 +96,52 @@ size_t pUtf8UnicodeString(uint8_t const* restrict str, size_t strLen, uint32_t* 
 // TODO
 size_t pUnicodeUtf8String(uint32_t const* restrict codepoints, size_t numCodepoints, uint8_t* restrict outUtf8);
 
-void pAssertFail(void) {
-    // For now, use libc's assert
-    assert(0);
+// Source: https://github.com/scottt/debugbreak/blob/master/debugbreak.h
+// Not a copy, but this has the parts needed from it
+// We don't need any of the windows stuff, or the C++ stuff... Or most of it, actually.
+
+void pTriggerDebugger(void) {
+    // TODO: does it make sense to make this a Pinc option? I don't think so.
+    #if !defined(DEBUG) && !defined(NDEBUG)
+    #if defined(__i386__) || defined(__x86_64__)
+    // x86
+    __asm__ volatile("int $0x03");
+    #elif defined(__thumb__)
+    // arm short instructions
+    // Apparently this can cause issues in some debuggers - can't guarantee you will be able to continue debugging after this is called
+    __asm__ volatile(".inst 0xde01");
+    #elif defined(__arm__)
+    // arm normal instructions
+    // Apparently this can cause issues in some debuggers - can't guarantee you will be able to continue debugging after this is called
+    __asm__ volatile(".inst 0xe7f001f0");
+    #elif defined(__arch64__)
+    // 64 bit arm
+    // TODO: Apparently this is not the best way on macos? Really, macos should have it's own platform implementation
+    __asm__ volatile(".inst 0xd4200000");
+    #elif defined(__powerpc__)
+    // powerpc
+    // Apparently this can cause issues in some debuggers - can't guarantee you will be able to continue debugging after this is called
+    __asm__ volatile(".4byte 0x7d821008");
+    #elif defined(__riscv)
+    // riscv being different and only having underscores at the beginning
+    __asm__ volatile(".4byte 0x00100073");
+    #else
+    // Oops, we don't know what this is. Assert instead.
+    pAssertFail();
+    #endif
+    #endif
+}
+
+// Guys, seriously. WHY does the C standard have assert(). BUT NOT ASSERT FAIL. WHAT IS THIS.
+// Thankfully, this here handy function is baked into the posix standard - so it is safe to use.
+
+/* This prints an "Assertion failed" message and aborts.  */
+extern void __assert_fail (const char *__assertion, const char *__file,
+			   unsigned int __line, const char *__function)
+     __THROW __attribute__ ((__noreturn__));
+
+P_NORETURN void pAssertFail(void) {
+    __assert_fail("Pinc platform assert", __FILE__, __LINE__, __func__);
 }
 
 void pPrintError(uint8_t const* message, size_t len) {

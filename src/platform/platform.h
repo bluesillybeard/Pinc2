@@ -7,6 +7,18 @@
 
 // Platform provides some base platform functionality
 
+// Useful macros that depend on the compiler
+
+# if __GNUC__ || __clang__
+#   define P_UNUSED(var) (void) var
+#   define P_NORETURN __attribute__ ((__noreturn__))
+# else
+// Assume other compilers are not supported
+#   define P_UNUSED(var)
+#   define P_NORETURN
+#endif
+
+
 // TODO: It is probably worth exposing these functions to the user, as an alternative to whatever other platform library they may use.
 // We have to implement all of these nice functions for every supported platform anyway, may as well let the downstream developer make use of it,
 // Although many of them are just wrappers of libc (for now)
@@ -105,8 +117,12 @@ size_t pUnicodeUtf8String(uint32_t const* codepoints, size_t numCodepoints, uint
 
 // debugging functionality
 
+/// @brief Trigger a debugger breakpoint if possible, then continue execution, if possible
+///        Triggering a debugger is incredibly architecture and compiler and debugger specific, so there are very few guarantees with this function
+void pTriggerDebugger(void);
+
 /// @brief Call when an assertion fails.
-void pAssertFail(void);
+P_NORETURN void pAssertFail(void);
 
 void pPrintError(uint8_t const* message, size_t len);
 
@@ -118,14 +134,5 @@ void pPrintFormat(char const* fmt, ...);
 
 // Returns the number of characters that would have been written given enough space
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v);
-
-// Useful macros that depend on the compiler
-
-# if __GNUC__ || __clang__
-#   define P_UNUSED(var) (void) var
-# else
-// Assume other compilers are not supported
-#   define P_UNUSED(var)
-#endif
 
 #endif
