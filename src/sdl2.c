@@ -73,6 +73,7 @@ void sdl2RemoveWindow(Sdl2WindowBackend* this, Sdl2Window* window) {
     this->windowsNum--;
 }
 
+// TODO: what do we do with this tiny bit of static state
 static void* sdl2Lib = 0;
 
 static void* sdl2LoadLib(void) {

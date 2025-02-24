@@ -6,21 +6,16 @@
 
 // Implementations of things in pinc_main.h
 
-Allocator pinc_intern_rootAllocator;
-Allocator pinc_intern_tempAllocator;
-
-pinc_error_callback pfn_pinc_error_callback = 0;
-
 void pinc_intern_callError(PString message, pinc_error_type type) {
     if(rootAllocator.vtable == 0) {
         // This assert is not part of the Pinc error system... because if it was, we would have an infinite loop!
         // The temp allocator is set before any errors have the potential to occur, so this should never happen.
         pAssertFail();
     }
-    if(pfn_pinc_error_callback) {
+    if(staticState.userCallError) {
         // Let's be nice and let the user have their null terminator
         uint8_t* msgNullTerm = (uint8_t*)PString_marshalAlloc(message, tempAllocator);
-        pfn_pinc_error_callback(msgNullTerm, message.len, type);
+        staticState.userCallError(msgNullTerm, message.len, type);
         Allocator_free(tempAllocator, msgNullTerm, message.len+1);
         switch (type)
         {
@@ -37,11 +32,9 @@ void pinc_intern_callError(PString message, pinc_error_type type) {
     }
 }
 
-void* ptr_user_alloc = 0;
-pinc_alloc_callback pfn_user_alloc = 0;
-pinc_alloc_aligned_callback pfn_user_alloc_aligned = 0;
-pinc_realloc_callback pfn_user_realloc = 0;
-pinc_free_callback pfn_user_free = 0;
+PincStaticState pinc_intern_staticState = PINC_PREINIT_STATE;
+
+// TODO: move these to main state struct
 
 // Implementation of pinc's root allocator on top of platform.h
 static void* pinc_root_platform_allocate(void* obj, size_t size) {
@@ -64,7 +57,7 @@ static void pinc_root_platform_free(void* obj, void* ptr, size_t size) {
     pFree(ptr, size);
 }
 
-static AllocatorVtable platform_alloc_vtable = (AllocatorVtable) {
+static const AllocatorVtable platform_alloc_vtable = (AllocatorVtable) {
     .allocate = &pinc_root_platform_allocate,
     .allocateAligned = &pinc_root_platform_allocateAligned,
     .reallocate = &pinc_root_platform_reallocate,
@@ -75,78 +68,43 @@ static AllocatorVtable platform_alloc_vtable = (AllocatorVtable) {
 // These need to exist due to the potential ABI difference between this internal allocator, and the PINC_PROC_CALL setting.
 // the object can be set to the user pointer though
 static void* pinc_root_user_allocate(void* obj, size_t size) {
-    return pfn_user_alloc(obj, size);
+    return staticState.userAllocFn(obj, size);
 }
 
 static void* pinc_root_user_allocateAligned(void* obj, size_t size, size_t alignment) {
-    return pfn_user_alloc_aligned(obj, size, alignment);
+    return staticState.userAllocAlignedFn(obj, size, alignment);
 }
 
 static void* pinc_root_user_reallocate(void* obj, void* ptr, size_t oldSize, size_t newSize) {
-    return pfn_user_realloc(obj, ptr, oldSize, newSize);
+    return staticState.userReallocFn(obj, ptr, oldSize, newSize);
 }
 
 static void pinc_root_user_free(void* obj, void* ptr, size_t size) {
-    pfn_user_free(obj, ptr, size);
+    staticState.userFreeFn(obj, ptr, size);
 }
 
-static AllocatorVtable user_alloc_vtable = (AllocatorVtable) {
+static const AllocatorVtable user_alloc_vtable = (AllocatorVtable) {
     .allocate = &pinc_root_user_allocate,
     .allocateAligned = &pinc_root_user_allocateAligned,
     .reallocate = &pinc_root_user_reallocate,
     .free = &pinc_root_user_free,
 };
 
-// Some other variables exclusive to this translation unit
-
-static WindowBackend sdl2WindowBackend;
-
-// On the root allocator
-static FramebufferFormat* framebufferFormats = 0;
-
-static size_t framebufferFormatNum;
-
-// pinc objects are a user-facing map from what the user sees, and the actual internal objects / handles.
-// The real internal objects are usually done with opaque pointers managed by the backend itself.
-typedef enum {
-    // This needs to be zero so null-initialized objects are valid
-    PincObjectDiscriminator_none = 0,
-    PincObjectDiscriminator_incompleteWindow,
-    PincObjectDiscriminator_window,
-    PincObjectDiscriminator_incompleteRawGlContext,
-    PincObjectDiscriminator_rawGlContext,
-
-} PincObjectDiscriminator;
-
-typedef struct {
-    PincObjectDiscriminator discriminator;
-    union PincObjectData {
-        IncompleteWindow incompleteWindow;
-        WindowHandle window;
-        IncompleteRawGlContext incompleteRawGlContext;
-        RawOpenglContextHandle rawGlContext;
-    } data;
-} PincObject;
-
-static PincObject* objects = 0;
-static size_t objectsNum = 0;
-static size_t objectsCapacity = 0;
-
 static pinc_object PincObject_allocate(void) {
-    if(objectsCapacity - objectsNum == 0) {
-        if(!objects) {
-            objects = Allocator_allocate(rootAllocator, sizeof(PincObject) * 8);
-            objectsCapacity = 8;
+    if(staticState.objectsCapacity - staticState.objectsNum == 0) {
+        if(!staticState.objects) {
+            staticState.objects = Allocator_allocate(rootAllocator, sizeof(PincObject) * 8);
+            staticState.objectsCapacity = 8;
         } else {
-            size_t newObjectsCapacity = objectsCapacity * 2;
-            objects = Allocator_reallocate(rootAllocator, objects, sizeof(PincObject) * objectsCapacity, sizeof(PincObject) * newObjectsCapacity);
-            objectsCapacity = newObjectsCapacity;
+            size_t newObjectsCapacity = staticState.objectsCapacity * 2;
+            staticState.objects = Allocator_reallocate(rootAllocator, staticState.objects, sizeof(PincObject) * staticState.objectsCapacity, sizeof(PincObject) * newObjectsCapacity);
+            staticState.objectsCapacity = newObjectsCapacity;
         }
     }
     // TODO: get an empty spot instead of growing the list indefinitely
-    objectsNum++;
-    PErrorSanitize(objectsNum < UINT32_MAX, "Integer overflow");
-    pinc_object id = (pinc_object)objectsNum;
+    staticState.objectsNum++;
+    PErrorSanitize(staticState.objectsNum < UINT32_MAX, "Integer overflow");
+    pinc_object id = (pinc_object)staticState.objectsNum;
     return id;
 }
 
@@ -154,15 +112,15 @@ static PincObject* PincObject_ref(pinc_object handle) {
     // These are set as user errors because I can't imagine these happening in any other case.
     // Another option would be to return null in either of these cases, and let downstream functions deal with it.
     PErrorUser(handle != 0, "Object handle is null");
-    PErrorUser(handle <= objectsNum, "Object is invalid");
-    return &objects[handle-1];
+    PErrorUser(handle <= staticState.objectsNum, "Object is invalid");
+    return &staticState.objects[handle-1];
 }
 
 static void PincObject_free(pinc_object handle) {
     PincObject* obj = PincObject_ref(handle);
     pMemSet(0, (uint8_t*)obj, sizeof(PincObject));
-    if(handle == objectsNum) {
-        objectsNum--;
+    if(handle == staticState.objectsNum) {
+        staticState.objectsNum--;
     }
 }
 
@@ -173,28 +131,28 @@ WindowBackend windowBackend;
 // Below are the actual implementations of the Pinc API functions.
 
 PINC_EXPORT void PINC_CALL pinc_preinit_set_error_callback(pinc_error_callback callback) {
-    pfn_pinc_error_callback = callback;
+    staticState.userCallError = callback;
 }
 
 PINC_EXPORT void PINC_CALL pinc_preinit_set_alloc_callbacks(void* user_ptr, pinc_alloc_callback alloc, pinc_alloc_aligned_callback alloc_aligned, pinc_realloc_callback realloc, pinc_free_callback free) {
-    ptr_user_alloc = user_ptr;
-    pfn_user_alloc = alloc;
-    pfn_user_alloc_aligned = alloc_aligned;
-    pfn_user_realloc = realloc;
-    pfn_user_free = free;
+    staticState.userAllocObj = user_ptr;
+    staticState.userAllocFn = alloc;
+    staticState.userAllocAlignedFn = alloc_aligned;
+    staticState.userReallocFn = realloc;
+    staticState.userFreeFn = free;
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_incomplete_init(void) {
     // First up, allocator needs set up
     PErrorUser(
-        (pfn_user_alloc && pfn_user_alloc_aligned && pfn_user_realloc && pfn_user_free)
-        || !(pfn_user_alloc || pfn_user_alloc_aligned || pfn_user_realloc || pfn_user_free), 
+        (staticState.userAllocFn && staticState.userAllocAlignedFn && staticState.userReallocFn && staticState.userFreeFn)
+        || !(staticState.userAllocFn || staticState.userAllocAlignedFn || staticState.userReallocFn || staticState.userFreeFn), 
         "Pinc allocator callbacks must either be all set or all null!");
     
-    if(pfn_user_alloc) {
+    if(staticState.userAllocFn) {
         // User callbacks are set
         rootAllocator = (Allocator) {
-            .allocatorObjectPtr = ptr_user_alloc,
+            .allocatorObjectPtr = staticState.userAllocObj,
             .vtable = &user_alloc_vtable,
         };
     } else {
@@ -211,7 +169,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_incomplete_init(void) {
     // Begin initialization of window backends
     // SDL2 is the only one that actually exists so yeah
 
-    bool sdl2InitRes = psdl2Init(&sdl2WindowBackend);
+    bool sdl2InitRes = psdl2Init(&staticState.sdl2WindowBackend);
 
     if(!sdl2InitRes) {
         PErrorExternal(false, "No supported window backends available!");
@@ -222,7 +180,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_incomplete_init(void) {
     // Again, SDL2 is the only window backend, so some shortcuts can be taken
     // Once there are more window backends, all of their various framebuffer formats
     // need to be merged into one list and properly mapped to user-facing ID handles
-    framebufferFormats = WindowBackend_queryFramebufferFormats(&sdl2WindowBackend, rootAllocator, &framebufferFormatNum);
+    staticState.framebufferFormats = WindowBackend_queryFramebufferFormats(&staticState.sdl2WindowBackend, rootAllocator, &staticState.framebufferFormatNum);
     
     return pinc_return_code_pass;
 }
@@ -239,7 +197,7 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_graphics_backends(pinc_window_backend 
     P_UNUSED(window_backend);
     // TODO: only window backend is SDL2, shortcuts are taken
     size_t numGraphicsBackends;
-    pinc_graphics_backend* supportedBackends = WindowBackend_queryGraphicsBackends(&sdl2WindowBackend, tempAllocator, &numGraphicsBackends);
+    pinc_graphics_backend* supportedBackends = WindowBackend_queryGraphicsBackends(&staticState.sdl2WindowBackend, tempAllocator, &numGraphicsBackends);
     size_t numToCopy = capacity;
     if(numToCopy > numGraphicsBackends) {
         numToCopy = numGraphicsBackends;
@@ -259,43 +217,43 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_bac
     // TODO: is it really safe to assume that we can just filter the formats that are the same between the two backends and call all of those supported?
     // In other words, if both the window backend and graphics backend both support a given framebuffer format,
     // is it safe to assume that it can be used if that specific combination of window/graphics backend is chosen?
-    PErrorUser(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
-    PErrorSanitize(framebufferFormatNum < INT32_MAX, "Integer overflow");
+    PErrorUser(staticState.framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
+    PErrorSanitize(staticState.framebufferFormatNum < INT32_MAX, "Integer overflow");
     PErrorSanitize(capacity < INT32_MAX, "Integer overflow");
 
     if(ids_dest) {
         // Since there's only one window backend and only one graphics backend, just return the list we have as-is
-        for(int32_t i=0; i<(int32_t)framebufferFormatNum && i<(int32_t)capacity; ++i) {
+        for(int32_t i=0; i<(int32_t)staticState.framebufferFormatNum && i<(int32_t)capacity; ++i) {
             ids_dest[i] = i;
         }
     }
-    return (uint32_t)framebufferFormatNum;
+    return (uint32_t)staticState.framebufferFormatNum;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_channels(pinc_framebuffer_format format_id) {
     // TODO: shortcuts were taken, see pinc_query_framebuffer_format_ids
-    PErrorSanitize(framebufferFormatNum < INT32_MAX, "Integer overflow");
-    PErrorUser(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
-    PErrorUser(format_id < (int32_t)framebufferFormatNum && format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
-    return framebufferFormats[format_id].channels;
+    PErrorSanitize(staticState.framebufferFormatNum < INT32_MAX, "Integer overflow");
+    PErrorUser(staticState.framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
+    PErrorUser(format_id < (int32_t)staticState.framebufferFormatNum && format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
+    return staticState.framebufferFormats[format_id].channels;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_channel_bits(pinc_framebuffer_format format_id, uint32_t channel) {
     // TODO: shortcuts were taken, see pinc_query_framebuffer_format_ids
-    PErrorSanitize(framebufferFormatNum < INT32_MAX, "Integer overflow");
-    PErrorUser(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
-    PErrorUser(format_id < (int32_t)framebufferFormatNum && format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
-    FramebufferFormat* fmt = &framebufferFormats[format_id];
+    PErrorSanitize(staticState.framebufferFormatNum < INT32_MAX, "Integer overflow");
+    PErrorUser(staticState.framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
+    PErrorUser(format_id < (int32_t)staticState.framebufferFormatNum && format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
+    FramebufferFormat* fmt = &staticState.framebufferFormats[format_id];
     PErrorUser(channel < fmt->channels, "channel index out of bounds - did you make sure it's less than what pinc_query_framebuffer_format_channels returns for this format?");
     return fmt->channel_bits[channel];
 }
 
 PINC_EXPORT pinc_color_space PINC_CALL pinc_query_framebuffer_format_color_space(pinc_framebuffer_format format_id) {
     // TODO: shortcuts were taken, see pinc_query_framebuffer_format_ids
-    PErrorSanitize(framebufferFormatNum < INT32_MAX, "Integer overflow");
-    PErrorUser(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
-    PErrorUser(format_id < (int32_t)framebufferFormatNum && format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
-    return framebufferFormats[format_id].color_space;
+    PErrorSanitize(staticState.framebufferFormatNum < INT32_MAX, "Integer overflow");
+    PErrorUser(staticState.framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
+    PErrorUser(format_id < (int32_t)staticState.framebufferFormatNum && format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
+    return staticState.framebufferFormats[format_id].color_space;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_graphics_samples_options(pinc_graphics_backend graphics_backend, pinc_framebuffer_format format_id, uint32_t* samples_dest, uint32_t capacity) {
@@ -319,7 +277,7 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_graphics_depth_options(pinc_graphics_b
 PINC_EXPORT uint32_t PINC_CALL pinc_query_max_open_windows(pinc_window_backend window_backend) {
     P_UNUSED(window_backend);
     // TODO: only window backend is SDL2, shortcuts are taken
-    return WindowBackend_queryMaxOpenWindows(&sdl2WindowBackend);
+    return WindowBackend_queryMaxOpenWindows(&staticState.sdl2WindowBackend);
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_graphics_alpha_options(pinc_graphics_backend graphics_backend, pinc_framebuffer_format format_id, uint32_t* alpha_bits_dest, uint32_t capacity) {
@@ -345,15 +303,15 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend wi
         // TODO: actually choose the best one instead of just grabbing the first one
         framebuffer_format_id = 0;
     }
-    PErrorUser(framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
-    PErrorSanitize(framebufferFormatNum <= INT32_MAX, "Integer overflow");
-    PErrorUser(framebuffer_format_id < (int32_t)framebufferFormatNum && framebuffer_format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
-    FramebufferFormat framebuffer = framebufferFormats[framebuffer_format_id];
-    pinc_return_code result = WindowBackend_completeInit(&sdl2WindowBackend, graphics_backend, framebuffer, samples, depth_buffer_bits);
+    PErrorUser(staticState.framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
+    PErrorSanitize(staticState.framebufferFormatNum <= INT32_MAX, "Integer overflow");
+    PErrorUser(framebuffer_format_id < (int32_t)staticState.framebufferFormatNum && framebuffer_format_id >= 0, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
+    FramebufferFormat framebuffer = staticState.framebufferFormats[framebuffer_format_id];
+    pinc_return_code result = WindowBackend_completeInit(&staticState.sdl2WindowBackend, graphics_backend, framebuffer, samples, depth_buffer_bits);
     if(result == pinc_return_code_error) {
         return pinc_return_code_error;
     }
-    windowBackend = sdl2WindowBackend;
+    windowBackend = staticState.sdl2WindowBackend;
     windowBackendSet = true;
 
     return pinc_return_code_pass;
@@ -372,16 +330,9 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
         return;
     }
 
-    // Destroy framebuffer formats
-    if(framebufferFormats && framebufferFormatNum) {
-        Allocator_free(rootAllocator, framebufferFormats, framebufferFormatNum * sizeof(FramebufferFormat));
-        framebufferFormats = NULL;
-        framebufferFormatNum = 0;
-    }
-
-    if(objects && objectsCapacity) {
+    if(staticState.objects && staticState.objectsCapacity) {
         // Go through every object and destroy it
-        for(uint32_t i=0; i<objectsNum; ++i) {
+        for(uint32_t i=0; i<staticState.objectsNum; ++i) {
             pinc_object id = i+1;
             switch (pinc_get_object_type(id))
             {
@@ -434,8 +385,23 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
         psdl2Deinit(&windowBackend);
         windowBackendSet = false;
         windowBackend.obj = 0;
-        sdl2WindowBackend.obj = 0;
+        staticState.sdl2WindowBackend.obj = 0;
     }
+    
+    // Destroy any remaining objects
+
+    if(staticState.framebufferFormats && staticState.framebufferFormatNum) {
+        Allocator_free(rootAllocator, staticState.framebufferFormats, staticState.framebufferFormatNum * sizeof(FramebufferFormat));
+        staticState.framebufferFormats = NULL;
+        staticState.framebufferFormatNum = 0;
+    }
+
+    if(staticState.objects) {
+        Allocator_free(rootAllocator, staticState.objects, staticState.objectsNum * sizeof(PincObject));
+    }
+
+    // Full reset the state
+    staticState = PINC_PREINIT_STATE;
 }
 
 PINC_EXPORT pinc_window_backend PINC_CALL pinc_query_set_window_backend(void) {
@@ -850,9 +816,9 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_versi
         backend = pinc_window_backend_sdl2;
     }
     PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
-    PErrorUser(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
+    PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
 
-    return WindowBackend_queryRawGlVersionSupported(&sdl2WindowBackend, major, minor, es);
+    return WindowBackend_queryRawGlVersionSupported(&staticState.sdl2WindowBackend, major, minor, es);
 }
 
 PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_accumulator_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer, uint32_t channel, uint32_t bits){
@@ -861,13 +827,13 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_accum
         backend = pinc_window_backend_sdl2;
     }
     PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
-    PErrorUser(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
+    PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
     // TODO: -1 for default framebuffer format
     // TODO: Actually, I want to change 0 to be default / null, and turn framebuffer formats (more or less) into regular Pinc objects
     PErrorSanitize(framebufferFormatNum <= INT32_MAX, "Integer overflow");
-    PErrorUser(framebuffer < (int32_t)framebufferFormatNum, "Invalid framebuffer format ID");
-    FramebufferFormat framebufferFormat = framebufferFormats[framebuffer];
-    return WindowBackend_queryRawGlAccumulatorBits(&sdl2WindowBackend, framebufferFormat, channel, bits);
+    PErrorUser(framebuffer < (int32_t)staticState.framebufferFormatNum, "Invalid framebuffer format ID");
+    FramebufferFormat framebufferFormat = staticState.framebufferFormats[framebuffer];
+    return WindowBackend_queryRawGlAccumulatorBits(&staticState.sdl2WindowBackend, framebufferFormat, channel, bits);
 }
 
 PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_stereo_buffer(pinc_window_backend backend, pinc_framebuffer_format framebuffer) {
@@ -876,12 +842,12 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_stere
         backend = pinc_window_backend_sdl2;
     }
     PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
-    PErrorUser(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
+    PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
     // TODO: -1 for default framebuffer format
     PErrorSanitize(framebufferFormatNum <= INT32_MAX, "Integer overflow");
-    PErrorUser(framebuffer < (int32_t)framebufferFormatNum, "Invalid framebuffer format ID");
-    FramebufferFormat framebufferFormat = framebufferFormats[framebuffer];
-    return WindowBackend_queryRawGlStereoBuffer(&sdl2WindowBackend, framebufferFormat);
+    PErrorUser(framebuffer < (int32_t)staticState.framebufferFormatNum, "Invalid framebuffer format ID");
+    FramebufferFormat framebufferFormat = staticState.framebufferFormats[framebuffer];
+    return WindowBackend_queryRawGlStereoBuffer(&staticState.sdl2WindowBackend, framebufferFormat);
 }
 
 PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_context_debug(pinc_window_backend backend){
@@ -890,8 +856,8 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_conte
         backend = pinc_window_backend_sdl2;
     }
     PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
-    PErrorUser(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
-    return WindowBackend_queryRawGlContextDebug(&sdl2WindowBackend);
+    PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
+    return WindowBackend_queryRawGlContextDebug(&staticState.sdl2WindowBackend);
 }
 
 PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_forward_compatible(pinc_window_backend backend){
@@ -900,8 +866,8 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_forwa
         backend = pinc_window_backend_sdl2;
     }
     PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
-    PErrorUser(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
-    return WindowBackend_queryRawGlForwardCompatible(&sdl2WindowBackend);
+    PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
+    return WindowBackend_queryRawGlForwardCompatible(&staticState.sdl2WindowBackend);
 }
 
 PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_robust_access(pinc_window_backend backend){
@@ -910,8 +876,8 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_robus
         backend = pinc_window_backend_sdl2;
     }
     PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
-    PErrorUser(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
-    return WindowBackend_queryRawGlRobustAccess(&sdl2WindowBackend);
+    PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
+    return WindowBackend_queryRawGlRobustAccess(&staticState.sdl2WindowBackend);
 }
 
 PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_reset_isolation(pinc_window_backend backend){
@@ -920,8 +886,8 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_reset
         backend = pinc_window_backend_sdl2;
     }
     PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
-    PErrorUser(sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
-    return WindowBackend_queryRawGlResetIsolation(&sdl2WindowBackend);
+    PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
+    return WindowBackend_queryRawGlResetIsolation(&staticState.sdl2WindowBackend);
 }
 
 PINC_EXPORT pinc_raw_opengl_context PINC_CALL pinc_raw_opengl_create_context_incomplete(void) {
