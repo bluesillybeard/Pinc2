@@ -71,6 +71,9 @@ typedef struct {
     pinc_alloc_aligned_callback userAllocAlignedFn;
     pinc_realloc_callback userReallocFn;
     pinc_free_callback userFreeFn;
+
+    bool windowBackendSet;
+    WindowBackend windowBackend;
 } PincStaticState;
 
 #define PINC_PREINIT_STATE (PincStaticState) { \
@@ -84,6 +87,8 @@ typedef struct {
     .objects = 0, \
     .objectsNum = 0, \
     .objectsCapacity = 0, \
+    .windowBackendSet = false, \
+    .windowBackend = {.obj = 0, .vt = {0}}, \
 }
 
 extern PincStaticState pinc_intern_staticState;

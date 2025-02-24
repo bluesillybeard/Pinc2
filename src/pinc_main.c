@@ -104,7 +104,6 @@ static pinc_object PincObject_allocate(void) {
         pinc_object id = (pinc_object) staticState.freeObjects[staticState.freeObjectsNum];
         return id;
     }
-    // TODO: get an empty spot instead of growing the list indefinitely
     staticState.objectsNum++;
     PErrorSanitize(staticState.objectsNum < UINT32_MAX, "Integer overflow");
     pinc_object id = (pinc_object)staticState.objectsNum;
@@ -140,10 +139,6 @@ static void PincObject_free(pinc_object handle) {
         staticState.freeObjectsNum++;
     }
 }
-
-bool windowBackendSet = false;
-
-WindowBackend windowBackend;
 
 // Below are the actual implementations of the Pinc API functions.
 
@@ -328,8 +323,8 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend wi
     if(result == pinc_return_code_error) {
         return pinc_return_code_error;
     }
-    windowBackend = staticState.sdl2WindowBackend;
-    windowBackendSet = true;
+    staticState.windowBackend = staticState.sdl2WindowBackend;
+    staticState.windowBackendSet = true;
 
     return pinc_return_code_pass;
 }
@@ -398,10 +393,10 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
 
     // deinit backends
     // TODO: only window backend is sdl2, shortcuts are taken
-    if(windowBackendSet) {
-        WindowBackend_deinit(&windowBackend);
-        windowBackendSet = false;
-        windowBackend.obj = 0;
+    if(staticState.windowBackendSet) {
+        WindowBackend_deinit(&staticState.windowBackend);
+        staticState.windowBackendSet = false;
+        staticState.windowBackend.obj = 0;
         staticState.sdl2WindowBackend.obj = 0;
     }
     
@@ -465,7 +460,7 @@ PINC_EXPORT bool PINC_CALL pinc_get_object_complete(pinc_object obj) {
 }
 
 PINC_EXPORT pinc_window PINC_CALL pinc_window_create_incomplete(void) {
-    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
+    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     pinc_window handle = PincObject_allocate();
     PincObject* window = PincObject_ref(handle);
     window->discriminator = PincObjectDiscriminator_incompleteWindow;
@@ -494,10 +489,10 @@ PINC_EXPORT pinc_window PINC_CALL pinc_window_create_incomplete(void) {
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_window_complete(pinc_window window) {
-    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
+    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     PincObject* object = PincObject_ref(window);
     PErrorUser(object->discriminator == PincObjectDiscriminator_incompleteWindow, "Window is not an incomplete window object");
-    WindowHandle handle = WindowBackend_completeWindow(&windowBackend, &object->data.incompleteWindow);
+    WindowHandle handle = WindowBackend_completeWindow(&staticState.windowBackend, &object->data.incompleteWindow);
     if(!handle) {
         return pinc_return_code_error;
     }
@@ -507,7 +502,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_window_complete(pinc_window window) 
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_deinit(pinc_window window) {
-    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
+    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     PincObject* object = PincObject_ref(window);
     switch(object->discriminator) {
         case PincObjectDiscriminator_incompleteWindow:{
@@ -515,7 +510,7 @@ PINC_EXPORT void PINC_CALL pinc_window_deinit(pinc_window window) {
             break;
         }
         case PincObjectDiscriminator_window:{
-            WindowBackend_deinitWindow(&windowBackend, object->data.window);
+            WindowBackend_deinitWindow(&staticState.windowBackend, object->data.window);
             PincObject_free(window);
             break;
         }
@@ -527,7 +522,7 @@ PINC_EXPORT void PINC_CALL pinc_window_deinit(pinc_window window) {
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_title(pinc_window window, const char* title_buf, uint32_t title_len) {
-    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
+    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     PincObject* object = PincObject_ref(window);
     if(title_len == 0) {
         size_t realTitleLen = pStringLen(title_buf);
@@ -547,7 +542,7 @@ PINC_EXPORT void PINC_CALL pinc_window_set_title(pinc_window window, const char*
             // Window takes ownership of the pointer, but we don't have ownership of title_buf
             titlePtr = (uint8_t*)Allocator_allocate(rootAllocator, title_len);
             pMemCopy(title_buf, titlePtr, title_len);
-            WindowBackend_setWindowTitle(&windowBackend, object->data.window, titlePtr, title_len);
+            WindowBackend_setWindowTitle(&staticState.windowBackend, object->data.window, titlePtr, title_len);
             break;
         default:
             PErrorUser(false, "Window is not a window object");
@@ -572,7 +567,7 @@ PINC_EXPORT void PINC_CALL pinc_window_set_width(pinc_window window, uint32_t wi
 PINC_EXPORT uint32_t PINC_CALL pinc_window_get_width(pinc_window window) {
     // TODO: implement this properly
     PincObject* windowObj = PincObject_ref(window);
-    return WindowBackend_getWindowWidth(&windowBackend, windowObj->data.window);
+    return WindowBackend_getWindowWidth(&staticState.windowBackend, windowObj->data.window);
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_window_has_width(pinc_window window) {
@@ -590,7 +585,7 @@ PINC_EXPORT void PINC_CALL pinc_window_set_height(pinc_window window, uint32_t h
 PINC_EXPORT uint32_t PINC_CALL pinc_window_get_height(pinc_window window) {
     // TODO: implement this properly
     PincObject* windowObj = PincObject_ref(window);
-    return WindowBackend_getWindowHeight(&windowBackend, windowObj->data.window);
+    return WindowBackend_getWindowHeight(&staticState.windowBackend, windowObj->data.window);
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_has_height(pinc_window window) {
@@ -695,10 +690,10 @@ PINC_EXPORT bool PINC_CALL pinc_get_vsync(void) {
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_present_framebuffer(pinc_window window) {
-    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
+    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     PincObject* object = PincObject_ref(window);
     PErrorUser(object->discriminator == PincObjectDiscriminator_window, "Window must be a window object");
-    WindowBackend_windowPresentFramebuffer(&windowBackend, object->data.window);
+    WindowBackend_windowPresentFramebuffer(&staticState.windowBackend, object->data.window);
 }
 
 PINC_EXPORT bool PINC_CALL pinc_mouse_button_get(int button) {
@@ -729,16 +724,16 @@ PINC_EXPORT pinc_window PINC_CALL pinc_get_cursor_window(void) {
 }
 
 PINC_EXPORT void PINC_CALL pinc_step(void) {
-    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
-    WindowBackend_step(&windowBackend);
+    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
+    WindowBackend_step(&staticState.windowBackend);
     // TODO: clear temp allocator
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_closed(pinc_window window) {
-    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
+    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     PincObject* object = PincObject_ref(window);
     PErrorUser(object->discriminator == PincObjectDiscriminator_window, "Window must be a window object");
-    return WindowBackend_windowEventClosed(&windowBackend, object->data.window);
+    return WindowBackend_windowEventClosed(&staticState.windowBackend, object->data.window);
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_mouse_button(pinc_window window) {
@@ -750,7 +745,7 @@ PINC_EXPORT bool PINC_CALL pinc_event_window_mouse_button(pinc_window window) {
 PINC_EXPORT bool PINC_CALL pinc_event_window_resized(pinc_window window) {
     // TODO: properly implement this
     PincObject* obj = PincObject_ref(window);
-    return WindowBackend_windowEventResized(&windowBackend, obj->data.window);
+    return WindowBackend_windowEventResized(&staticState.windowBackend, obj->data.window);
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_focused(pinc_window window) {
@@ -982,7 +977,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_reset_isolati
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_version(pinc_raw_opengl_context incomplete_context, uint32_t major, uint32_t minor, bool es, bool core) {
     // TODO validation
-    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
+    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     // TODO check that this version is available
 
     PincObject* contextObj = PincObject_ref(incomplete_context);
@@ -998,11 +993,11 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_version(pinc_
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_context_complete(pinc_raw_opengl_context incomplete_context) {
     // TODO validation
-    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
+    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
 
     PincObject* contextObj = PincObject_ref(incomplete_context);
     PErrorUser(contextObj->discriminator == PincObjectDiscriminator_incompleteRawGlContext, "pinc_raw_opengl_context_complete: Object must be an incomplete raw OpenGl context");
-    RawOpenglContextHandle contextHandle = WindowBackend_rawGlCompleteContext(&windowBackend, contextObj->data.incompleteRawGlContext);
+    RawOpenglContextHandle contextHandle = WindowBackend_rawGlCompleteContext(&staticState.windowBackend, contextObj->data.incompleteRawGlContext);
     if(contextHandle == 0) {
         return pinc_return_code_error;
     }
@@ -1062,14 +1057,14 @@ PINC_EXPORT bool PINC_CALL pinc_raw_opengl_get_context_reset_isolation(pinc_raw_
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_make_current(pinc_window window, pinc_raw_opengl_context context) {
     // TODO validation
-    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
+    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
 
     PincObject* windowObj = PincObject_ref(window);
     PErrorUser(windowObj->discriminator == PincObjectDiscriminator_window, "pinc_raw_opengl_make_current: window must be a complete window object");
     PincObject* contextObj = PincObject_ref(context);
     PErrorUser(contextObj->discriminator == PincObjectDiscriminator_rawGlContext, "pinc_raw_opengl_make_current: context must be a complete raw OpenGL object");
 
-    return WindowBackend_rawGlMakeCurrent(&windowBackend, windowObj->data.window, contextObj->data.rawGlContext);
+    return WindowBackend_rawGlMakeCurrent(&staticState.windowBackend, windowObj->data.window, contextObj->data.rawGlContext);
 }
 
 PINC_EXPORT pinc_window PINC_CALL pinc_raw_opengl_get_current(void) {
@@ -1080,7 +1075,8 @@ PINC_EXPORT pinc_window PINC_CALL pinc_raw_opengl_get_current(void) {
 
 PINC_EXPORT void* PINC_CALL pinc_raw_opengl_get_proc(char const * procname) {
     // TODO validation
-    PErrorUser(windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
+    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
 
-    return WindowBackend_rawGlGetProc(&windowBackend, procname);
+    return WindowBackend_rawGlGetProc(&staticState.windowBackend, procname);
 }
+
