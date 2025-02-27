@@ -287,7 +287,11 @@ typedef enum {
 
 // framebuffer formats are transferrable between window and graphics backends, but not between different runs of the application.
 // A framebuffer format simply describes the pixel output values on the window itself. It does not include things like a depth buffer or MSAA.
-typedef int32_t pinc_framebuffer_format;
+typedef uint32_t pinc_framebuffer_format;
+
+// null framebuffer format ID
+#define PINC_FRAMEBUFFER_FORMAT_NULL 0
+
 
 // objects are non-transferrable between runs.
 typedef uint32_t pinc_object;
@@ -358,6 +362,10 @@ PINC_EXTERN pinc_return_code PINC_CALL pinc_incomplete_init(void);
 /// @return the number of window backends that are available
 PINC_EXTERN uint32_t PINC_CALL pinc_query_window_backends(pinc_window_backend* backend_dest, uint32_t capacity);
 
+/// @brief Query the default window backend for this system.
+/// @return The default window backend.
+PINC_EXTERN pinc_window_backend PINC_CALL pinc_query_window_backend_default(void);
+
 /// @brief Query the graphics backends available for a given window backend.
 /// @param window_backend The window backend to query. Must be a backend from query_window_backends.
 /// @param backend_dest a pointer to a memory buffer to write to, or null
@@ -365,16 +373,28 @@ PINC_EXTERN uint32_t PINC_CALL pinc_query_window_backends(pinc_window_backend* b
 /// @return the number of graphics backends that are available
 PINC_EXTERN uint32_t PINC_CALL pinc_query_graphics_backends(pinc_window_backend window_backend, pinc_graphics_backend* backend_dest, uint32_t capacity);
 
-/// @brief Query the frame buffer format ids supported by a window backend and one of its supported graphics backend
-/// @param window_backend the window backend to query from. Must be a supported window backend
-/// @param graphics_backend the graphics backend to query from. Must be a supported graphics backend of the window backend
-/// @param ids_dest a buffer to output the framebuffer format ids, or null
-/// @param capacity the amount of space available for framebuffer format ids to be written. Ignored if dest is null 
+/// @brief Query the default graphics backend for this system, given a window backend.
+///        The window backend is required because it's used to determine the best graphics backend for the system.
+///        use pinc_window_backend_any to query the default window backend.
+/// @return the default graphics backend.
+PINC_EXTERN pinc_graphics_backend PINC_CALL pinc_query_graphics_backend_default(pinc_window_backend window_backend);
+
+/// @brief Query the default framebuffer format that would be chosen for a given window and graphics backend.
+/// @param window_backend the window backend to query. Must be a supported graphics backend of the window backend.
+/// @param graphics_backend the graphics backend to query.
+/// @return the default framebuffer format.
+PINC_EXTERN pinc_framebuffer_format PINC_CALL pinc_query_framebuffer_format_default(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend);
+
+/// @brief Query the frame buffer format ids supported by a window backend and one of its supported graphics backend.
+/// @param window_backend the window backend to query from. Must be a supported window backend.
+/// @param graphics_backend the graphics backend to query from. Must be a supported graphics backend of the window backend.
+/// @param ids_dest a buffer to output the framebuffer format ids, or null to just query the number of formats.
+/// @param capacity the amount of space available for framebuffer format ids to be written. Ignored if dest is null.
 /// @return the number of framebuffer format ids supported.
 PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format* ids_dest, uint32_t capacity);
 
 /// @brief Query the number of channels that a frame buffer format supports
-/// @param format_id the id of the framebuffer format. Must be from query_framebuffer_format_ids
+/// @param format_id the id of the framebuffer format.
 /// @return the number of channels. 1 for grayscale, 2 for grayscale+alpha, 3 for RGB. Transparent windows (RGBA) is not yet supported.
 PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_channels(pinc_framebuffer_format format_id);
 
@@ -386,24 +406,14 @@ PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_channel_bits(pinc_f
 
 PINC_EXTERN pinc_color_space PINC_CALL pinc_query_framebuffer_format_color_space(pinc_framebuffer_format format_id);
 
-// Ask the graphics backend what numbers of samples it can support for a given framebuffer format.
-// single sampling (1 sample per pixel) is guaranteed to be supported on all backends.
-PINC_EXTERN uint32_t PINC_CALL pinc_query_graphics_samples_options(pinc_graphics_backend graphics_backend, pinc_framebuffer_format format_id, uint32_t* samples_dest, uint32_t capacity);
-
-// Ask the graphics backend what depth buffer bit depths are supported for a given framebuffer format
-PINC_EXTERN uint32_t PINC_CALL pinc_query_graphics_depth_options(pinc_graphics_backend graphics_backend, pinc_framebuffer_format format_id, uint32_t* depth_bits_dest, uint32_t capacity);
-
 // Many platforms (web & most consoles) can only have a certain number of windows open at a time. Most of the time this is one,
 // but it's possible to set up a web template with multiple canvases and there are consoles with 2 screens (like the nintendo DS) where it makes sense to treat them as separate windows.
 // Returns 0 if there is no reasonable limit (the limit is not a specific number, and you'll probably never encounter related issues in this case)
 PINC_EXTERN uint32_t PINC_CALL pinc_query_max_open_windows(pinc_window_backend window_backend);
 
-PINC_EXTERN uint32_t PINC_CALL pinc_query_graphics_alpha_options(pinc_graphics_backend graphics_backend, pinc_framebuffer_format format_id, uint32_t* alpha_bits_dest, uint32_t capacity);
-
-// use -1 to use a default framebuffer format
+// Null framebuffer format is a shortcut to use the default framebuffer format.
 // samples is for MSAA. 1 is guaranteed to be supported
 // A depth bits of 0 means no depth buffer.
-// TODO: If you want a depth buffer but don't care how many bits it is
 PINC_EXTERN pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format framebuffer_format_id, uint32_t samples, uint32_t depth_buffer_bits);
 
 /// @subsection post initialization related functions
@@ -682,6 +692,5 @@ PINC_EXTERN float PINC_CALL pinc_window_scroll_vertical(pinc_window window);
 
 // TODO: doc
 PINC_EXTERN float PINC_CALL pinc_window_scroll_horizontal(pinc_window window);
-
 
 #endif

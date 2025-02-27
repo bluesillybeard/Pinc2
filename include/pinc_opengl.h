@@ -34,16 +34,24 @@ PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_versi
 // For now, these are all treated as exact. That is, a context with the exact value queried / set must be created.
 // In the future, there may be a flag to specify if the value is an exact requirement or a minimum requirement.
 PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_accumulator_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer, uint32_t channel, uint32_t bits);
+PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_alpha_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer, uint32_t bits);
+PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_depth_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer, uint32_t bits);
+PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_samples(pinc_window_backend backend, pinc_framebuffer_format framebuffer, uint32_t samples);
 PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_stereo_buffer(pinc_window_backend backend, pinc_framebuffer_format framebuffer);
 PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_context_debug(pinc_window_backend backend);
 PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_forward_compatible(pinc_window_backend backend);
 PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_robust_access(pinc_window_backend backend);
 PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_reset_isolation(pinc_window_backend backend);
 
-// returns 0 on failure, which should only happen if the selected graphics backend does not support creating opengl contexts.
+// returns 0 on failure, which should only happen if the selected graphics backend does not support creating opengl contexts. An error is triggered on failure.
 PINC_EXTERN pinc_raw_opengl_context PINC_CALL pinc_raw_opengl_create_context_incomplete(void);
 
+// These fail when the exact configuration is definitely not supported. When it fails, the property is not set, and an error is not triggered.
+// If it does not fail, then 
 PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_accumulator_bits(pinc_raw_opengl_context incomplete_context, uint32_t channel, uint32_t bits);
+PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_alpha_bits(pinc_raw_opengl_context incomplete_context, uint32_t bits);
+PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_depth_bits(pinc_raw_opengl_context incomplete_context, uint32_t bits);
+PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_samples(pinc_raw_opengl_context incomplete_context, uint32_t samples);
 PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_stereo_buffer(pinc_raw_opengl_context incomplete_context, bool stereo);
 PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_context_debug(pinc_raw_opengl_context incomplete_context, bool debug);
 PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_forward_compatible(pinc_raw_opengl_context incomplete_context, bool compatible);
@@ -56,6 +64,9 @@ PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_context_complete(pinc_raw
 PINC_EXTERN void PINC_CALL pinc_raw_opengl_context_deinit(pinc_raw_opengl_context context);
 
 PINC_EXTERN uint32_t PINC_CALL pinc_raw_opengl_get_context_accumulator_bits(pinc_raw_opengl_context incomplete_context, uint32_t channel);
+PINC_EXTERN uint32_t PINC_CALL pinc_raw_opengl_get_context_alpha_bits(pinc_raw_opengl_context incomplete_context);
+PINC_EXTERN uint32_t PINC_CALL pinc_raw_opengl_get_context_depth_bits(pinc_raw_opengl_context incomplete_context);
+PINC_EXTERN uint32_t PINC_CALL pinc_raw_opengl_get_context_samples(pinc_raw_opengl_context incomplete_context);
 PINC_EXTERN bool PINC_CALL pinc_raw_opengl_get_context_stereo_buffer(pinc_raw_opengl_context incomplete_context);
 PINC_EXTERN bool PINC_CALL pinc_raw_opengl_get_context_context_debug(pinc_raw_opengl_context incomplete_context);
 PINC_EXTERN bool PINC_CALL pinc_raw_opengl_get_context_forward_compatible(pinc_raw_opengl_context incomplete_context);

@@ -213,6 +213,11 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_window_backends(pinc_window_backend* b
     return 1;
 }
 
+PINC_EXPORT pinc_window_backend PINC_CALL pinc_query_window_backend_default(void) {
+    // TODO: only window backend is SDL2, shortcuts are taken
+    return pinc_window_backend_sdl2;
+}
+
 PINC_EXPORT uint32_t PINC_CALL pinc_query_graphics_backends(pinc_window_backend window_backend, pinc_graphics_backend* backend_dest, uint32_t capacity) {
     P_UNUSED(window_backend);
     // TODO: only window backend is SDL2, shortcuts are taken
@@ -227,6 +232,19 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_graphics_backends(pinc_window_backend 
     }
     PErrorSanitize(numGraphicsBackends <= UINT32_MAX, "Integer overflow");
     return (uint32_t)numGraphicsBackends;
+}
+
+PINC_EXPORT pinc_graphics_backend PINC_CALL pinc_query_graphics_backend_default(pinc_window_backend window_backend) {
+    // TODO: only backend is raw opengl, shortcuts are taken
+    P_UNUSED(window_backend);
+    return pinc_graphics_backend_raw_opengl;
+}
+
+PINC_EXPORT pinc_framebuffer_format pinc_query_framebuffer_format_default(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend) {
+    P_UNUSED(window_backend);
+    P_UNUSED(graphics_backend);
+    PPANIC("pinc_query_framebuffer_format_default is not implemented");
+    return 0;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format* ids_dest, uint32_t capacity) {
@@ -276,37 +294,10 @@ PINC_EXPORT pinc_color_space PINC_CALL pinc_query_framebuffer_format_color_space
     return staticState.framebufferFormats[format_id].color_space;
 }
 
-PINC_EXPORT uint32_t PINC_CALL pinc_query_graphics_samples_options(pinc_graphics_backend graphics_backend, pinc_framebuffer_format format_id, uint32_t* samples_dest, uint32_t capacity) {
-    P_UNUSED(graphics_backend);
-    P_UNUSED(format_id);
-    P_UNUSED(samples_dest);
-    P_UNUSED(capacity);
-    PPANIC("pinc_query_graphics_samples_options is not implemented");
-    return 0;
-}
-
-PINC_EXPORT uint32_t PINC_CALL pinc_query_graphics_depth_options(pinc_graphics_backend graphics_backend, pinc_framebuffer_format format_id, uint32_t* depth_bits_dest, uint32_t capacity) {
-    P_UNUSED(graphics_backend);
-    P_UNUSED(format_id);
-    P_UNUSED(depth_bits_dest);
-    P_UNUSED(capacity);
-    PPANIC("pinc_query_graphics_depth_options is not implemented");
-    return 0;
-}
-
 PINC_EXPORT uint32_t PINC_CALL pinc_query_max_open_windows(pinc_window_backend window_backend) {
     P_UNUSED(window_backend);
     // TODO: only window backend is SDL2, shortcuts are taken
     return WindowBackend_queryMaxOpenWindows(&staticState.sdl2WindowBackend);
-}
-
-PINC_EXPORT uint32_t PINC_CALL pinc_query_graphics_alpha_options(pinc_graphics_backend graphics_backend, pinc_framebuffer_format format_id, uint32_t* alpha_bits_dest, uint32_t capacity) {
-    P_UNUSED(graphics_backend);
-    P_UNUSED(format_id);
-    P_UNUSED(alpha_bits_dest);
-    P_UNUSED(capacity);
-    PPANIC("pinc_query_graphics_alpha_options is not implemented");
-    return 0;
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format framebuffer_format_id, uint32_t samples, uint32_t depth_buffer_bits) {
@@ -860,6 +851,10 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_accum
     return WindowBackend_queryRawGlAccumulatorBits(&staticState.sdl2WindowBackend, framebufferFormat, channel, bits);
 }
 
+// TODO
+PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_alpha_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer, uint32_t bits);
+PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_depth_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer, uint32_t bits);
+
 PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_stereo_buffer(pinc_window_backend backend, pinc_framebuffer_format framebuffer) {
     // TODO: Only backend is sdl2, shortcuts are taken
     if(backend == pinc_window_backend_any) {
@@ -942,6 +937,10 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_accumulator_b
     PPANIC("Not implemented");
     return pinc_return_code_error;
 }
+
+// TODO
+PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_alpha_bits(pinc_raw_opengl_context incomplete_context, uint32_t bits);
+PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_depth_bits(pinc_raw_opengl_context incomplete_context, uint32_t bits);
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_stereo_buffer(pinc_raw_opengl_context incomplete_context, bool stereo) {
     P_UNUSED(incomplete_context);
@@ -1027,6 +1026,10 @@ PINC_EXPORT uint32_t PINC_CALL pinc_raw_opengl_get_context_accumulator_bits(pinc
     PPANIC("Not implemented");
     return 0;
 }
+
+// TODO
+PINC_EXTERN uint32_t PINC_CALL pinc_raw_opengl_get_context_alpha_bits(pinc_raw_opengl_context incomplete_context);
+PINC_EXTERN uint32_t PINC_CALL pinc_raw_opengl_get_context_depth_bits(pinc_raw_opengl_context incomplete_context);
 
 PINC_EXPORT bool PINC_CALL pinc_raw_opengl_get_context_stereo_buffer(pinc_raw_opengl_context incomplete_context) {
     P_UNUSED(incomplete_context);

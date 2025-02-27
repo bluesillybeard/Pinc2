@@ -43,7 +43,6 @@ The original version written in Zig can be found [here](https://github.com/blues
 - Pinc is written for C99. If your compiler doesn't support C99... good luck getting any C code written in the last 10 years to work.
 
 ## This library is barely even started. Here's what's left to do:
-- (PARTIALLY DONE) set up interface for window backend
 - implement SDL2 + raw OpenGl backend
     - add tests as things are implemented
 - Make sure all of the important TODOs are handled
