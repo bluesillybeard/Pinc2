@@ -10,6 +10,7 @@
 #include "pinc_error.h"
 #include "window.h"
 #include "pinc_types.h"
+#include "arena.h"
 
 // pinc objects are a user-facing map from what the user sees, and the actual internal objects / handles.
 // The real internal objects are usually done with opaque pointers managed by the backend itself.
@@ -46,6 +47,8 @@ typedef struct {
     PincState initState;
     // See doc for rootAllocator macro. Live for incomplete and init
     Allocator alloc;
+    // Memory for tempAlloc object
+    Arena arenaAllocatorObject;
     // See doc for tempAllocator macro. Live for incomplete and init.
     Allocator tempAlloc;
     // Nullable, Lifetime separate from initState
@@ -76,9 +79,10 @@ typedef struct {
     WindowBackend windowBackend;
 } PincStaticState;
 
-#define PINC_PREINIT_STATE (PincStaticState) { \
+#define PINC_PREINIT_STATE { \
     .initState = PincState_preinit, \
     .alloc = {.allocatorObjectPtr = 0, .vtable = 0}, \
+    .arenaAllocatorObject = {.begin = 0, .end = 0}, \
     .tempAlloc = {.allocatorObjectPtr = 0, .vtable = 0}, \
     .userCallError = 0, \
     .sdl2WindowBackend = {.obj = 0, .vt = {0}}, \

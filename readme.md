@@ -292,3 +292,5 @@ None of these are going to be implemented any time soon - if ever.
     - nix
     - meson?
     - autoconf?
+- linking / using ANGLE for better macos+opengl support, among other improvements to OpenGL
+- header option to only include types and not functions

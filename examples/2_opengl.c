@@ -66,7 +66,7 @@ int main(void) {
     pinc_incomplete_init();
 
     // Init pinc with the raw opengl backend.
-    if(pinc_complete_init(pinc_window_backend_any, pinc_graphics_backend_raw_opengl, -1, 1, 0) == pinc_return_code_error) {
+    if(pinc_complete_init(pinc_window_backend_any, pinc_graphics_backend_raw_opengl, 0, 1, 0) == pinc_return_code_error) {
         // Something went wrong. The error callback should have been called.
         return 100;
     }

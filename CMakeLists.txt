@@ -43,6 +43,7 @@ add_library(pinc
     src/pinc_main.c
     src/platform/platform.c
     src/sdl2.c
+    src/arena.c
     # Internal headers - these are so the LSP works correctly, and have nothing to do with the build itself
     # there are a lot of these because implementations of functions tend to get grouped together more than macros and types
     src/pinc_error.h
@@ -52,6 +53,9 @@ add_library(pinc
     src/sdl2.h
     src/sdl2load.h
     src/window.h
+    src/libs/dynamic_allocator.h
+    src/libs/pstring.h
+    src/platform/platform.h
 )
 set_target_properties(pinc PROPERTIES C_STANDARD 99)
 set_target_properties(pinc PROPERTIES VERSION ${PROJECT_VERSION})
