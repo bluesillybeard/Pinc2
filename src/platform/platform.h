@@ -18,6 +18,7 @@
 #   define P_NORETURN
 #endif
 
+typedef void (*PFN)(void);
 
 // TODO: It is probably worth exposing these functions to the user, as an alternative to whatever other platform library they may use.
 // We have to implement all of these nice functions for every supported platform anyway, may as well let the downstream developer make use of it,
@@ -64,7 +65,7 @@ void* pLoadLibrary(uint8_t const* nameUtf8, size_t nameSize);
 /// @param symbolNameUtf8 The name of the symbol, encoded in UTF8
 /// @param nameSize The number of bytes in the name
 /// @return A pointer to that symbol.
-void* pLibrarySymbol(void* library, uint8_t* symbolNameUtf8, size_t nameSize);
+PFN pLibrarySymbol(void* library, uint8_t* symbolNameUtf8, size_t nameSize);
 
 /// @brief Unload a library that is no longer needed.
 /// @param library The library to unload.

@@ -6,6 +6,9 @@
 /// @section init
 /// @brief Functions to be called after pinc_incomplete_init
 
+// Function pointer because ISO C99 does not like casting regular pointers to function pointers.
+typedef void(*PINC_PFN)(void);
+
 typedef enum {
     // definitely not supported
     pinc_raw_opengl_support_status_none,
@@ -87,7 +90,7 @@ PINC_EXTERN pinc_window PINC_CALL pinc_raw_opengl_get_current(void);
 ///     Do not assume a function is available if this returns non-null.
 /// @param procname A null terminated string with the name of an OpenGL function.
 /// @return the function pointer, or null if it could not be found.
-PINC_EXTERN void* PINC_CALL pinc_raw_opengl_get_proc(char const * procname);
+PINC_EXTERN PINC_PFN PINC_CALL pinc_raw_opengl_get_proc(char const * procname);
 
 // TODO: query extensions
 // TODO: get current window and context

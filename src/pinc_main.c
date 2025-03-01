@@ -1124,7 +1124,7 @@ PINC_EXPORT pinc_window PINC_CALL pinc_raw_opengl_get_current(void) {
     return 0;
 }
 
-PINC_EXPORT void* PINC_CALL pinc_raw_opengl_get_proc(char const * procname) {
+PINC_EXPORT PINC_PFN PINC_CALL pinc_raw_opengl_get_proc(char const * procname) {
     // TODO validation
     PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
 

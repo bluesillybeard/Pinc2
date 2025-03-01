@@ -47,6 +47,7 @@
         "Werror",
         "Wextra",
         "WINRT",
+        "Wpedantic",
         "Xlib"
     ],
     "files.associations": {

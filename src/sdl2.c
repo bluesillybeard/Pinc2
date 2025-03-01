@@ -807,7 +807,7 @@ pinc_return_code sdl2rawGlMakeCurrent(struct WindowBackend* obj, WindowHandle wi
     return pinc_return_code_pass;
 }
 
-void* sdl2rawGlGetProc(struct WindowBackend* obj, char const* procname) {
+PINC_PFN sdl2rawGlGetProc(struct WindowBackend* obj, char const* procname) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     // make sure the context is current.
     // If there is no current context, that is a user error that should be reported.

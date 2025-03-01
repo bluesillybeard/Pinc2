@@ -54,14 +54,23 @@ void* pLoadLibrary(uint8_t const* nameUtf8, size_t nameSize) {
     // TODO: there will eventually be options to have Pinc link with libraries statically or with the normal OS linker instead of at runtime
 }
 
-void* pLibrarySymbol(void* library, uint8_t* symbolNameUtf8, size_t nameSize) {
+PFN pLibrarySymbol(void* library, uint8_t* symbolNameUtf8, size_t nameSize) {
     // Cannot assume name is null terminated, which is what dlsym needs
     uint8_t* nameUtf8NullTerm = pAlloc(nameSize+1);
     pMemCopy(symbolNameUtf8, nameUtf8NullTerm, nameSize);
     nameUtf8NullTerm[nameSize] = 0;
+
     void* sym = dlsym(library, (char*)nameUtf8NullTerm);
     pFree(nameUtf8NullTerm, nameSize+1);
-    return sym;
+    // GCC's -Wpedantic is extra strict and does not allow a void* to be cast into a function pointer.
+    // This is an artifact of the ancient world back when a function pointer wasn't necessarily the same size as a pointer to memory.
+    // It appears POSIX *guarantees* that fact, seeing as dlsym returns void* instead of a void function pointer.
+    // Anyway, they gave us a nice way to disable that warning using __extension__.
+    #ifdef __GNUC__
+    return __extension__ (PFN)sym;
+    #else
+    return (PFN)sym;
+    #endif
 }
 
 void pUnloadLibrary(void* library) {
