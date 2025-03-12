@@ -18,7 +18,7 @@ Header / Build settings are done in pinc.h by defining the setting if it is not 
 ## Settings that only apply to the library build
 Build settings are done in the pinc library source code in `src/pinc_main.h` by defining the setting if it is not already defined. These only need to be defined for building pinc, and do not need to be defined when including the header. To be clear, these settings are set by the build system, but their defaults are managed by pinc_src.h. Due to how build systems handle these settings (for example, cmake), these defaults may be duplicated over multiple files.
 
-Boolean options can use "1", and "ON" for enable. Any other value is treated as disabled. This is done by defining "ON" as "1" with a macro in the source code.
+Boolean options can use "1", and "ON" for enable. Nearly any other value is treated as disabled. This is done by defining "ON" as "1" with a macro in the source code. In general, please only use "1", "ON", "0", and "OFF" to avoid edge cases involving collisions and other issues.
 
 - `PINC_HAVE_WINDOW_SDL2`
     - whether pinc with support for SDL2 window backend. 1 for enabled, 0 for disabled. Defaults to 1.

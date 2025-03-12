@@ -11,6 +11,7 @@ The original version written in Zig can be found [here](https://github.com/blues
 - Language agnostic - the API should avoid things that are difficult to port to other languages
     - The header is written in plain C, so any language with C FFI can be used
     - The external API only uses `int`, `char`, `void`, and basic pointers to arrays (`char*` and `len` for strings, `int*` and `len` for element arrays, etc)
+    - We do unfortunately require callbacks for some things. Fortunately, none of them matter to the core API - it's up to the binding how to handle them.
 
 - ZERO compile-time dependencies other than a functional C compiler / linker
     - Headers for external libraries are rebuilt and baked into the library itself
@@ -40,7 +41,7 @@ The original version written in Zig can be found [here](https://github.com/blues
 - Pinc does not provide a main loop
     - For applet based platforms (ex: emscripten, WASI), this means potentially making your code either reentrant or just running it on another thread
 - Pinc's API has a complete memory barrier from your application. Pinc will not give you pointers to accidentally store, and it will not store any pointers you give it. (other than some callbacks and related pointers)
-- Pinc is written for C99. If your compiler doesn't support C99... good luck getting any C code written in the last 10 years to work.
+- Pinc is written for C99. If your compiler doesn't support C99, you are on your own my friend.
 
 ## This library is barely even started. Here's what's left to do:
 - implement SDL2 + raw OpenGl backend
@@ -85,7 +86,7 @@ The original version written in Zig can be found [here](https://github.com/blues
 - SDL2
 
 ## Implemented graphics backends
-- OpenGL 2.1
+- Raw OpenGL
 
 ## Implemented build systems
 - cmake
@@ -95,6 +96,7 @@ The original version written in Zig can be found [here](https://github.com/blues
 
 ## Tested Compilers
 - Clang (the LLVM C compiler)
+- Gcc almost certainly works, it's not tested as regularly as Clang though
 
 ## Important notes
 
@@ -158,17 +160,19 @@ It is a good idea to read through the header a bit as well as look at the exampl
 - SDL 2
     - Is this even worth implementing despite the raw and opengl backends?
 - SDL 3
-    - Is this even worth implementing despite the raw and opengl backends?
+    - SDL3 GPU API is pretty cool
 - OpenGL 1.2
     - Oldest version of OpenGL worth supporting
 - OpenGL 1.5
     - Latest fixed-function version of OpenGL
+- OpenGL 2.1
+    - What I like to call "the beginning of the end of the dark ages" for OpenGL
 - OpenGL 3.2
     - The last widest supported version of OpenGL. For context, this is the version that Minecraft (Java edition) uses.
 - OpenGL 3.3
     - Backported a bunch of 4.x features. TODO: what features are these? Is it worth an OpenGL 3.3 backend when the 3.2 one exists?
 - OpenGL 4.3
-    - Last version of OpenGL supported on Macos, other than using some kind of weird cursed ANGLE->MoltenVK->Metal setup, or a pure software implementation
+    - Last version of OpenGL supported on Macos, other than using some kind of weird cursed converter setup, or a pure software implementation
 - OpenGl 4.6
     - Last version of OpenGL
 - Vulkan 1.0
@@ -292,7 +296,7 @@ None of these are going to be implemented any time soon - if ever.
     - Zig's cross-compiler thing for clang
         - This is ultimately clang, however it does some extra work to get libc and platform libraries/headers working nicely
     - musl maybe??
-- add debug print callback with proper formatting (that isn't just a copy of libc's formatting)
+- add debug print system with proper formatting (that isn't just a copy of libc's formatting)
 - expose (most of) platform.h so users can write code that is just as portable as Pinc itself while not giving up features that libc doesn't have
 - Add options / code / auto detection for where libraries come from
     - This is a requirement for supporting platforms without dynamic linking (such as the web)
