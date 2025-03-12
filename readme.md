@@ -48,12 +48,11 @@ The original version written in Zig can be found [here](https://github.com/blues
 - Make sure all of the important TODOs are handled
 - Make the library public
     - Not yet at where the Zig version is, but the library is usable.
-- Move the depth bits and samples ENTIRELY to the graphics backend to handle
-    - Perhaps two different framebuffer formats: the one for the graphics->window->display, and the one for the additional pieces like depth buffer and alpha channel.
 - finish pinc graphics header
     - Just base it off the original one.
     - Changes I want to make:
         - move the texture sampling properties from the uniform to the pipeline
+        - More dynamic pipeline state
         - Remove GLSL and use a custom shader definition compatible with fixed function rendering (aim for minimal features like OpenGL 1.0 or the N64)
         - Add GLSL as an optional feature that a graphics backend may or may not have
         - Add indexed framebuffer / texture (where colors are an enum instead of brightness values)
@@ -61,18 +60,23 @@ The original version written in Zig can be found [here](https://github.com/blues
             - Note: Modern APIs don't support this directly (lol I wonder why), so this capability needs to be queryable
             - SDL2 supports this! I'm genuinely not quite sure why they would, seeing as they only target platforms of the last ~20 years, but still neat.
         - scissor rectangle
+        - add framebuffer objects / arbitrary draw surfaces
+            - many APIs do not support these so they must be optional to implement
+            - With that said, on the OpenGL 1.1 - 2.1 side, ARB_framebuffer_object or EXT_framebuffer_object are apparently widely supported, and almost guaranteed on 2.x hardware.
+        - queue based rendering - the user makes a queue, submits all of it at once, and can query if it's finished or not.
+            - Not so nice in OpenGL land, which does all of the sync explicitly, but this is a nice abstraction that many other APIs can benefit from.
+                - Note: Look at OpenGL sync objects, ARB_sync, NV_fence.
+                - Note: Look into NV_command_list, also ARB_shader_draw_parameters may be useful
 - set up interface for graphics backend
 - implement opengl 2.1 backend
-- Add platform implementations for at least windows (probably macos if it needs to be separate from posix)
 - implement the rest of the examples from the original project
 - Celebrate! we've made it back to where we left off in the original Zig version of Pinc.
     - And in fact, with some new things that the original prototype-like thing did not have
 
 ## Absolutely Important TODOs for before the library goes anywhere
-- warning print system
-- (proper) debug print system
 - Make sure all functions that take pinc_window_backend or pinc_graphics_backend can take 'any' to reference the default one.
 - add platform implementation for Windows
+- Add state validation to all functions
 
 ## Implemented platforms
 - Posix / Unix
@@ -211,13 +215,14 @@ None of these are going to be implemented any time soon - if ever.
 - Xcb
     - Not worth the effort. Xlib works fine for X11.
 
-## TODO and missing features (LOOKING FOR CONTRIBUTORS / API DESIGN IDEAS)
-- Move most of Pinc's static state to use a single static object
-    - This would make it easier to 'expose' Pinc's static state outside pinc_main.c
-    - Help wrangle all of the state into a single place so it's not scattered everywhere
+## TODO for API features / changes
 - better text selection input. ex: SDL_TextSelectionEvent
 - window position
     - wayland be like:
+    - In fact, there are many potential platforms that don't support window positioning:
+        - Pretty much any console
+        - Emscripten / web canvas
+        - applets
 - lots of events aren't implemented yet
 - ability get data from specific backends
     - X display, X windows, SDL2 opengl context, Win32 window handle, etc etc etc
@@ -262,8 +267,21 @@ None of these are going to be implemented any time soon - if ever.
 - built-in text / font rendering
     - This is an extremely common thing to do, so it may make sense to just add this into Pinc directly - maybe an official (but separate) module?
     - Would we want to do only basic text (ASCII), a partial implementation of unicode (ex: FreeType), or a full text shaping engine (ex: HarfBuz)?
+- Add option to capture mouse and lock mouse
+    - Capture mouse just forces it to be in the window. As much as I hate this as a user, may as well just add it for completeness.
+    - Lock mouse forces it to be in the window, and is used for first-person games for camera movement, and sometimes by applications (like Blender) to have infinite mouse movement for certain operations (like changing unbounded sliders or panning the camera).
+- header option to only include types and not functions
+- User data pointer for every Pinc object
+- Potentially allow a different framebuffer format for each window
+- binding policy
+    - how bindings to new languages should be handled, maintained, etc.
+    - building the library and shipping the .so for dynamic languages, integrating with the build system of native languages, etc.
+- expose the Pinc temp allocator for user convenience
+
+## TODO for internal library
 - test and get working on different compilers / implementations of libc
     - gcc
+        - Going back to GCC 8 seems reasonable enough
     - MSVC, as much as their C compiler sucks
         - how far back do we want to support? MSVC from 2010?
     - emscripten (once web support is added)
@@ -281,9 +299,6 @@ None of these are going to be implemented any time soon - if ever.
 - set up clang-tidy or another linter
 - set up testing with valgrind or other runtime analysis tools
 - allocation tracking
-- Add option to capture mouse and lock mouse
-    - Capture mouse just forces it to be in the window. As much as I hate this as a user, may as well just add it for completeness.
-    - Lock mouse forces it to be in the window, and is used for first-person games for camera movement, and sometimes by applications (like Blender) to have infinite mouse movement for certain operations (like changing unbounded sliders or panning the camera).
 - More build systems
     - scons
     - premake
@@ -293,4 +308,6 @@ None of these are going to be implemented any time soon - if ever.
     - meson?
     - autoconf?
 - linking / using ANGLE for better macos+opengl support, among other improvements to OpenGL
-- header option to only include types and not functions
+- Change the list of objects into a list of handle->type/index mappings, and have a list for each object type
+    - This is so iterating over a specific type of object (ex: framebuffer format) can be a lot more efficient
+    - This will also reduce Pinc's memory usage as small objects like framebuffer formats won't have to allocate the full space of the largest object type.

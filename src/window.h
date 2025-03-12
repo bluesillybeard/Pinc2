@@ -65,6 +65,8 @@ struct WindowBackend;
     /* ### Raw OpenGL functions */ \
     PINC_WINDOW_INTERFACE_FUNCTION(pinc_raw_opengl_support_status, (struct WindowBackend* obj, uint32_t major, uint32_t minor, bool es) , queryRawGlVersionSupported, (obj, major, minor, es)) \
     PINC_WINDOW_INTERFACE_FUNCTION(pinc_raw_opengl_support_status, (struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t channel, uint32_t bits), queryRawGlAccumulatorBits, (obj, framebuffer, channel, bits)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(pinc_raw_opengl_support_status, (struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits), queryRawGlAlphaBits, (obj, framebuffer, bits)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(pinc_raw_opengl_support_status, (struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits), queryRawGlDepthBits, (obj, framebuffer, bits)) \
     PINC_WINDOW_INTERFACE_FUNCTION(pinc_raw_opengl_support_status, (struct WindowBackend* obj, FramebufferFormat framebuffer), queryRawGlStereoBuffer, (obj, framebuffer)) \
     PINC_WINDOW_INTERFACE_FUNCTION(pinc_raw_opengl_support_status, (struct WindowBackend* obj), queryRawGlContextDebug, (obj)) \
     PINC_WINDOW_INTERFACE_FUNCTION(pinc_raw_opengl_support_status, (struct WindowBackend* obj), queryRawGlForwardCompatible, (obj)) \

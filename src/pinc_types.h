@@ -34,6 +34,8 @@ typedef void* WindowHandle;
 
 typedef struct {
     uint32_t accumulatorBits[4];
+    uint32_t alphaBits;
+    uint32_t depthBits;
     bool stereo;
     bool debug;
     bool forwardCompatible;

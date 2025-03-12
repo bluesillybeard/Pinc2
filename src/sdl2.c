@@ -729,6 +729,24 @@ pinc_raw_opengl_support_status sdl2queryRawGlAccumulatorBits(struct WindowBacken
     return 0;
 }
 
+pinc_raw_opengl_support_status sdl2queryRawGlAlphaBits(struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits) {
+    P_UNUSED(obj);
+    P_UNUSED(framebuffer);
+    P_UNUSED(bits);
+    // TODO
+    PPANIC("Not implemented");
+    return 0;
+}
+
+pinc_raw_opengl_support_status sdl2queryRawGlDepthBits(struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits) {
+    P_UNUSED(obj);
+    P_UNUSED(framebuffer);
+    P_UNUSED(bits);
+    // TODO
+    PPANIC("Not implemented");
+    return 0;
+}
+
 pinc_raw_opengl_support_status sdl2queryRawGlStereoBuffer(struct WindowBackend* obj, FramebufferFormat framebuffer) {
     P_UNUSED(obj);
     P_UNUSED(framebuffer);

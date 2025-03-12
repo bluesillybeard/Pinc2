@@ -235,9 +235,16 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_incomplete_init(void) {
 
     // Query collective information from window backends
     // Again, SDL2 is the only window backend, so some shortcuts can be taken
-    // Once there are more window backends, all of their various framebuffer formats
-    // need to be merged into one list and properly mapped to user-facing ID handles
-    staticState.framebufferFormats = WindowBackend_queryFramebufferFormats(&staticState.sdl2WindowBackend, rootAllocator, &staticState.framebufferFormatNum);
+    size_t numFramebufferFormats;
+    FramebufferFormat* framebufferFormats = WindowBackend_queryFramebufferFormats(&staticState.sdl2WindowBackend, tempAllocator, &numFramebufferFormats);
+    for(size_t i=0; i<numFramebufferFormats; ++i) {
+        pinc_framebuffer_format handle = PincObject_allocate();
+        PincObject* reference = PincObject_ref(handle);
+        reference->discriminator = PincObjectDiscriminator_framebufferFormat;
+        reference->data.framebufferFormat = framebufferFormats[i];
+    }
+
+    Allocator_free(tempAllocator, framebufferFormats, numFramebufferFormats*sizeof(FramebufferFormat));
     
     return pinc_return_code_pass;
 }
@@ -289,47 +296,42 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_bac
     P_UNUSED(graphics_backend);
     // TODO: only window backend is SDL2, shortcuts are taken
     // TODO: sort framebuffers from best to worst, so applications can just loop from first to last and pick the first one they see that they like
-    // TODO: is it really safe to assume that we can just filter the formats that are the same between the two backends and call all of those supported?
-    // TODO: completely finish refactoring framebuffer formats into Pinc objects
-    // In other words, if both the window backend and graphics backend both support a given framebuffer format,
-    // is it safe to assume that it can be used if that specific combination of window/graphics backend is chosen?
-    PErrorUser(staticState.framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
-    PErrorSanitize(staticState.framebufferFormatNum < INT32_MAX, "Integer overflow");
-    PErrorSanitize(capacity < INT32_MAX, "Integer overflow");
+    // - Note: probably best to do this in init when all of the framebuffer formats are queried to begin with
 
-    if(ids_dest) {
-        // Since there's only one window backend and only one graphics backend, just return the list we have as-is
-        for(uint32_t i=0; i==(uint32_t)staticState.framebufferFormatNum && i<(uint32_t)capacity; ++i) {
-            ids_dest[i] = i+1;
+    pinc_object currentObject = 1;
+    uint32_t currentIndex = 0;
+
+    while(currentObject <= staticState.objectsNum) {
+        PincObject* obj = PincObject_ref(currentObject);
+        if(obj->discriminator == PincObjectDiscriminator_framebufferFormat) {
+            if(currentIndex < capacity && ids_dest) {
+                ids_dest[currentIndex] = currentObject;
+            }
+            currentIndex++;
         }
+        currentObject++;
     }
-    return (uint32_t)staticState.framebufferFormatNum;
+    return currentIndex;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_channels(pinc_framebuffer_format format_id) {
-    // TODO: shortcuts were taken, see pinc_query_framebuffer_format_ids
-    PErrorSanitize(staticState.framebufferFormatNum < INT32_MAX, "Integer overflow");
-    PErrorUser(staticState.framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
-    PErrorUser(format_id <= (uint32_t)staticState.framebufferFormatNum && format_id >= 1, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
-    return staticState.framebufferFormats[format_id-1].channels;
+    PincObject* obj = PincObject_ref(format_id);
+    PErrorUser(obj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
+    return obj->data.framebufferFormat.channels;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_channel_bits(pinc_framebuffer_format format_id, uint32_t channel) {
-    // TODO: shortcuts were taken, see pinc_query_framebuffer_format_ids
-    PErrorSanitize(staticState.framebufferFormatNum < INT32_MAX, "Integer overflow");
-    PErrorUser(staticState.framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
-    PErrorUser(format_id <= (uint32_t)staticState.framebufferFormatNum && format_id >= 1, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
-    FramebufferFormat* fmt = &staticState.framebufferFormats[format_id-1];
-    PErrorUser(channel < fmt->channels, "channel index out of bounds - did you make sure it's less than what pinc_query_framebuffer_format_channels returns for this format?");
-    return fmt->channel_bits[channel];
+    PincObject* obj = PincObject_ref(format_id);
+    PErrorUser(obj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
+
+    PErrorUser(channel < obj->data.framebufferFormat.channels, "channel index out of bounds - did you make sure it's less than what pinc_query_framebuffer_format_channels returns for this format?");
+    return obj->data.framebufferFormat.channel_bits[channel];
 }
 
 PINC_EXPORT pinc_color_space PINC_CALL pinc_query_framebuffer_format_color_space(pinc_framebuffer_format format_id) {
-    // TODO: shortcuts were taken, see pinc_query_framebuffer_format_ids
-    PErrorSanitize(staticState.framebufferFormatNum < INT32_MAX, "Integer overflow");
-    PErrorUser(staticState.framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
-    PErrorUser(format_id <= (uint32_t)staticState.framebufferFormatNum && format_id >= 1, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
-    return staticState.framebufferFormats[format_id-1].color_space;
+    PincObject* obj = PincObject_ref(format_id);
+    PErrorUser(obj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
+    return obj->data.framebufferFormat.color_space;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_max_open_windows(pinc_window_backend window_backend) {
@@ -351,10 +353,9 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend wi
     if(framebuffer_format_id == 0) {
         framebuffer_format_id = pinc_query_framebuffer_format_default(window_backend, graphics_backend);
     }
-    PErrorUser(staticState.framebufferFormats != NULL, "Framebuffer formats is null - did you forget to call pinc_incomplete_init?");
-    PErrorSanitize(staticState.framebufferFormatNum <= INT32_MAX, "Integer overflow");
-    PErrorUser(framebuffer_format_id <= (uint32_t)staticState.framebufferFormatNum && framebuffer_format_id >= 1, "format_id is not a valid framebuffer format id - did it come from pinc_query_framebuffer_format_ids?");
-    FramebufferFormat framebuffer = staticState.framebufferFormats[framebuffer_format_id-1];
+    PincObject* framebufferFormatObj = PincObject_ref(framebuffer_format_id);
+    PErrorUser(framebufferFormatObj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
+    FramebufferFormat framebuffer = framebufferFormatObj->data.framebufferFormat;
     pinc_return_code result = WindowBackend_completeInit(&staticState.sdl2WindowBackend, graphics_backend, framebuffer, samples, depth_buffer_bits);
     if(result == pinc_return_code_error) {
         return pinc_return_code_error;
@@ -438,10 +439,6 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
     
     // Destroy any remaining pieces
 
-    if(staticState.framebufferFormats && staticState.framebufferFormatNum) {
-        Allocator_free(rootAllocator, staticState.framebufferFormats, staticState.framebufferFormatNum * sizeof(FramebufferFormat));
-    }
-
     if(staticState.objects) {
         Allocator_free(rootAllocator, staticState.objects, staticState.objectsNum * sizeof(PincObject));
     }
@@ -460,13 +457,13 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
 }
 
 PINC_EXPORT pinc_window_backend PINC_CALL pinc_query_set_window_backend(void) {
-    PPANIC("pinc_query_set_window_backend not implemented");
-    return 0;
+    // TODO: only backend is SDL2, shortcuts are taken
+    return pinc_window_backend_sdl2;
 }
 
 PINC_EXPORT pinc_graphics_backend PINC_CALL pinc_query_set_graphics_backend(void) {
-    PPANIC("pinc_query_set_graphics_backend not implemented");
-    return 0;
+    // TODO: only backend is raw opengl, shortcuts are taken
+    return pinc_graphics_backend_raw_opengl;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_set_framebuffer_format(void) {
@@ -484,8 +481,11 @@ PINC_EXPORT pinc_object_type PINC_CALL pinc_get_object_type(pinc_object obj) {
     case PincObjectDiscriminator_window:
         return pinc_object_type_window;
     // Objects that are not normal Pinc objects.
+    // TODO: these should probably just be fully promoted to regular Pinc objects.
     case PincObjectDiscriminator_rawGlContext:
     case PincObjectDiscriminator_incompleteRawGlContext:
+        return pinc_object_type_none;
+    case PincObjectDiscriminator_framebufferFormat:
         return pinc_object_type_none;
     default:
         PErrorAssert(false, "Invalid object type - this is an error within Pinc!");
@@ -876,37 +876,60 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_versi
     return WindowBackend_queryRawGlVersionSupported(&staticState.sdl2WindowBackend, major, minor, es);
 }
 
-PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_accumulator_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer, uint32_t channel, uint32_t bits){
+PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_accumulator_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id, uint32_t channel, uint32_t bits){
     // TODO: Only backend is sdl2, shortcuts are taken
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
-    PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
-    PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
-    // TODO: -1 for default framebuffer format
-    // TODO: Actually, I want to change 0 to be default / null, and turn framebuffer formats (more or less) into regular Pinc objects
-    PErrorSanitize(framebufferFormatNum <= INT32_MAX, "Integer overflow");
-    PErrorUser(framebuffer <= (uint32_t)staticState.framebufferFormatNum, "Invalid framebuffer format ID");
-    FramebufferFormat framebufferFormat = staticState.framebufferFormats[framebuffer-1];
-    return WindowBackend_queryRawGlAccumulatorBits(&staticState.sdl2WindowBackend, framebufferFormat, channel, bits);
+    if(framebuffer_format_id == 0) {
+        framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_backend_raw_opengl);
+    }
+    PincObject* framebufferFormatObj = PincObject_ref(framebuffer_format_id);
+    PErrorUser(framebufferFormatObj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
+    FramebufferFormat framebuffer = framebufferFormatObj->data.framebufferFormat;
+    return WindowBackend_queryRawGlAccumulatorBits(&staticState.sdl2WindowBackend, framebuffer, channel, bits);
 }
 
-// TODO
-PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_alpha_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer, uint32_t bits);
-PINC_EXTERN pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_depth_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer, uint32_t bits);
-
-PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_stereo_buffer(pinc_window_backend backend, pinc_framebuffer_format framebuffer) {
+PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_alpha_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id, uint32_t bits) {
     // TODO: Only backend is sdl2, shortcuts are taken
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
-    PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
-    PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
-    // TODO: -1 for default framebuffer format
-    PErrorSanitize(framebufferFormatNum <= INT32_MAX, "Integer overflow");
-    PErrorUser(framebuffer <= (uint32_t)staticState.framebufferFormatNum, "Invalid framebuffer format ID");
-    FramebufferFormat framebufferFormat = staticState.framebufferFormats[framebuffer-1];
-    return WindowBackend_queryRawGlStereoBuffer(&staticState.sdl2WindowBackend, framebufferFormat);
+    if(framebuffer_format_id == 0) {
+        framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_backend_raw_opengl);
+    }
+    PincObject* framebufferFormatObj = PincObject_ref(framebuffer_format_id);
+    PErrorUser(framebufferFormatObj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
+    FramebufferFormat framebuffer = framebufferFormatObj->data.framebufferFormat;
+    return WindowBackend_queryRawGlAlphaBits(&staticState.sdl2WindowBackend, framebuffer, bits);
+}
+
+PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_depth_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id, uint32_t bits) {
+    // TODO: Only backend is sdl2, shortcuts are taken
+    if(backend == pinc_window_backend_any) {
+        backend = pinc_window_backend_sdl2;
+    }
+    if(framebuffer_format_id == 0) {
+        framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_backend_raw_opengl);
+    }
+    PincObject* framebufferFormatObj = PincObject_ref(framebuffer_format_id);
+    PErrorUser(framebufferFormatObj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
+    FramebufferFormat framebuffer = framebufferFormatObj->data.framebufferFormat;
+    return WindowBackend_queryRawGlDepthBits(&staticState.sdl2WindowBackend, framebuffer, bits);
+}
+
+PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_stereo_buffer(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id) {
+    // TODO: Only backend is sdl2, shortcuts are taken
+    if(backend == pinc_window_backend_any) {
+        backend = pinc_window_backend_sdl2;
+    }
+    if(framebuffer_format_id == 0) {
+        framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_backend_raw_opengl);
+    }
+    PincObject* framebufferFormatObj = PincObject_ref(framebuffer_format_id);
+    PErrorUser(framebufferFormatObj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
+    FramebufferFormat framebuffer = framebufferFormatObj->data.framebufferFormat;
+    return WindowBackend_queryRawGlStereoBuffer(&staticState.sdl2WindowBackend, framebuffer);
 }
 
 PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_context_debug(pinc_window_backend backend){
@@ -956,6 +979,8 @@ PINC_EXPORT pinc_raw_opengl_context PINC_CALL pinc_raw_opengl_create_context_inc
     obj->discriminator = PincObjectDiscriminator_incompleteRawGlContext;
     obj->data.incompleteRawGlContext = (IncompleteRawGlContext) {
         .accumulatorBits = {0, 0, 0, 0},
+        .alphaBits = 0,
+        .depthBits = 16,
         .stereo = false,
         .debug = false,
         .forwardCompatible = false,
@@ -978,9 +1003,20 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_accumulator_b
     return pinc_return_code_error;
 }
 
-// TODO
-PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_alpha_bits(pinc_raw_opengl_context incomplete_context, uint32_t bits);
-PINC_EXTERN pinc_return_code PINC_CALL pinc_raw_opengl_set_context_depth_bits(pinc_raw_opengl_context incomplete_context, uint32_t bits);
+PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_alpha_bits(pinc_raw_opengl_context incomplete_context, uint32_t bits) {
+    P_UNUSED(incomplete_context);
+    P_UNUSED(bits);
+    // TODO
+    PPANIC("Not implemented");
+    return pinc_return_code_error;
+}
+PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_depth_bits(pinc_raw_opengl_context incomplete_context, uint32_t bits) {
+    P_UNUSED(incomplete_context);
+    P_UNUSED(bits);
+    // TODO
+    PPANIC("Not implemented");
+    return pinc_return_code_error;
+}
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_stereo_buffer(pinc_raw_opengl_context incomplete_context, bool stereo) {
     P_UNUSED(incomplete_context);

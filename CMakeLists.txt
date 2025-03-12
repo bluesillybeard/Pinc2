@@ -22,7 +22,10 @@ option(PINC_ENABLE_ERROR_USER "Enable user error checking" ON)
 option(PINC_ENABLE_ERROR_SANITIZE "Enable sanitize error checking" OFF)
 option(PINC_ENABLE_ERROR_VALIDATE "Enable validate error checking" OFF)
 option(PINC_HAVE_WINDOW_SDL2 "compile with SDL2 window backend" ON)
-option(PINC_HAVE_GRAPHICS_RAW_OPENGL, "compile with raw opengl graphics backend" ON)
+option(PINC_HAVE_GRAPHICS_RAW_OPENGL "compile with raw opengl graphics backend" ON)
+# If this is nonstandard or weird, please tell me how to do it correctly
+set(PINC_ADDITIONAL_COMPILE_OPTIONS "" CACHE STRING "Additional compiler options")
+set(PINC_ADDITIONAL_LINK_OPTIONS "" CACHE STRING "Additional linker options")
 
 project(pinc
     VERSION 2.0.0
@@ -33,8 +36,8 @@ project(pinc
 # vars
 
 # TODO: more compilers than just clang
-set(PINC_COMPILE_OPTIONS "-Werror" "-pedantic-errors" "-Wall" "-Wextra" "-Wconversion" "-Wno-unused-function" CACHE STRING "options used to compile Pinc and the examples")
-set(PINC_LINK_OPTIONS CACHE STRING "linker flags for pinc and examples")
+set(PINC_COMPILE_OPTIONS ${PINC_ADDITIONAL_COMPILE_OPTIONS} "-Werror" "-pedantic-errors" "-Wall" "-Wextra" "-Wconversion" "-Wno-unused-function" CACHE STRING "options used to compile Pinc and the examples")
+set(PINC_LINK_OPTIONS ${PINC_ADDITIONAL_LINK_OPTIONS} "" CACHE STRING "linker flags for pinc and examples")
 
 include(GNUInstallDirs)
 

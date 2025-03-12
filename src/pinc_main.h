@@ -21,6 +21,7 @@ typedef enum {
     PincObjectDiscriminator_window,
     PincObjectDiscriminator_incompleteRawGlContext,
     PincObjectDiscriminator_rawGlContext,
+    PincObjectDiscriminator_framebufferFormat,
 
 } PincObjectDiscriminator;
 
@@ -31,6 +32,7 @@ typedef struct {
         WindowHandle window;
         IncompleteRawGlContext incompleteRawGlContext;
         RawOpenglContextHandle rawGlContext;
+        FramebufferFormat framebufferFormat;
     } data;
 } PincObject;
 
@@ -55,9 +57,6 @@ typedef struct {
     pinc_error_callback userCallError;
     // Live for incomplete and init
     WindowBackend sdl2WindowBackend;
-    // On the root allocator, Live for incomplete and init
-    FramebufferFormat* framebufferFormats;
-    size_t framebufferFormatNum;
     // On the root allocator, Live for init
     PincObject* objects;
     size_t objectsNum;
@@ -86,8 +85,6 @@ typedef struct {
     .tempAlloc = {.allocatorObjectPtr = 0, .vtable = 0}, \
     .userCallError = 0, \
     .sdl2WindowBackend = {.obj = 0, .vt = {0}}, \
-    .framebufferFormats = 0, \
-    .framebufferFormatNum = 0, \
     .objects = 0, \
     .objectsNum = 0, \
     .objectsCapacity = 0, \
