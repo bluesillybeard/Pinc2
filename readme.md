@@ -312,6 +312,3 @@ None of these are going to be implemented any time soon - if ever.
     - meson?
     - autoconf?
 - linking / using ANGLE for better macos+opengl support, among other improvements to OpenGL
-- Change the list of objects into a list of handle->type/index mappings, and have a list for each object type
-    - This is so iterating over a specific type of object (ex: framebuffer format) can be a lot more efficient
-    - This will also reduce Pinc's memory usage as small objects like framebuffer formats won't have to allocate the full space of the largest object type.

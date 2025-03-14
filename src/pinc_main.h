@@ -26,15 +26,31 @@ typedef enum {
 } PincObjectDiscriminator;
 
 typedef struct {
+    // What type of object this is
     PincObjectDiscriminator discriminator;
-    union PincObjectData {
-        IncompleteWindow incompleteWindow;
-        WindowHandle window;
-        IncompleteRawGlContext incompleteRawGlContext;
-        RawOpenglContextHandle rawGlContext;
-        FramebufferFormat framebufferFormat;
-    } data;
+    // Where in the internal object-specific array this is
+    uint32_t internalIndex;
 } PincObject;
+
+// Object pool struct
+typedef struct {
+    // C with generics (I mean actual generics that aren't evil magic macros) would be quite nice
+    void* objectsArray;
+    uint32_t objectsNum;
+    uint32_t objectsCapacity;
+    uint32_t* freeArray;
+    uint32_t freeArrayNum;
+    uint32_t freeArrayCapacity;
+} PincPool;
+
+// Object pool methods
+
+// Returns the index of the newly allocated object
+uint32_t PincPool_alloc(PincPool* pool, size_t elementSize);
+
+void PincPool_free(PincPool* pool, uint32_t index, size_t elementSize);
+
+void PincPool_deinit(PincPool* pool, size_t elementSize);
 
 // Pinc static state
 
@@ -45,7 +61,7 @@ typedef enum {
 } PincState;
 
 typedef struct {
-    // Keep track of what stage of initialization we're in
+    // TODO: Keep track of what stage of initialization we're in
     PincState initState;
     // See doc for rootAllocator macro. Live for incomplete and init
     Allocator alloc;
@@ -57,14 +73,18 @@ typedef struct {
     pinc_error_callback userCallError;
     // Live for incomplete and init
     WindowBackend sdl2WindowBackend;
-    // On the root allocator, Live for init
-    PincObject* objects;
-    size_t objectsNum;
-    size_t objectsCapacity;
-    // On the root allocator, Live for init
-    pinc_object* freeObjects;
-    size_t freeObjectsNum;
-    size_t freeObjectsCapacity;
+    // Live for init, type: PincObject
+    PincPool objects;
+    // Live for init, type: IncompleteWindow
+    PincPool incompleteWindowObjects;
+    // Live for init, type: WindowHandle
+    PincPool windowHandleObjects;
+    // Live for init, type: IncompleteRawGlContext
+    PincPool incompleteRawGlContextObjects;
+    // Live for init, type: RawOpenglContextHandle
+    PincPool rawOpenglContextHandleObjects;
+    // Live for init, type: FramebufferFormat
+    PincPool framebufferFormatObjects;
 
     // Defined by the user, These are either all live or none live
     // userAllocObj can be null while these are live
@@ -78,19 +98,8 @@ typedef struct {
     WindowBackend windowBackend;
 } PincStaticState;
 
-#define PINC_PREINIT_STATE { \
-    .initState = PincState_preinit, \
-    .alloc = {.allocatorObjectPtr = 0, .vtable = 0}, \
-    .arenaAllocatorObject = {.begin = 0, .end = 0}, \
-    .tempAlloc = {.allocatorObjectPtr = 0, .vtable = 0}, \
-    .userCallError = 0, \
-    .sdl2WindowBackend = {.obj = 0, .vt = {0}}, \
-    .objects = 0, \
-    .objectsNum = 0, \
-    .objectsCapacity = 0, \
-    .windowBackendSet = false, \
-    .windowBackend = {.obj = 0, .vt = {0}}, \
-}
+
+#define PINC_PREINIT_STATE {0}
 
 extern PincStaticState pinc_intern_staticState;
 
@@ -101,5 +110,52 @@ extern PincStaticState pinc_intern_staticState;
 #define rootAllocator staticState.alloc
 // A temporary allocator that is cleared at the end of pinc_step().
 #define tempAllocator staticState.tempAlloc
+
+pinc_object PincObject_allocate(PincObjectDiscriminator discriminator);
+
+// Destroy the old object and make a new object in its place with the same ID.
+void PincObject_reallocate(pinc_object id, PincObjectDiscriminator discriminator);
+
+void PincObject_free(pinc_object id);
+
+static inline PincObjectDiscriminator PincObject_discriminator(pinc_object id) {
+    PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
+    return ((PincObject*)staticState.objects.objectsArray)[id-1].discriminator;
+}
+
+static inline IncompleteWindow* PincObject_ref_incompleteWindow(pinc_object id) {
+    PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
+    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
+    PErrorUser(obj.discriminator == PincObjectDiscriminator_incompleteWindow, "Object must be an incomplete window");
+    return &((IncompleteWindow*)staticState.incompleteWindowObjects.objectsArray)[obj.internalIndex];
+}
+
+static inline WindowHandle* PincObject_ref_window(pinc_object id) {
+    PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
+    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
+    PErrorUser(obj.discriminator == PincObjectDiscriminator_window, "Object must be a complete window");
+    return &((WindowHandle*)staticState.windowHandleObjects.objectsArray)[obj.internalIndex];
+}
+
+static inline IncompleteRawGlContext* PincObject_ref_incompleteRawGlContext(pinc_object id) {
+    PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
+    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
+    PErrorUser(obj.discriminator == PincObjectDiscriminator_incompleteRawGlContext, "Object must be an incomplete OpenGL context");
+    return &((IncompleteRawGlContext*)staticState.incompleteRawGlContextObjects.objectsArray)[obj.internalIndex];
+}
+
+static inline RawOpenglContextHandle* PincObject_ref_rawGlContext(pinc_object id) {
+    PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
+    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
+    PErrorUser(obj.discriminator == PincObjectDiscriminator_rawGlContext, "Object must be a complete OpenGL context");
+    return &((RawOpenglContextHandle*)staticState.rawOpenglContextHandleObjects.objectsArray)[obj.internalIndex];
+}
+
+static inline FramebufferFormat* PincObject_ref_framebufferFormat(pinc_object id) {
+    PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
+    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
+    PErrorUser(obj.discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
+    return &((FramebufferFormat*)staticState.framebufferFormatObjects.objectsArray)[obj.internalIndex];
+}
 
 #endif

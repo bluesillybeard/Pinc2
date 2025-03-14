@@ -130,55 +130,138 @@ static const AllocatorVtable PincTempAllocatorVtable = {
     .free = &pinc_temp_free,
 };
 
-static pinc_object PincObject_allocate(void) {
-    if(staticState.objectsCapacity == staticState.objectsNum) {
-        if(!staticState.objects) {
-            staticState.objects = Allocator_allocate(rootAllocator, sizeof(PincObject) * 8);
-            staticState.objectsCapacity = 8;
+uint32_t PincPool_alloc(PincPool* pool, size_t elementSize) {
+    if(pool->objectsCapacity == pool->objectsNum) {
+        if(!pool->objectsArray) {
+            pool->objectsArray = Allocator_allocate(rootAllocator, elementSize * 8);
+            pool->objectsCapacity = 8;
         } else {
-            size_t newObjectsCapacity = staticState.objectsCapacity * 2;
-            staticState.objects = Allocator_reallocate(rootAllocator, staticState.objects, sizeof(PincObject) * staticState.objectsCapacity, sizeof(PincObject) * newObjectsCapacity);
-            staticState.objectsCapacity = newObjectsCapacity;
+            uint32_t newObjectsCapacity = pool->objectsCapacity * 2;
+            pool->objectsArray = Allocator_reallocate(rootAllocator, pool->objectsArray, elementSize * pool->objectsCapacity, elementSize * newObjectsCapacity);
+            pool->objectsCapacity = newObjectsCapacity;
         }
     }
-    if(staticState.freeObjects && staticState.freeObjectsNum > 0) {
-        staticState.freeObjectsNum--;
-        pinc_object id = (pinc_object) staticState.freeObjects[staticState.freeObjectsNum];
-        return id;
-    }
-    staticState.objectsNum++;
-    PErrorSanitize(staticState.objectsNum < UINT32_MAX, "Integer overflow");
-    pinc_object id = (pinc_object)staticState.objectsNum;
-    return id;
-}
-
-static PincObject* PincObject_ref(pinc_object handle) {
-    // These are set as user errors because I can't imagine these happening in any other case.
-    // Another option would be to return null in either of these cases, and let downstream functions deal with it.
-    PErrorUser(handle != 0, "Object handle is null");
-    PErrorUser(handle <= staticState.objectsNum, "Object is invalid");
-    return &staticState.objects[handle-1];
-}
-
-static void PincObject_free(pinc_object handle) {
-    PincObject* obj = PincObject_ref(handle);
-    pMemSet(0, (uint8_t*)obj, sizeof(PincObject));
-    if(handle == staticState.objectsNum) {
-        staticState.objectsNum--;
+    if(pool->freeArray && pool->freeArrayNum > 0) {
+        pool->freeArrayNum--;
+        return pool->freeArray[pool->freeArrayNum];
     } else {
-        if(staticState.freeObjectsCapacity == staticState.freeObjectsNum) {
-            if(!staticState.freeObjects) {
-                staticState.freeObjects = Allocator_allocate(rootAllocator, sizeof(pinc_object) * 8);
-                staticState.freeObjectsCapacity = 8;
+        pool->objectsNum++;
+        return pool->objectsNum-1;
+    }
+}
+
+void PincPool_free(PincPool* pool, uint32_t index, size_t elementSize) {
+    if(index+1 == pool->objectsNum) {
+        pool->objectsNum--;
+    } else {
+        if(pool->freeArrayCapacity == pool->freeArrayNum) {
+            if(!pool->freeArray) {
+                pool->freeArray = Allocator_allocate(rootAllocator, elementSize * 8);
+                pool->freeArrayCapacity = 8;
             } else {
-                size_t newObjectsCapacity = staticState.freeObjectsCapacity * 2;
-                staticState.freeObjects = Allocator_reallocate(rootAllocator, staticState.freeObjects, sizeof(pinc_object) * staticState.freeObjectsCapacity, sizeof(pinc_object) * newObjectsCapacity);
-                staticState.freeObjectsCapacity = newObjectsCapacity;
+                uint32_t newObjectsCapacity = pool->freeArrayCapacity * 2;
+                pool->freeArray = Allocator_reallocate(rootAllocator, pool->freeArray, elementSize * pool->freeArrayCapacity, elementSize * newObjectsCapacity);
+                pool->freeArrayCapacity = newObjectsCapacity;
             }
         }
-        staticState.freeObjects[staticState.freeObjectsNum] = handle;
-        staticState.freeObjectsNum++;
+        pool->freeArray[pool->freeArrayNum] = index;
+        pool->freeArrayNum++;
     }
+}
+
+void PincPool_deinit(PincPool* pool, size_t elementSize) {
+    if(pool->objectsArray) {
+        Allocator_free(rootAllocator, pool->objectsArray, elementSize * pool->objectsCapacity);
+    }
+    if(pool->freeArray) {
+        Allocator_free(rootAllocator, pool->freeArray, sizeof(uint32_t) * pool->freeArrayCapacity);
+    }
+    *pool = (PincPool){0};
+}
+
+static uint32_t PincObject_allocateInternal(PincObjectDiscriminator discriminator) {
+    switch(discriminator) {
+        case PincObjectDiscriminator_none:{
+            PPANIC("Cannot allocate object of no type");
+            break;
+        }
+        case PincObjectDiscriminator_incompleteWindow: {
+            return PincPool_alloc(&staticState.incompleteWindowObjects, sizeof(IncompleteWindow));
+            break;
+        }
+        case PincObjectDiscriminator_window: {
+            return PincPool_alloc(&staticState.windowHandleObjects, sizeof(WindowHandle));
+            break;
+        }
+        case PincObjectDiscriminator_incompleteRawGlContext: {
+            return PincPool_alloc(&staticState.incompleteRawGlContextObjects, sizeof(IncompleteRawGlContext));
+            break;
+        }
+        case PincObjectDiscriminator_rawGlContext: {
+            return PincPool_alloc(&staticState.rawOpenglContextHandleObjects, sizeof(RawOpenglContextHandle));
+            break;
+        }
+        case PincObjectDiscriminator_framebufferFormat: {
+            return PincPool_alloc(&staticState.framebufferFormatObjects, sizeof(FramebufferFormat));
+            break;
+        }
+    }
+}
+
+static void PincObject_freeInternal(PincObjectDiscriminator discriminator, uint32_t index) {
+    switch (discriminator)
+    {
+        case PincObjectDiscriminator_none: {
+            PErrorAssert(false, "Not a valid object to reallocate");
+            break;
+        }
+        case PincObjectDiscriminator_incompleteWindow:{
+            PincPool_free(&staticState.incompleteWindowObjects, index, sizeof(IncompleteWindow));
+            break;
+        }
+        case PincObjectDiscriminator_window:{
+            PincPool_free(&staticState.windowHandleObjects, index, sizeof(WindowHandle));
+            break;
+        }
+        case PincObjectDiscriminator_incompleteRawGlContext:{
+            PincPool_free(&staticState.incompleteRawGlContextObjects, index, sizeof(IncompleteRawGlContext));
+            break;
+        }
+        case PincObjectDiscriminator_rawGlContext:{
+            PincPool_free(&staticState.rawOpenglContextHandleObjects, index, sizeof(RawOpenglContextHandle));
+            break;
+        }
+        case PincObjectDiscriminator_framebufferFormat:{
+            PincPool_free(&staticState.framebufferFormatObjects, index, sizeof(FramebufferFormat));
+            break;
+        }
+    }
+}
+
+pinc_object PincObject_allocate(PincObjectDiscriminator discriminator) {
+    pinc_object object_index = PincPool_alloc(&staticState.objects, sizeof(PincObject));
+    PincObject *obj = &((PincObject*)staticState.objects.objectsArray)[object_index];
+    PErrorSanitize(staticState.objects.objectsNum < UINT32_MAX, "Integer overflow");
+    obj->discriminator = discriminator;
+    obj->internalIndex = PincObject_allocateInternal(discriminator);
+    return object_index+1;
+}
+
+void PincObject_reallocate(pinc_object id, PincObjectDiscriminator discriminator) {
+    PErrorAssert(staticState.objects.objectsNum >= id, "Object ID out of bounds");
+    PincObject *obj = &((PincObject*)staticState.objects.objectsArray)[id-1];
+    PincObject_freeInternal(obj->discriminator, obj->internalIndex);
+    obj->discriminator = discriminator;
+    obj->internalIndex = PincObject_allocateInternal(discriminator);
+}
+
+void PincObject_free(pinc_object id) {
+    PErrorAssert(staticState.objects.objectsNum >= id, "Object ID out of bounds");
+    PincObject *obj = &((PincObject*)staticState.objects.objectsArray)[id-1];
+    PincObject_freeInternal(obj->discriminator, obj->internalIndex);
+    obj->discriminator = PincObjectDiscriminator_none;
+    obj->internalIndex = 0;
+    PincPool_free(&staticState.objects, id-1, sizeof(PincObject));
 }
 
 // Below are the actual implementations of the Pinc API functions.
@@ -238,10 +321,9 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_incomplete_init(void) {
     size_t numFramebufferFormats;
     FramebufferFormat* framebufferFormats = WindowBackend_queryFramebufferFormats(&staticState.sdl2WindowBackend, tempAllocator, &numFramebufferFormats);
     for(size_t i=0; i<numFramebufferFormats; ++i) {
-        pinc_framebuffer_format handle = PincObject_allocate();
-        PincObject* reference = PincObject_ref(handle);
-        reference->discriminator = PincObjectDiscriminator_framebufferFormat;
-        reference->data.framebufferFormat = framebufferFormats[i];
+        pinc_framebuffer_format handle = PincObject_allocate(PincObjectDiscriminator_framebufferFormat);
+        FramebufferFormat* reference = PincObject_ref_framebufferFormat(handle);
+        *reference = framebufferFormats[i];
     }
 
     Allocator_free(tempAllocator, framebufferFormats, numFramebufferFormats*sizeof(FramebufferFormat));
@@ -301,9 +383,9 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_bac
     pinc_object currentObject = 1;
     uint32_t currentIndex = 0;
 
-    while(currentObject <= staticState.objectsNum) {
-        PincObject* obj = PincObject_ref(currentObject);
-        if(obj->discriminator == PincObjectDiscriminator_framebufferFormat) {
+    while(currentObject <= staticState.objects.objectsNum) {
+        PincObject obj = ((PincObject*)staticState.objects.objectsArray)[currentObject-1];
+        if(obj.discriminator == PincObjectDiscriminator_framebufferFormat) {
             if(currentIndex < capacity && ids_dest) {
                 ids_dest[currentIndex] = currentObject;
             }
@@ -315,23 +397,18 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_bac
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_channels(pinc_framebuffer_format format_id) {
-    PincObject* obj = PincObject_ref(format_id);
-    PErrorUser(obj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
-    return obj->data.framebufferFormat.channels;
+    return PincObject_ref_framebufferFormat(format_id)->channels;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_channel_bits(pinc_framebuffer_format format_id, uint32_t channel) {
-    PincObject* obj = PincObject_ref(format_id);
-    PErrorUser(obj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
+    FramebufferFormat* obj = PincObject_ref_framebufferFormat(format_id);
 
-    PErrorUser(channel < obj->data.framebufferFormat.channels, "channel index out of bounds - did you make sure it's less than what pinc_query_framebuffer_format_channels returns for this format?");
-    return obj->data.framebufferFormat.channel_bits[channel];
+    PErrorUser(channel < obj->channels, "channel index out of bounds - did you make sure it's less than what pinc_query_framebuffer_format_channels returns for this format?");
+    return obj->channel_bits[channel];
 }
 
 PINC_EXPORT pinc_color_space PINC_CALL pinc_query_framebuffer_format_color_space(pinc_framebuffer_format format_id) {
-    PincObject* obj = PincObject_ref(format_id);
-    PErrorUser(obj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
-    return obj->data.framebufferFormat.color_space;
+    return PincObject_ref_framebufferFormat(format_id)->color_space;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_max_open_windows(pinc_window_backend window_backend) {
@@ -353,10 +430,8 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend wi
     if(framebuffer_format_id == 0) {
         framebuffer_format_id = pinc_query_framebuffer_format_default(window_backend, graphics_backend);
     }
-    PincObject* framebufferFormatObj = PincObject_ref(framebuffer_format_id);
-    PErrorUser(framebufferFormatObj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
-    FramebufferFormat framebuffer = framebufferFormatObj->data.framebufferFormat;
-    pinc_return_code result = WindowBackend_completeInit(&staticState.sdl2WindowBackend, graphics_backend, framebuffer, samples, depth_buffer_bits);
+    FramebufferFormat* framebuffer = PincObject_ref_framebufferFormat(framebuffer_format_id);
+    pinc_return_code result = WindowBackend_completeInit(&staticState.sdl2WindowBackend, graphics_backend, *framebuffer, samples, depth_buffer_bits);
     if(result == pinc_return_code_error) {
         return pinc_return_code_error;
     }
@@ -370,18 +445,18 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
     // Pinc deinit should work when called at ANY POINT AT ALL
     // Essentially, it is a safe function that says "call me at any point to completely reset Pinc to ground zero"
     // As such, there is quite a lot of work to do.
-    // - destroy framebuffer formats
     // - destroy any objects
     // - deinit all backends (there may be multiple as this can be called before one is chosen)
+    // - reset state
 
     // If the allocator is not initialized, then it means Pinc is not initialized in any capacity and we can just return
     if(rootAllocator.vtable == NULL) {
         return;
     }
 
-    if(staticState.objects && staticState.objectsCapacity) {
+    if(staticState.objects.objectsArray && staticState.objects.objectsCapacity) {
         // Go through every object and destroy it
-        for(uint32_t i=0; i<staticState.objectsNum; ++i) {
+        for(uint32_t i=0; i<staticState.objects.objectsNum; ++i) {
             pinc_object id = i+1;
             switch (pinc_get_object_type(id))
             {
@@ -439,18 +514,16 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
     
     // Destroy any remaining pieces
 
-    if(staticState.objects) {
-        Allocator_free(rootAllocator, staticState.objects, staticState.objectsNum * sizeof(PincObject));
-    }
-
-    if(staticState.freeObjects) {
-        Allocator_free(rootAllocator, staticState.freeObjects, staticState.freeObjectsNum * sizeof(pinc_object));
-    }
+    PincPool_deinit(&staticState.objects, sizeof(PincObject));
+    PincPool_deinit(&staticState.incompleteWindowObjects, sizeof(IncompleteWindow));
+    PincPool_deinit(&staticState.windowHandleObjects, sizeof(WindowHandle));
+    PincPool_deinit(&staticState.incompleteRawGlContextObjects, sizeof(IncompleteRawGlContext));
+    PincPool_deinit(&staticState.rawOpenglContextHandleObjects, sizeof(RawOpenglContextHandle));
+    PincPool_deinit(&staticState.framebufferFormatObjects, sizeof(FramebufferFormat));
 
     if(staticState.tempAlloc.vtable){
         arena_free(&staticState.arenaAllocatorObject);
     }
-
 
     // Full reset the state
     staticState = (PincStaticState) PINC_PREINIT_STATE;
@@ -471,9 +544,10 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_set_framebuffer_format(void) {
     return 0;
 }
 
-PINC_EXPORT pinc_object_type PINC_CALL pinc_get_object_type(pinc_object obj) {
-    PincObject* object = PincObject_ref(obj);
-    switch (object->discriminator)
+PINC_EXPORT pinc_object_type PINC_CALL pinc_get_object_type(pinc_object id) {
+    PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
+    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
+    switch (obj.discriminator)
     {
     case PincObjectDiscriminator_none:
         return pinc_object_type_none;
@@ -487,8 +561,6 @@ PINC_EXPORT pinc_object_type PINC_CALL pinc_get_object_type(pinc_object obj) {
         return pinc_object_type_none;
     case PincObjectDiscriminator_framebufferFormat:
         return pinc_object_type_none;
-    default:
-        PErrorAssert(false, "Invalid object type - this is an error within Pinc!");
     }
 }
 
@@ -500,9 +572,8 @@ PINC_EXPORT bool PINC_CALL pinc_get_object_complete(pinc_object obj) {
 
 PINC_EXPORT pinc_window PINC_CALL pinc_window_create_incomplete(void) {
     PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
-    pinc_window handle = PincObject_allocate();
-    PincObject* window = PincObject_ref(handle);
-    window->discriminator = PincObjectDiscriminator_incompleteWindow;
+    pinc_window handle = PincObject_allocate(PincObjectDiscriminator_incompleteWindow);
+    IncompleteWindow* window = PincObject_ref_incompleteWindow(handle);
     // TODO: Add integer formatting to PString, or get a decent libc-free formatting library
     char namebuf[24];
     size_t nameLen = 0;
@@ -511,7 +582,7 @@ PINC_EXPORT pinc_window PINC_CALL pinc_window_create_incomplete(void) {
     nameLen += pBufPrintUint32(namebuf+12, 12, handle);
     char* name = Allocator_allocate(rootAllocator, nameLen);
     pMemCopy(namebuf, name, nameLen);
-    window->data.incompleteWindow = (IncompleteWindow){
+    *window = (IncompleteWindow){
         .title = (PString){ .str = (uint8_t*)name, .len = nameLen},
         .hasWidth = false,
         .width = 0,
@@ -527,62 +598,61 @@ PINC_EXPORT pinc_window PINC_CALL pinc_window_create_incomplete(void) {
     return handle;
 }
 
-PINC_EXPORT pinc_return_code PINC_CALL pinc_window_complete(pinc_window window) {
-    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
-    PincObject* object = PincObject_ref(window);
-    PErrorUser(object->discriminator == PincObjectDiscriminator_incompleteWindow, "Window is not an incomplete window object");
-    WindowHandle handle = WindowBackend_completeWindow(&staticState.windowBackend, &object->data.incompleteWindow);
+PINC_EXPORT pinc_return_code PINC_CALL pinc_window_complete(pinc_window window) {\
+    IncompleteWindow* object = PincObject_ref_incompleteWindow(window);
+    WindowHandle handle = WindowBackend_completeWindow(&staticState.windowBackend, object);
     if(!handle) {
         return pinc_return_code_error;
     }
-    object->discriminator = PincObjectDiscriminator_window;
-    object->data.window = handle;
+    PincObject_reallocate(window, PincObjectDiscriminator_window);
+    WindowHandle* object2 = PincObject_ref_window(window);
+    *object2 = handle;
     return pinc_return_code_pass;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_deinit(pinc_window window) {
-    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
-    PincObject* object = PincObject_ref(window);
-    switch(object->discriminator) {
+    PincObjectDiscriminator tp = PincObject_discriminator(window);
+    switch(tp) {
         case PincObjectDiscriminator_incompleteWindow:{
             PincObject_free(window);
             break;
         }
         case PincObjectDiscriminator_window:{
-            WindowBackend_deinitWindow(&staticState.windowBackend, object->data.window);
+            WindowHandle* object = PincObject_ref_window(window);
+            WindowBackend_deinitWindow(&staticState.windowBackend, *object);
             PincObject_free(window);
             break;
         }
         default:{
-            PErrorUser(object->discriminator == PincObjectDiscriminator_incompleteWindow, "Window is not a window object");
+            PErrorUser(false, "Window is not a window object");
             break;
         }
     }
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_title(pinc_window window, const char* title_buf, uint32_t title_len) {
-    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
-    PincObject* object = PincObject_ref(window);
     if(title_len == 0) {
         size_t realTitleLen = pStringLen(title_buf);
         PErrorSanitize(realTitleLen <= UINT32_MAX, "Integer overflow");
         title_len = (uint32_t)realTitleLen;
     }
-    // this is over here because reasons
-    uint8_t* titlePtr;
-    switch (object->discriminator)
+    switch (PincObject_discriminator(window))
     {
-        case PincObjectDiscriminator_incompleteWindow:
+        case PincObjectDiscriminator_incompleteWindow:{
+            IncompleteWindow* object = PincObject_ref_incompleteWindow(window);
             // TODO: potential optimization here (this code is quite cold though)
-            PString_free(&object->data.incompleteWindow.title, rootAllocator);
-            object->data.incompleteWindow.title = PString_copy((PString){.str = (uint8_t*)title_buf, .len = title_len}, rootAllocator);
+            PString_free(&object->title, rootAllocator);
+            object->title = PString_copy((PString){.str = (uint8_t*)title_buf, .len = title_len}, rootAllocator);
             break;
-        case PincObjectDiscriminator_window:
+        }
+        case PincObjectDiscriminator_window:{
+            WindowHandle* object = PincObject_ref_window(window);
             // Window takes ownership of the pointer, but we don't have ownership of title_buf
-            titlePtr = (uint8_t*)Allocator_allocate(rootAllocator, title_len);
+            uint8_t* titlePtr = (uint8_t*)Allocator_allocate(rootAllocator, title_len);
             pMemCopy(title_buf, titlePtr, title_len);
-            WindowBackend_setWindowTitle(&staticState.windowBackend, object->data.window, titlePtr, title_len);
+            WindowBackend_setWindowTitle(&staticState.windowBackend, *object, titlePtr, title_len);
             break;
+        }
         default:
             PErrorUser(false, "Window is not a window object");
             break;
@@ -604,9 +674,8 @@ PINC_EXPORT void PINC_CALL pinc_window_set_width(pinc_window window, uint32_t wi
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_window_get_width(pinc_window window) {
-    // TODO: implement this properly
-    PincObject* windowObj = PincObject_ref(window);
-    return WindowBackend_getWindowWidth(&staticState.windowBackend, windowObj->data.window);
+    WindowHandle* object = PincObject_ref_window(window);
+    return WindowBackend_getWindowWidth(&staticState.windowBackend, *object);
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_window_has_width(pinc_window window) {
@@ -622,9 +691,8 @@ PINC_EXPORT void PINC_CALL pinc_window_set_height(pinc_window window, uint32_t h
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_window_get_height(pinc_window window) {
-    // TODO: implement this properly
-    PincObject* windowObj = PincObject_ref(window);
-    return WindowBackend_getWindowHeight(&staticState.windowBackend, windowObj->data.window);
+    WindowHandle* object = PincObject_ref_window(window);
+    return WindowBackend_getWindowHeight(&staticState.windowBackend, *object);
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_has_height(pinc_window window) {
@@ -729,10 +797,8 @@ PINC_EXPORT bool PINC_CALL pinc_get_vsync(void) {
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_present_framebuffer(pinc_window window) {
-    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
-    PincObject* object = PincObject_ref(window);
-    PErrorUser(object->discriminator == PincObjectDiscriminator_window, "Window must be a window object");
-    WindowBackend_windowPresentFramebuffer(&staticState.windowBackend, object->data.window);
+    WindowHandle* object = PincObject_ref_window(window);
+    WindowBackend_windowPresentFramebuffer(&staticState.windowBackend, *object);
 }
 
 PINC_EXPORT bool PINC_CALL pinc_mouse_button_get(int button) {
@@ -769,10 +835,8 @@ PINC_EXPORT void PINC_CALL pinc_step(void) {
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_closed(pinc_window window) {
-    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
-    PincObject* object = PincObject_ref(window);
-    PErrorUser(object->discriminator == PincObjectDiscriminator_window, "Window must be a window object");
-    return WindowBackend_windowEventClosed(&staticState.windowBackend, object->data.window);
+    WindowHandle* object = PincObject_ref_window(window);
+    return WindowBackend_windowEventClosed(&staticState.windowBackend, *object);
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_mouse_button(pinc_window window) {
@@ -782,9 +846,8 @@ PINC_EXPORT bool PINC_CALL pinc_event_window_mouse_button(pinc_window window) {
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_resized(pinc_window window) {
-    // TODO: properly implement this
-    PincObject* obj = PincObject_ref(window);
-    return WindowBackend_windowEventResized(&staticState.windowBackend, obj->data.window);
+    WindowHandle* object = PincObject_ref_window(window);
+    return WindowBackend_windowEventResized(&staticState.windowBackend, *object);
 }
 
 PINC_EXPORT bool PINC_CALL pinc_event_window_focused(pinc_window window) {
@@ -884,10 +947,8 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_accum
     if(framebuffer_format_id == 0) {
         framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_backend_raw_opengl);
     }
-    PincObject* framebufferFormatObj = PincObject_ref(framebuffer_format_id);
-    PErrorUser(framebufferFormatObj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
-    FramebufferFormat framebuffer = framebufferFormatObj->data.framebufferFormat;
-    return WindowBackend_queryRawGlAccumulatorBits(&staticState.sdl2WindowBackend, framebuffer, channel, bits);
+    FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_id);
+    return WindowBackend_queryRawGlAccumulatorBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, channel, bits);
 }
 
 PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_alpha_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id, uint32_t bits) {
@@ -898,10 +959,8 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_alpha
     if(framebuffer_format_id == 0) {
         framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_backend_raw_opengl);
     }
-    PincObject* framebufferFormatObj = PincObject_ref(framebuffer_format_id);
-    PErrorUser(framebufferFormatObj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
-    FramebufferFormat framebuffer = framebufferFormatObj->data.framebufferFormat;
-    return WindowBackend_queryRawGlAlphaBits(&staticState.sdl2WindowBackend, framebuffer, bits);
+    FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_id);
+    return WindowBackend_queryRawGlAlphaBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
 }
 
 PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_depth_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id, uint32_t bits) {
@@ -912,10 +971,8 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_depth
     if(framebuffer_format_id == 0) {
         framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_backend_raw_opengl);
     }
-    PincObject* framebufferFormatObj = PincObject_ref(framebuffer_format_id);
-    PErrorUser(framebufferFormatObj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
-    FramebufferFormat framebuffer = framebufferFormatObj->data.framebufferFormat;
-    return WindowBackend_queryRawGlDepthBits(&staticState.sdl2WindowBackend, framebuffer, bits);
+    FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_id);
+    return WindowBackend_queryRawGlDepthBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
 }
 
 PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_stereo_buffer(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id) {
@@ -926,10 +983,8 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_stere
     if(framebuffer_format_id == 0) {
         framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_backend_raw_opengl);
     }
-    PincObject* framebufferFormatObj = PincObject_ref(framebuffer_format_id);
-    PErrorUser(framebufferFormatObj->discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
-    FramebufferFormat framebuffer = framebufferFormatObj->data.framebufferFormat;
-    return WindowBackend_queryRawGlStereoBuffer(&staticState.sdl2WindowBackend, framebuffer);
+    FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_id);
+    return WindowBackend_queryRawGlStereoBuffer(&staticState.sdl2WindowBackend, *framebufferFormatObj);
 }
 
 PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_context_debug(pinc_window_backend backend){
@@ -973,11 +1028,10 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_reset
 }
 
 PINC_EXPORT pinc_raw_opengl_context PINC_CALL pinc_raw_opengl_create_context_incomplete(void) {
-    pinc_raw_opengl_context id = PincObject_allocate();
-    PincObject* obj = PincObject_ref(id);
+    pinc_raw_opengl_context id = PincObject_allocate(PincObjectDiscriminator_incompleteRawGlContext);
+    IncompleteRawGlContext* obj = PincObject_ref_incompleteRawGlContext(id);
     
-    obj->discriminator = PincObjectDiscriminator_incompleteRawGlContext;
-    obj->data.incompleteRawGlContext = (IncompleteRawGlContext) {
+    *obj = (IncompleteRawGlContext) {
         .accumulatorBits = {0, 0, 0, 0},
         .alphaBits = 0,
         .depthBits = 16,
@@ -1059,34 +1113,26 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_reset_isolati
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_version(pinc_raw_opengl_context incomplete_context, uint32_t major, uint32_t minor, bool es, bool core) {
-    // TODO validation
-    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     // TODO check that this version is available
-
-    PincObject* contextObj = PincObject_ref(incomplete_context);
-    PErrorUser(contextObj->discriminator == PincObjectDiscriminator_incompleteRawGlContext, "pinc_raw_opengl_set_context_version: Object must be an incomplete raw OpenGl context");
-    contextObj->data.incompleteRawGlContext.versionMajor = major;
-    contextObj->data.incompleteRawGlContext.versionMinor = minor;
-    contextObj->data.incompleteRawGlContext.versionEs = es;
-    contextObj->data.incompleteRawGlContext.core = core;
-    contextObj->data.incompleteRawGlContext.forwardCompatible = !core;
+    IncompleteRawGlContext* contextObj = PincObject_ref_incompleteRawGlContext(incomplete_context);
+    contextObj->versionMajor = major;
+    contextObj->versionMinor = minor;
+    contextObj->versionEs = es;
+    contextObj->core = core;
+    contextObj->forwardCompatible = !core;
     PErrorUser((!es) && (!core), "pinc_raw_opengl_set_context_version: OpenGl context can either be core or ES, not both");
     return pinc_return_code_pass;
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_context_complete(pinc_raw_opengl_context incomplete_context) {
-    // TODO validation
-    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
-
-    PincObject* contextObj = PincObject_ref(incomplete_context);
-    PErrorUser(contextObj->discriminator == PincObjectDiscriminator_incompleteRawGlContext, "pinc_raw_opengl_context_complete: Object must be an incomplete raw OpenGl context");
-    RawOpenglContextHandle contextHandle = WindowBackend_rawGlCompleteContext(&staticState.windowBackend, contextObj->data.incompleteRawGlContext);
+    IncompleteRawGlContext* contextObj = PincObject_ref_incompleteRawGlContext(incomplete_context);
+    RawOpenglContextHandle contextHandle = WindowBackend_rawGlCompleteContext(&staticState.windowBackend, *contextObj);
     if(contextHandle == 0) {
         return pinc_return_code_error;
     }
-    contextObj->discriminator = PincObjectDiscriminator_rawGlContext;
-    contextObj->data.rawGlContext = contextHandle;
-
+    PincObject_reallocate(incomplete_context, PincObjectDiscriminator_rawGlContext);
+    RawOpenglContextHandle* handleObject = PincObject_ref_rawGlContext(incomplete_context);
+    *handleObject = contextHandle;
     return pinc_return_code_pass;
 }
 
@@ -1143,15 +1189,9 @@ PINC_EXPORT bool PINC_CALL pinc_raw_opengl_get_context_reset_isolation(pinc_raw_
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_make_current(pinc_window window, pinc_raw_opengl_context context) {
-    // TODO validation
-    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
-
-    PincObject* windowObj = PincObject_ref(window);
-    PErrorUser(windowObj->discriminator == PincObjectDiscriminator_window, "pinc_raw_opengl_make_current: window must be a complete window object");
-    PincObject* contextObj = PincObject_ref(context);
-    PErrorUser(contextObj->discriminator == PincObjectDiscriminator_rawGlContext, "pinc_raw_opengl_make_current: context must be a complete raw OpenGL object");
-
-    return WindowBackend_rawGlMakeCurrent(&staticState.windowBackend, windowObj->data.window, contextObj->data.rawGlContext);
+    WindowHandle* windowObj = PincObject_ref_window(window);
+    RawOpenglContextHandle* contextObj = PincObject_ref_rawGlContext(context);
+    return WindowBackend_rawGlMakeCurrent(&staticState.windowBackend, *windowObj, *contextObj);
 }
 
 PINC_EXPORT pinc_window PINC_CALL pinc_raw_opengl_get_current(void) {
