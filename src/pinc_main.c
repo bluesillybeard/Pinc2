@@ -193,11 +193,11 @@ static uint32_t PincObject_allocateInternal(PincObjectDiscriminator discriminato
             return PincPool_alloc(&staticState.windowHandleObjects, sizeof(WindowHandle));
             break;
         }
-        case PincObjectDiscriminator_incompleteRawGlContext: {
-            return PincPool_alloc(&staticState.incompleteRawGlContextObjects, sizeof(IncompleteRawGlContext));
+        case PincObjectDiscriminator_incompleteGlContext: {
+            return PincPool_alloc(&staticState.incompleteGlContextObjects, sizeof(IncompleteGlContext));
             break;
         }
-        case PincObjectDiscriminator_rawGlContext: {
+        case PincObjectDiscriminator_glContext: {
             return PincPool_alloc(&staticState.rawOpenglContextHandleObjects, sizeof(RawOpenglContextHandle));
             break;
         }
@@ -223,11 +223,11 @@ static void PincObject_freeInternal(PincObjectDiscriminator discriminator, uint3
             PincPool_free(&staticState.windowHandleObjects, index, sizeof(WindowHandle));
             break;
         }
-        case PincObjectDiscriminator_incompleteRawGlContext:{
-            PincPool_free(&staticState.incompleteRawGlContextObjects, index, sizeof(IncompleteRawGlContext));
+        case PincObjectDiscriminator_incompleteGlContext:{
+            PincPool_free(&staticState.incompleteGlContextObjects, index, sizeof(IncompleteGlContext));
             break;
         }
-        case PincObjectDiscriminator_rawGlContext:{
+        case PincObjectDiscriminator_glContext:{
             PincPool_free(&staticState.rawOpenglContextHandleObjects, index, sizeof(RawOpenglContextHandle));
             break;
         }
@@ -331,12 +331,12 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_incomplete_init(void) {
     return pinc_return_code_pass;
 }
 
-PINC_EXPORT uint32_t PINC_CALL pinc_query_window_backends(pinc_window_backend* backend_dest, uint32_t capacity) {
-    // TODO: Only window backend is SDL2, shortcuts are taken
-    if(backend_dest && capacity < 1){
-        *backend_dest = pinc_window_backend_sdl2;
-    }
-    return 1;
+PINC_EXTERN bool PINC_CALL pinc_query_window_backend_support(pinc_window_backend window_backend) {
+    // TODO: only backend is SDL2, shortcuts are taken
+    #if PINC_HAVE_WINDOW_SDL2 == 1
+    if(window_backend == pinc_window_backend_sdl2) return true;
+    #endif
+    return false;
 }
 
 PINC_EXPORT pinc_window_backend PINC_CALL pinc_query_window_backend_default(void) {
@@ -344,38 +344,29 @@ PINC_EXPORT pinc_window_backend PINC_CALL pinc_query_window_backend_default(void
     return pinc_window_backend_sdl2;
 }
 
-PINC_EXPORT uint32_t PINC_CALL pinc_query_graphics_backends(pinc_window_backend window_backend, pinc_graphics_backend* backend_dest, uint32_t capacity) {
+PINC_EXTERN bool PINC_CALL pinc_query_graphics_api_support(pinc_window_backend window_backend, pinc_graphics_api graphics_api) {
     P_UNUSED(window_backend);
     // TODO: only window backend is SDL2, shortcuts are taken
-    size_t numGraphicsBackends;
-    pinc_graphics_backend* supportedBackends = WindowBackend_queryGraphicsBackends(&staticState.sdl2WindowBackend, tempAllocator, &numGraphicsBackends);
-    size_t numToCopy = capacity;
-    if(numToCopy > numGraphicsBackends) {
-        numToCopy = numGraphicsBackends;
-    }
-    if(backend_dest) {
-        pMemCopy(supportedBackends, backend_dest, numToCopy);
-    }
-    PErrorSanitize(numGraphicsBackends <= UINT32_MAX, "Integer overflow");
-    return (uint32_t)numGraphicsBackends;
+    return WindowBackend_queryGraphicsApiSupport(&staticState.sdl2WindowBackend, graphics_api);
 }
 
-PINC_EXPORT pinc_graphics_backend PINC_CALL pinc_query_graphics_backend_default(pinc_window_backend window_backend) {
-    // TODO: only backend is raw opengl, shortcuts are taken
+PINC_EXTERN pinc_graphics_api PINC_CALL pinc_query_graphics_api_default(pinc_window_backend window_backend) {
+    // TODO: only api is opengl, shortcuts are taken
     P_UNUSED(window_backend);
-    return pinc_graphics_backend_raw_opengl;
+    return pinc_graphics_api_opengl;
 }
 
-PINC_EXPORT pinc_framebuffer_format pinc_query_framebuffer_format_default(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend) {
+PINC_EXPORT pinc_framebuffer_format pinc_query_framebuffer_format_default(pinc_window_backend window_backend, pinc_graphics_api graphics_api) {
     P_UNUSED(window_backend);
-    P_UNUSED(graphics_backend);
-    // TODO: actually chose one instead of just grabbing the first one
+    P_UNUSED(graphics_api);
+    // TODO: Holy Moly this is just awful
+    // Relying on the fact that the first objects to be created are framebuffer formats
     return 1;
 }
 
-PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format* ids_dest, uint32_t capacity) {
+PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_backend window_backend, pinc_graphics_api graphics_api, pinc_framebuffer_format* ids_dest, uint32_t capacity) {
     P_UNUSED(window_backend);
-    P_UNUSED(graphics_backend);
+    P_UNUSED(graphics_api);
     // TODO: only window backend is SDL2, shortcuts are taken
     // TODO: sort framebuffers from best to worst, so applications can just loop from first to last and pick the first one they see that they like
     // - Note: probably best to do this in init when all of the framebuffer formats are queried to begin with
@@ -417,21 +408,21 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_max_open_windows(pinc_window_backend w
     return WindowBackend_queryMaxOpenWindows(&staticState.sdl2WindowBackend);
 }
 
-PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format framebuffer_format_id, uint32_t samples, uint32_t depth_buffer_bits) {
+PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_api graphics_api, pinc_framebuffer_format framebuffer_format_id, uint32_t samples, uint32_t depth_buffer_bits) {
     // TODO: only window backend is SDL2, shortcuts are taken
     PErrorUser(window_backend != pinc_window_backend_none, "Unsupported window backend");
     if(window_backend == pinc_window_backend_any) {
         window_backend = pinc_window_backend_sdl2;
     }
-    // TODO: only graphics backend is raw opengl, shortcuts are taken
-    if(graphics_backend == pinc_graphics_backend_any) {
-        graphics_backend = pinc_graphics_backend_raw_opengl;
+    // TODO: only graphics api is opengl, shortcuts are taken
+    if(graphics_api == pinc_graphics_api_any) {
+        graphics_api = pinc_graphics_api_opengl;
     }
     if(framebuffer_format_id == 0) {
-        framebuffer_format_id = pinc_query_framebuffer_format_default(window_backend, graphics_backend);
+        framebuffer_format_id = pinc_query_framebuffer_format_default(window_backend, graphics_api);
     }
     FramebufferFormat* framebuffer = PincObject_ref_framebufferFormat(framebuffer_format_id);
-    pinc_return_code result = WindowBackend_completeInit(&staticState.sdl2WindowBackend, graphics_backend, *framebuffer, samples, depth_buffer_bits);
+    pinc_return_code result = WindowBackend_completeInit(&staticState.sdl2WindowBackend, graphics_api, *framebuffer, samples, depth_buffer_bits);
     if(result == pinc_return_code_error) {
         return pinc_return_code_error;
     }
@@ -517,7 +508,7 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
     PincPool_deinit(&staticState.objects, sizeof(PincObject));
     PincPool_deinit(&staticState.incompleteWindowObjects, sizeof(IncompleteWindow));
     PincPool_deinit(&staticState.windowHandleObjects, sizeof(WindowHandle));
-    PincPool_deinit(&staticState.incompleteRawGlContextObjects, sizeof(IncompleteRawGlContext));
+    PincPool_deinit(&staticState.incompleteGlContextObjects, sizeof(IncompleteGlContext));
     PincPool_deinit(&staticState.rawOpenglContextHandleObjects, sizeof(RawOpenglContextHandle));
     PincPool_deinit(&staticState.framebufferFormatObjects, sizeof(FramebufferFormat));
 
@@ -534,9 +525,9 @@ PINC_EXPORT pinc_window_backend PINC_CALL pinc_query_set_window_backend(void) {
     return pinc_window_backend_sdl2;
 }
 
-PINC_EXPORT pinc_graphics_backend PINC_CALL pinc_query_set_graphics_backend(void) {
-    // TODO: only backend is raw opengl, shortcuts are taken
-    return pinc_graphics_backend_raw_opengl;
+PINC_EXPORT pinc_graphics_api PINC_CALL pinc_query_set_graphics_api(void) {
+    // TODO: only backend is opengl, shortcuts are taken
+    return pinc_graphics_api_opengl;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_set_framebuffer_format(void) {
@@ -556,8 +547,8 @@ PINC_EXPORT pinc_object_type PINC_CALL pinc_get_object_type(pinc_object id) {
         return pinc_object_type_window;
     // Objects that are not normal Pinc objects.
     // TODO: these should probably just be fully promoted to regular Pinc objects.
-    case PincObjectDiscriminator_rawGlContext:
-    case PincObjectDiscriminator_incompleteRawGlContext:
+    case PincObjectDiscriminator_glContext:
+    case PincObjectDiscriminator_incompleteGlContext:
         return pinc_object_type_none;
     case PincObjectDiscriminator_framebufferFormat:
         return pinc_object_type_none;
@@ -922,13 +913,10 @@ PINC_EXPORT float PINC_CALL pinc_window_scroll_horizontal(pinc_window window) {
     return 0;
 }
 
-// ### RAW OPENGL FUNCTIONS ###
+// ### OPENGL FUNCTIONS ###
 #include <pinc_opengl.h>
 
-// Unlike with the general window management functions,
-// The raw opengl functions pretty much call directly into the window backend with nothing between it and the user.
-
-PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_version_supported(pinc_window_backend backend, uint32_t major, uint32_t minor, bool es) {
+PINC_EXPORT pinc_opengl_support_status PINC_CALL pinc_query_opengl_version_supported(pinc_window_backend backend, uint32_t major, uint32_t minor, bool es) {
     // TODO: Only backend is sdl2, shortcuts are taken
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
@@ -936,102 +924,102 @@ PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_versi
     PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
     PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
 
-    return WindowBackend_queryRawGlVersionSupported(&staticState.sdl2WindowBackend, major, minor, es);
+    return WindowBackend_queryGlVersionSupported(&staticState.sdl2WindowBackend, major, minor, es);
 }
 
-PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_accumulator_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id, uint32_t channel, uint32_t bits){
+PINC_EXPORT pinc_opengl_support_status PINC_CALL pinc_query_opengl_accumulator_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id, uint32_t channel, uint32_t bits){
     // TODO: Only backend is sdl2, shortcuts are taken
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
     if(framebuffer_format_id == 0) {
-        framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_backend_raw_opengl);
+        framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_api_opengl);
     }
     FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_id);
-    return WindowBackend_queryRawGlAccumulatorBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, channel, bits);
+    return WindowBackend_queryGlAccumulatorBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, channel, bits);
 }
 
-PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_alpha_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id, uint32_t bits) {
+PINC_EXPORT pinc_opengl_support_status PINC_CALL pinc_query_opengl_alpha_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id, uint32_t bits) {
     // TODO: Only backend is sdl2, shortcuts are taken
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
     if(framebuffer_format_id == 0) {
-        framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_backend_raw_opengl);
+        framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_api_opengl);
     }
     FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_id);
-    return WindowBackend_queryRawGlAlphaBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
+    return WindowBackend_queryGlAlphaBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
 }
 
-PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_depth_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id, uint32_t bits) {
+PINC_EXPORT pinc_opengl_support_status PINC_CALL pinc_query_opengl_depth_bits(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id, uint32_t bits) {
     // TODO: Only backend is sdl2, shortcuts are taken
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
     if(framebuffer_format_id == 0) {
-        framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_backend_raw_opengl);
+        framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_api_opengl);
     }
     FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_id);
-    return WindowBackend_queryRawGlDepthBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
+    return WindowBackend_queryGlDepthBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
 }
 
-PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_stereo_buffer(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id) {
+PINC_EXPORT pinc_opengl_support_status PINC_CALL pinc_query_opengl_stereo_buffer(pinc_window_backend backend, pinc_framebuffer_format framebuffer_format_id) {
     // TODO: Only backend is sdl2, shortcuts are taken
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
     if(framebuffer_format_id == 0) {
-        framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_backend_raw_opengl);
+        framebuffer_format_id = pinc_query_framebuffer_format_default(backend, pinc_graphics_api_opengl);
     }
     FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_id);
-    return WindowBackend_queryRawGlStereoBuffer(&staticState.sdl2WindowBackend, *framebufferFormatObj);
+    return WindowBackend_queryGlStereoBuffer(&staticState.sdl2WindowBackend, *framebufferFormatObj);
 }
 
-PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_context_debug(pinc_window_backend backend){
+PINC_EXPORT pinc_opengl_support_status PINC_CALL pinc_query_opengl_context_debug(pinc_window_backend backend){
     // TODO: Only backend is sdl2, shortcuts are taken
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
     PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
     PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
-    return WindowBackend_queryRawGlContextDebug(&staticState.sdl2WindowBackend);
+    return WindowBackend_queryGlContextDebug(&staticState.sdl2WindowBackend);
 }
 
-PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_forward_compatible(pinc_window_backend backend){
+PINC_EXPORT pinc_opengl_support_status PINC_CALL pinc_query_opengl_forward_compatible(pinc_window_backend backend){
     // TODO: Only backend is sdl2, shortcuts are taken
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
     PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
     PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
-    return WindowBackend_queryRawGlForwardCompatible(&staticState.sdl2WindowBackend);
+    return WindowBackend_queryGlForwardCompatible(&staticState.sdl2WindowBackend);
 }
 
-PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_robust_access(pinc_window_backend backend){
+PINC_EXPORT pinc_opengl_support_status PINC_CALL pinc_query_opengl_robust_access(pinc_window_backend backend){
     // TODO: Only backend is sdl2, shortcuts are taken
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
     PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
     PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
-    return WindowBackend_queryRawGlRobustAccess(&staticState.sdl2WindowBackend);
+    return WindowBackend_queryGlRobustAccess(&staticState.sdl2WindowBackend);
 }
 
-PINC_EXPORT pinc_raw_opengl_support_status PINC_CALL pinc_query_raw_opengl_reset_isolation(pinc_window_backend backend){
+PINC_EXPORT pinc_opengl_support_status PINC_CALL pinc_query_opengl_reset_isolation(pinc_window_backend backend){
     // TODO: Only backend is sdl2, shortcuts are taken
     if(backend == pinc_window_backend_any) {
         backend = pinc_window_backend_sdl2;
     }
     PErrorUser(backend == pinc_window_backend_sdl2, "Unsupported window backend");
     PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
-    return WindowBackend_queryRawGlResetIsolation(&staticState.sdl2WindowBackend);
+    return WindowBackend_queryGlResetIsolation(&staticState.sdl2WindowBackend);
 }
 
-PINC_EXPORT pinc_raw_opengl_context PINC_CALL pinc_raw_opengl_create_context_incomplete(void) {
-    pinc_raw_opengl_context id = PincObject_allocate(PincObjectDiscriminator_incompleteRawGlContext);
-    IncompleteRawGlContext* obj = PincObject_ref_incompleteRawGlContext(id);
+PINC_EXPORT pinc_opengl_context PINC_CALL pinc_opengl_create_context_incomplete(void) {
+    pinc_opengl_context id = PincObject_allocate(PincObjectDiscriminator_incompleteGlContext);
+    IncompleteGlContext* obj = PincObject_ref_incompleteGlContext(id);
     
-    *obj = (IncompleteRawGlContext) {
+    *obj = (IncompleteGlContext) {
         .accumulatorBits = {0, 0, 0, 0},
         .alphaBits = 0,
         .depthBits = 16,
@@ -1048,7 +1036,7 @@ PINC_EXPORT pinc_raw_opengl_context PINC_CALL pinc_raw_opengl_create_context_inc
     return id;
 }
 
-PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_accumulator_bits(pinc_raw_opengl_context incomplete_context, uint32_t channel, uint32_t bits) {
+PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_set_context_accumulator_bits(pinc_opengl_context incomplete_context, uint32_t channel, uint32_t bits) {
     P_UNUSED(incomplete_context);
     P_UNUSED(channel);
     P_UNUSED(bits);
@@ -1057,14 +1045,14 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_accumulator_b
     return pinc_return_code_error;
 }
 
-PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_alpha_bits(pinc_raw_opengl_context incomplete_context, uint32_t bits) {
+PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_set_context_alpha_bits(pinc_opengl_context incomplete_context, uint32_t bits) {
     P_UNUSED(incomplete_context);
     P_UNUSED(bits);
     // TODO
     PPANIC("Not implemented");
     return pinc_return_code_error;
 }
-PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_depth_bits(pinc_raw_opengl_context incomplete_context, uint32_t bits) {
+PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_set_context_depth_bits(pinc_opengl_context incomplete_context, uint32_t bits) {
     P_UNUSED(incomplete_context);
     P_UNUSED(bits);
     // TODO
@@ -1072,7 +1060,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_depth_bits(pi
     return pinc_return_code_error;
 }
 
-PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_stereo_buffer(pinc_raw_opengl_context incomplete_context, bool stereo) {
+PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_set_context_stereo_buffer(pinc_opengl_context incomplete_context, bool stereo) {
     P_UNUSED(incomplete_context);
     P_UNUSED(stereo);
     // TODO
@@ -1080,7 +1068,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_stereo_buffer
     return pinc_return_code_error;
 }
 
-PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_context_debug(pinc_raw_opengl_context incomplete_context, bool debug) {
+PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_set_context_context_debug(pinc_opengl_context incomplete_context, bool debug) {
     P_UNUSED(incomplete_context);
     P_UNUSED(debug);
     // TODO
@@ -1088,7 +1076,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_context_debug
     return pinc_return_code_error;
 }
 
-PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_forward_compatible(pinc_raw_opengl_context incomplete_context, bool compatible) {
+PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_set_context_forward_compatible(pinc_opengl_context incomplete_context, bool compatible) {
     P_UNUSED(incomplete_context);
     P_UNUSED(compatible);
     // TODO
@@ -1096,7 +1084,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_forward_compa
     return pinc_return_code_error;
 }
 
-PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_robust_access(pinc_raw_opengl_context incomplete_context, bool robust) {
+PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_set_context_robust_access(pinc_opengl_context incomplete_context, bool robust) {
     P_UNUSED(incomplete_context);
     P_UNUSED(robust);
     // TODO
@@ -1104,7 +1092,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_robust_access
     return pinc_return_code_error;
 }
 
-PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_reset_isolation(pinc_raw_opengl_context incomplete_context, bool isolation) {
+PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_set_context_reset_isolation(pinc_opengl_context incomplete_context, bool isolation) {
     P_UNUSED(incomplete_context);
     P_UNUSED(isolation);
     // TODO
@@ -1112,36 +1100,36 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_reset_isolati
     return pinc_return_code_error;
 }
 
-PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_set_context_version(pinc_raw_opengl_context incomplete_context, uint32_t major, uint32_t minor, bool es, bool core) {
+PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_set_context_version(pinc_opengl_context incomplete_context, uint32_t major, uint32_t minor, bool es, bool core) {
     // TODO check that this version is available
-    IncompleteRawGlContext* contextObj = PincObject_ref_incompleteRawGlContext(incomplete_context);
+    IncompleteGlContext* contextObj = PincObject_ref_incompleteGlContext(incomplete_context);
     contextObj->versionMajor = major;
     contextObj->versionMinor = minor;
     contextObj->versionEs = es;
     contextObj->core = core;
     contextObj->forwardCompatible = !core;
-    PErrorUser((!es) && (!core), "pinc_raw_opengl_set_context_version: OpenGl context can either be core or ES, not both");
+    PErrorUser((!es) && (!core), "pinc_opengl_set_context_version: OpenGl context can either be core or ES, not both");
     return pinc_return_code_pass;
 }
 
-PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_context_complete(pinc_raw_opengl_context incomplete_context) {
-    IncompleteRawGlContext* contextObj = PincObject_ref_incompleteRawGlContext(incomplete_context);
-    RawOpenglContextHandle contextHandle = WindowBackend_rawGlCompleteContext(&staticState.windowBackend, *contextObj);
+PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_context_complete(pinc_opengl_context incomplete_context) {
+    IncompleteGlContext* contextObj = PincObject_ref_incompleteGlContext(incomplete_context);
+    RawOpenglContextHandle contextHandle = WindowBackend_glCompleteContext(&staticState.windowBackend, *contextObj);
     if(contextHandle == 0) {
         return pinc_return_code_error;
     }
-    PincObject_reallocate(incomplete_context, PincObjectDiscriminator_rawGlContext);
-    RawOpenglContextHandle* handleObject = PincObject_ref_rawGlContext(incomplete_context);
+    PincObject_reallocate(incomplete_context, PincObjectDiscriminator_glContext);
+    RawOpenglContextHandle* handleObject = PincObject_ref_glContext(incomplete_context);
     *handleObject = contextHandle;
     return pinc_return_code_pass;
 }
 
-PINC_EXPORT void PINC_CALL pinc_raw_opengl_context_deinit(pinc_raw_opengl_context context) {
+PINC_EXPORT void PINC_CALL pinc_opengl_context_deinit(pinc_opengl_context context) {
     P_UNUSED(context);
     // TODO
 }
 
-PINC_EXPORT uint32_t PINC_CALL pinc_raw_opengl_get_context_accumulator_bits(pinc_raw_opengl_context incomplete_context, uint32_t channel) {
+PINC_EXPORT uint32_t PINC_CALL pinc_opengl_get_context_accumulator_bits(pinc_opengl_context incomplete_context, uint32_t channel) {
     P_UNUSED(incomplete_context);
     P_UNUSED(channel);
     // TODO
@@ -1150,60 +1138,60 @@ PINC_EXPORT uint32_t PINC_CALL pinc_raw_opengl_get_context_accumulator_bits(pinc
 }
 
 // TODO
-PINC_EXTERN uint32_t PINC_CALL pinc_raw_opengl_get_context_alpha_bits(pinc_raw_opengl_context incomplete_context);
-PINC_EXTERN uint32_t PINC_CALL pinc_raw_opengl_get_context_depth_bits(pinc_raw_opengl_context incomplete_context);
+PINC_EXTERN uint32_t PINC_CALL pinc_opengl_get_context_alpha_bits(pinc_opengl_context incomplete_context);
+PINC_EXTERN uint32_t PINC_CALL pinc_opengl_get_context_depth_bits(pinc_opengl_context incomplete_context);
 
-PINC_EXPORT bool PINC_CALL pinc_raw_opengl_get_context_stereo_buffer(pinc_raw_opengl_context incomplete_context) {
+PINC_EXPORT bool PINC_CALL pinc_opengl_get_context_stereo_buffer(pinc_opengl_context incomplete_context) {
     P_UNUSED(incomplete_context);
     // TODO
     PPANIC("Not implemented");
     return false;
 }
 
-PINC_EXPORT bool PINC_CALL pinc_raw_opengl_get_context_context_debug(pinc_raw_opengl_context incomplete_context) {
+PINC_EXPORT bool PINC_CALL pinc_opengl_get_context_context_debug(pinc_opengl_context incomplete_context) {
     P_UNUSED(incomplete_context);
     // TODO
     PPANIC("Not implemented");
     return false;
 }
 
-PINC_EXPORT bool PINC_CALL pinc_raw_opengl_get_context_forward_compatible(pinc_raw_opengl_context incomplete_context) {
+PINC_EXPORT bool PINC_CALL pinc_opengl_get_context_forward_compatible(pinc_opengl_context incomplete_context) {
     P_UNUSED(incomplete_context);
     // TODO
     PPANIC("Not implemented");
     return false;
 }
 
-PINC_EXPORT bool PINC_CALL pinc_raw_opengl_get_context_robust_access(pinc_raw_opengl_context incomplete_context) {
+PINC_EXPORT bool PINC_CALL pinc_opengl_get_context_robust_access(pinc_opengl_context incomplete_context) {
     P_UNUSED(incomplete_context);
     // TODO
     PPANIC("Not implemented");
     return false;
 }
 
-PINC_EXPORT bool PINC_CALL pinc_raw_opengl_get_context_reset_isolation(pinc_raw_opengl_context incomplete_context) {
+PINC_EXPORT bool PINC_CALL pinc_opengl_get_context_reset_isolation(pinc_opengl_context incomplete_context) {
     P_UNUSED(incomplete_context);
     // TODO
     PPANIC("Not implemented");
     return false;
 }
 
-PINC_EXPORT pinc_return_code PINC_CALL pinc_raw_opengl_make_current(pinc_window window, pinc_raw_opengl_context context) {
+PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_make_current(pinc_window window, pinc_opengl_context context) {
     WindowHandle* windowObj = PincObject_ref_window(window);
-    RawOpenglContextHandle* contextObj = PincObject_ref_rawGlContext(context);
-    return WindowBackend_rawGlMakeCurrent(&staticState.windowBackend, *windowObj, *contextObj);
+    RawOpenglContextHandle* contextObj = PincObject_ref_glContext(context);
+    return WindowBackend_glMakeCurrent(&staticState.windowBackend, *windowObj, *contextObj);
 }
 
-PINC_EXPORT pinc_window PINC_CALL pinc_raw_opengl_get_current(void) {
+PINC_EXPORT pinc_window PINC_CALL pinc_opengl_get_current(void) {
     // TODO
     PPANIC("Not implemented");
     return 0;
 }
 
-PINC_EXPORT PINC_PFN PINC_CALL pinc_raw_opengl_get_proc(char const * procname) {
+PINC_EXPORT PINC_PFN PINC_CALL pinc_opengl_get_proc(char const * procname) {
     // TODO validation
     PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
 
-    return WindowBackend_rawGlGetProc(&staticState.windowBackend, procname);
+    return WindowBackend_glGetProc(&staticState.windowBackend, procname);
 }
 

@@ -9,7 +9,7 @@ int main(void) {
         pinc_incomplete_init();
         // We don't care what we get, so don't set anything.
         // Everything is left default.
-        if(pinc_complete_init(pinc_window_backend_any, pinc_graphics_backend_any, 0, 1, 0) == pinc_return_code_error) {
+        if(pinc_complete_init(pinc_window_backend_any, pinc_graphics_api_any, 0, 1, 0) == pinc_return_code_error) {
             // Something went wrong. The error callback should have been called.
             return 100;
         }

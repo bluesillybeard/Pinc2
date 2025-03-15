@@ -1,6 +1,6 @@
 # Pinc 2
 
-Pinc is a cross platform window / graphics library for game and application development, with a focus on cross-compilation, dependency minimization, and ease of integration.
+Pinc is a cross platform window library for game and application development, with a focus on cross-compilation, dependency minimization, and ease of integration.
 
 Pinc is written entirely in C, making it (theoretically) portable to any system with a C compiler. Pinc currently uses cmake, however its design hopefully makes it simple to port to other build systems. See [build.md](build.md) for how the build system is configured.
 
@@ -44,7 +44,7 @@ The original version written in Zig can be found [here](https://github.com/blues
 - Pinc is written for C99. If your compiler doesn't support C99, you are on your own my friend.
 
 ## This library is barely even started. Here's what's left to do:
-- implement SDL2 + raw OpenGl backend
+- implement SDL2 + OpenGl backend
     - add tests as things are implemented
 - Make sure all of the important TODOs are handled
 - Make the library public
@@ -75,7 +75,7 @@ The original version written in Zig can be found [here](https://github.com/blues
     - And in fact, with some new things that the original prototype-like thing did not have
 
 ## Absolutely Important TODOs for before the library goes anywhere
-- Make sure all functions that take pinc_window_backend or pinc_graphics_backend can take 'any' to reference the default one.
+- Make sure all functions that take pinc_window_backend or pinc_graphics_api can take 'any' to reference the default one.
 - add platform implementation for Windows
 - Add state validation to all functions
 
@@ -85,8 +85,8 @@ The original version written in Zig can be found [here](https://github.com/blues
 ## Implemented window backends
 - SDL2
 
-## Implemented graphics backends
-- Raw OpenGL
+## Implemented graphics apis
+- OpenGL
 
 ## Implemented build systems
 - cmake
@@ -127,7 +127,7 @@ It is a good idea to read through the header a bit as well as look at the exampl
 ## Q&A
 - Why make this when other libraries already exist?
     - for fun
-    - To make a low-level windowing / graphics library that can be built and used, with only the requirement being a C compiler and some time.
+    - To make a low-level windowing library that can be built and used, with only the requirement being a C compiler and some time.
     - Additionally, a library with an insanely wide net of supported backends is very useful. Admittedly, the only backend implemented at the moment is based on SDL2, but take a look at the [Planned Backends](#planned-window-backends-not-final),
 - Why support fixed-function rendering It's so old! (and deprecated)
     - I thought it would be cool to be able to run this on extremely ancient hardware and OS, for no other reason than to see it run. Partially inspired by [MattKC porting .NET framework 2 to Windows 95.](https://www.youtube.com/watch?v=CTUMNtKQLl8)
@@ -153,33 +153,17 @@ It is a good idea to read through the header a bit as well as look at the exampl
     - Will require some assembly for all architectures to make syscalls
     - Will require a custom shared object loader
 
-## Planned graphics backends (NOT FINAL)
-- Raw software rasterizer
-- SDL 1
-    - Is this even worth implementing despite the raw and opengl backends?
-- SDL 2
-    - Is this even worth implementing despite the raw and opengl backends?
+## Planned graphics apis (NOT FINAL)
+- plain
+    - Just a grid of pixels with your direct control
+- SDL 1 maybe
+- SDL 2 maybe
 - SDL 3
     - SDL3 GPU API is pretty cool
-- OpenGL 1.2
-    - Oldest version of OpenGL worth supporting
-- OpenGL 1.5
-    - Latest fixed-function version of OpenGL
-- OpenGL 2.1
-    - What I like to call "the beginning of the end of the dark ages" for OpenGL
-- OpenGL 3.2
-    - The last widest supported version of OpenGL. For context, this is the version that Minecraft (Java edition) uses.
-- OpenGL 3.3
-    - Backported a bunch of 4.x features. TODO: what features are these? Is it worth an OpenGL 3.3 backend when the 3.2 one exists?
-- OpenGL 4.3
-    - Last version of OpenGL supported on Macos, other than using some kind of weird cursed converter setup, or a pure software implementation
-- OpenGl 4.6
-    - Last version of OpenGL
-- Vulkan 1.0
-- Vulkan 1.2
-    - last Vulkan release that is widely supported on older hardware
-- TODO: What do Vulkan 1.3 and 1.4 bring to the table?
-- Raw Vulkan
+- Vulkan
+- Metal
+
+It's worth noting that at some point these should all be supported by the Pinc graphics system as well
 
 ## Planned window backends (NOT FINAL)
 - SDL 1
@@ -281,6 +265,7 @@ None of these are going to be implemented any time soon - if ever.
     - how bindings to new languages should be handled, maintained, etc.
     - building the library and shipping the .so for dynamic languages, integrating with the build system of native languages, etc.
 - expose the Pinc temp allocator for user convenience
+- Allow a different graphics API per window
 
 ## TODO for internal library
 - test and get working on different compilers / implementations of libc

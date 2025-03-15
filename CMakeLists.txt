@@ -25,7 +25,6 @@ option(PINC_ENABLE_ERROR_USER "Enable user error checking" ON)
 option(PINC_ENABLE_ERROR_SANITIZE "Enable sanitize error checking" OFF)
 option(PINC_ENABLE_ERROR_VALIDATE "Enable validate error checking" OFF)
 option(PINC_HAVE_WINDOW_SDL2 "compile with SDL2 window backend" ON)
-option(PINC_HAVE_GRAPHICS_RAW_OPENGL "compile with raw opengl graphics backend" ON)
 
 # Options specific to cmake build
 
@@ -82,7 +81,6 @@ target_compile_definitions(pinc
     PRIVATE PINC_ENABLE_ERROR_SANITIZE=${PINC_ENABLE_ERROR_SANITIZE}
     PRIVATE PINC_ENABLE_ERROR_VALIDATE=${PINC_ENABLE_ERROR_VALIDATE}
     PRIVATE PINC_HAVE_WINDOW_SDL2=${PINC_HAVE_WINDOW_SDL2}
-    PRIVATE PINC_HAVE_GRAPHICS_RAW_OPENGL=${PINC_HAVE_GRAPHICS_RAW_OPENGL}
 )
 
 target_compile_options(pinc PRIVATE ${PINC_COMPILE_OPTIONS})

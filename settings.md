@@ -23,9 +23,6 @@ Boolean options can use "1", and "ON" for enable. Nearly any other value is trea
 - `PINC_HAVE_WINDOW_SDL2`
     - whether pinc with support for SDL2 window backend. 1 for enabled, 0 for disabled. Defaults to 1.
     - this is currently the *only* window backend, so disabling it is not a good idea
-- `PINC_HAVE_GRAPHICS_RAW_OPENGL`
-    - Compile pinc with support for raw opengl graphics backend. Defaults to 1.
-    - this is currently the *only* graphics backend, so disabling it is not a good idea
 - `PINC_ENABLE_ERROR_EXTERNAL`
     - Compile with external error checking. Defaults to 1.
     - See pinc.h for error policy

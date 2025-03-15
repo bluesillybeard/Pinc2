@@ -286,13 +286,14 @@ FramebufferFormat* sdl2queryFramebufferFormats(struct WindowBackend* obj, Alloca
     return actualFormats;
 }
 
-pinc_graphics_backend* sdl2queryGraphicsBackends(struct WindowBackend* obj, Allocator allocator, size_t* outNumBackends) {
+bool sdl2queryGraphicsApiSupport(struct WindowBackend* obj, pinc_graphics_api api) {
     P_UNUSED(obj);
-    // The only one supported for now is raw opengl
-    pinc_graphics_backend* backends = Allocator_allocate(allocator, sizeof(pinc_graphics_backend));
-    *backends = pinc_graphics_backend_raw_opengl;
-    *outNumBackends = 1;
-    return backends;
+    switch (api) {
+        case pinc_graphics_api_opengl:
+            return true;
+        default:
+            return false;
+    }
 }
 
 uint32_t sdl2queryMaxOpenWindows(struct WindowBackend* obj) {
@@ -301,7 +302,7 @@ uint32_t sdl2queryMaxOpenWindows(struct WindowBackend* obj) {
     return 0;
 }
 
-pinc_return_code sdl2completeInit(struct WindowBackend* obj, pinc_graphics_backend graphicsBackend, FramebufferFormat framebuffer, uint32_t samples, uint32_t depthBufferBits) {
+pinc_return_code sdl2completeInit(struct WindowBackend* obj, pinc_graphics_api graphicsBackend, FramebufferFormat framebuffer, uint32_t samples, uint32_t depthBufferBits) {
     P_UNUSED(obj);
     P_UNUSED(framebuffer);
     P_UNUSED(samples);
@@ -309,14 +310,14 @@ pinc_return_code sdl2completeInit(struct WindowBackend* obj, pinc_graphics_backe
     // Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     switch (graphicsBackend)
     {
-        case pinc_graphics_backend_raw_opengl:
+        case pinc_graphics_api_opengl:
             // TODO: probably need to store the samples and depth buffer bits somewhere?
             break;
         
         default:
-            // We don't support this graphics backend.
+            // We don't support this graphics api.
             // Technically this code should never run, because the user API frontend should have caught this
-            PErrorUser(false, "Attempt to use SDL2 backend with an unsupported graphics backend");
+            PErrorUser(false, "Attempt to use SDL2 backend with an unsupported graphics api");
             return pinc_return_code_error;
     }
     return pinc_return_code_pass;
@@ -407,7 +408,7 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
     if(incomplete->hidden) {
         windowFlags |= SDL_WINDOW_HIDDEN;
     }
-    // TODO: Only graphics backend is OpenGL, shortcuts are taken
+    // TODO: Only graphics api is OpenGL, shortcuts are taken
     windowFlags |= SDL_WINDOW_OPENGL;
 
     if(!this->dummyWindowInUse && this->dummyWindow) {
@@ -415,7 +416,7 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
         uint32_t realFlags = this->libsdl2.getWindowFlags(dummyWindow->sdlWindow);
 
         // If we need opengl but the dummy window doesn't have it,
-        // Then, as long as Pinc doesn't start supporting a different graphics backend for each window,
+        // Then, as long as Pinc doesn't start supporting a different graphics api for each window,
         // the dummy window is fully useless and it should be replaced.
         // SDL does not support changing a window to have opengl after it was created without it.
         if((windowFlags&SDL_WINDOW_OPENGL) && !(realFlags&SDL_WINDOW_OPENGL)) {
@@ -545,7 +546,7 @@ uint32_t sdl2getWindowWidth(struct WindowBackend* obj, WindowHandle window) {
     if(this->libsdl2.getWindowSizeInPixels) {
         this->libsdl2.getWindowSizeInPixels(windowObj->sdlWindow, &width, NULL);
     } else if(this->libsdl2.glGetDrawableSize) {
-        // TODO: only graphics backend is OpenGl, shortcuts are made
+        // TODO: only graphics api is OpenGl, shortcuts are made
         this->libsdl2.glGetDrawableSize(windowObj->sdlWindow, &width, NULL);
     } else {
         // If the previously tried functions don't work, then it means this is a version of SDL from before it became hidpi aware.
@@ -573,7 +574,7 @@ uint32_t sdl2getWindowHeight(struct WindowBackend* obj, WindowHandle window) {
     if(this->libsdl2.getWindowSizeInPixels) {
         this->libsdl2.getWindowSizeInPixels(windowObj->sdlWindow, NULL, &height);
     } else if(this->libsdl2.glGetDrawableSize) {
-        // TODO: only graphics backend is OpenGl, shortcuts are made
+        // TODO: only graphics api is OpenGl, shortcuts are made
         this->libsdl2.glGetDrawableSize(windowObj->sdlWindow, NULL, &height);
     } else {
         // If the previously tried functions don't work, then it means this is a version of SDL from before it became hidpi aware.
@@ -707,7 +708,7 @@ void sdl2windowPresentFramebuffer(struct WindowBackend* obj, WindowHandle window
     this->libsdl2.glSwapWindow(windowObj->sdlWindow);
 }
 
-pinc_raw_opengl_support_status sdl2queryRawGlVersionSupported(struct WindowBackend* obj, uint32_t major, uint32_t minor, bool es) {
+pinc_opengl_support_status sdl2queryGlVersionSupported(struct WindowBackend* obj, uint32_t major, uint32_t minor, bool es) {
     P_UNUSED(obj);
     P_UNUSED(major);
     P_UNUSED(minor);
@@ -716,10 +717,10 @@ pinc_raw_opengl_support_status sdl2queryRawGlVersionSupported(struct WindowBacke
     // TODO: document in pinc.h that when this function returns 'maybe',
     // that one should fall-back to using the tried-and-true method of trying to make a context with said version
     // to see if it works. Also document that this function does not attempt to create a context to query the version.
-    return pinc_raw_opengl_support_status_maybe;
+    return pinc_opengl_support_status_maybe;
 }
 
-pinc_raw_opengl_support_status sdl2queryRawGlAccumulatorBits(struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t channel, uint32_t bits) {
+pinc_opengl_support_status sdl2queryGlAccumulatorBits(struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t channel, uint32_t bits) {
     P_UNUSED(obj);
     P_UNUSED(framebuffer);
     P_UNUSED(channel);
@@ -729,7 +730,7 @@ pinc_raw_opengl_support_status sdl2queryRawGlAccumulatorBits(struct WindowBacken
     return 0;
 }
 
-pinc_raw_opengl_support_status sdl2queryRawGlAlphaBits(struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits) {
+pinc_opengl_support_status sdl2queryGlAlphaBits(struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits) {
     P_UNUSED(obj);
     P_UNUSED(framebuffer);
     P_UNUSED(bits);
@@ -738,7 +739,7 @@ pinc_raw_opengl_support_status sdl2queryRawGlAlphaBits(struct WindowBackend* obj
     return 0;
 }
 
-pinc_raw_opengl_support_status sdl2queryRawGlDepthBits(struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits) {
+pinc_opengl_support_status sdl2queryGlDepthBits(struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits) {
     P_UNUSED(obj);
     P_UNUSED(framebuffer);
     P_UNUSED(bits);
@@ -747,7 +748,7 @@ pinc_raw_opengl_support_status sdl2queryRawGlDepthBits(struct WindowBackend* obj
     return 0;
 }
 
-pinc_raw_opengl_support_status sdl2queryRawGlStereoBuffer(struct WindowBackend* obj, FramebufferFormat framebuffer) {
+pinc_opengl_support_status sdl2queryGlStereoBuffer(struct WindowBackend* obj, FramebufferFormat framebuffer) {
     P_UNUSED(obj);
     P_UNUSED(framebuffer);
     // TODO
@@ -755,35 +756,35 @@ pinc_raw_opengl_support_status sdl2queryRawGlStereoBuffer(struct WindowBackend* 
     return 0;
 }
 
-pinc_raw_opengl_support_status sdl2queryRawGlContextDebug(struct WindowBackend* obj) {
+pinc_opengl_support_status sdl2queryGlContextDebug(struct WindowBackend* obj) {
     P_UNUSED(obj);
     // TODO
     PPANIC("Not implemented");
     return 0;
 }
 
-pinc_raw_opengl_support_status sdl2queryRawGlForwardCompatible(struct WindowBackend* obj) {
+pinc_opengl_support_status sdl2queryGlForwardCompatible(struct WindowBackend* obj) {
     P_UNUSED(obj);
     // TODO
     PPANIC("Not implemented");
     return 0;
 }
 
-pinc_raw_opengl_support_status sdl2queryRawGlRobustAccess(struct WindowBackend* obj) {
+pinc_opengl_support_status sdl2queryGlRobustAccess(struct WindowBackend* obj) {
     P_UNUSED(obj);
     // TODO
     PPANIC("Not implemented");
     return 0;
 }
 
-pinc_raw_opengl_support_status sdl2queryRawGlResetIsolation(struct WindowBackend* obj) {
+pinc_opengl_support_status sdl2queryGlResetIsolation(struct WindowBackend* obj) {
     P_UNUSED(obj);
     // TODO
     PPANIC("Not implemented");
     return 0;
 }
 
-RawOpenglContextHandle sdl2rawGlCompleteContext(struct WindowBackend* obj, IncompleteRawGlContext incompleteContext) {
+RawOpenglContextHandle sdl2glCompleteContext(struct WindowBackend* obj, IncompleteGlContext incompleteContext) {
     // TODO: Actually use the context information
     P_UNUSED(incompleteContext);
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
@@ -805,7 +806,7 @@ RawOpenglContextHandle sdl2rawGlCompleteContext(struct WindowBackend* obj, Incom
     return sdlGlContext;
 }
 
-pinc_return_code sdl2rawGlMakeCurrent(struct WindowBackend* obj, WindowHandle window, RawOpenglContextHandle context) {
+pinc_return_code sdl2glMakeCurrent(struct WindowBackend* obj, WindowHandle window, RawOpenglContextHandle context) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     Sdl2Window* windowObj = (Sdl2Window*)window;
     // Unlike a window, an OpenGl context contains no other information than just the opaque pointer
@@ -825,7 +826,7 @@ pinc_return_code sdl2rawGlMakeCurrent(struct WindowBackend* obj, WindowHandle wi
     return pinc_return_code_pass;
 }
 
-PINC_PFN sdl2rawGlGetProc(struct WindowBackend* obj, char const* procname) {
+PINC_PFN sdl2glGetProc(struct WindowBackend* obj, char const* procname) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     // make sure the context is current.
     // If there is no current context, that is a user error that should be reported.

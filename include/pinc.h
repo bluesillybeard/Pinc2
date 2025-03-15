@@ -37,7 +37,7 @@
 //     - pinc_preinit_*
 // - call pinc_incomplete_init()
 // - (optional) Query information and decide settings
-//     - This is where the program decides which window backend, framebuffer format, graphics backend, etc to use.
+//     - This is where the program decides which window backend, framebuffer format, graphics api, etc to use.
 //     - If this step is skipped, Pinc will use default settings for the system it is running on.
 //     - pinc_init_query_*
 //     - pinc_init_set_*
@@ -105,14 +105,12 @@ typedef enum {
 
 typedef enum {
     /// @brief Represents any backend, or an unknown backend. Generally only works for calling pinc_complete_init.
-    pinc_graphics_backend_any = 0,
-    /// @brief raw OpenGL backend, for using Pinc with OpenGL.
-    ///            Requires pinc_opengl.h (or manually declaring the extern functions if you're weird like that.)
-    pinc_graphics_backend_raw_opengl,
-} pinc_graphics_backend;
+    pinc_graphics_api_any = 0,
+    pinc_graphics_api_opengl,
+} pinc_graphics_api;
 
-#undef pinc_graphics_backend
-#define pinc_graphics_backend uint32_t
+#undef pinc_graphics_api
+#define pinc_graphics_api uint32_t
 
 typedef enum {
     pinc_return_code_pass = 0,
@@ -285,7 +283,7 @@ typedef enum {
 
 /// @section IDs
 
-// framebuffer formats are transferrable between window and graphics backends, but not between different runs of the application.
+// framebuffer formats are transferrable between window and graphics apis, but not between different runs of the application.
 // A framebuffer format simply describes the pixel output values on the window itself. It does not include things like a depth buffer or MSAA.
 typedef uint32_t pinc_framebuffer_format;
 
@@ -356,42 +354,33 @@ PINC_EXTERN pinc_return_code PINC_CALL pinc_incomplete_init(void);
 /// @subsection full initialization functions
 /// @brief The query functions work after initialization, although most of them are useless after the fact
 
-/// @brief Query the window backends available for this system
-/// @param backend_dest a pointer to a memory buffer to write to, or null
-/// @param capacity the amount of space available for window backends to be written. ignored if backend_dest is null
-/// @return the number of window backends that are available
-PINC_EXTERN uint32_t PINC_CALL pinc_query_window_backends(pinc_window_backend* backend_dest, uint32_t capacity);
+PINC_EXTERN bool PINC_CALL pinc_query_window_backend_support(pinc_window_backend window_backend);
 
 /// @brief Query the default window backend for this system.
 /// @return The default window backend.
 PINC_EXTERN pinc_window_backend PINC_CALL pinc_query_window_backend_default(void);
 
-/// @brief Query the graphics backends available for a given window backend.
-/// @param window_backend The window backend to query. Must be a backend from query_window_backends.
-/// @param backend_dest a pointer to a memory buffer to write to, or null
-/// @param capacity the amount of space available for graphics backends to be written. Ignored if backend_dest is null
-/// @return the number of graphics backends that are available
-PINC_EXTERN uint32_t PINC_CALL pinc_query_graphics_backends(pinc_window_backend window_backend, pinc_graphics_backend* backend_dest, uint32_t capacity);
+PINC_EXTERN bool PINC_CALL pinc_query_graphics_api_support(pinc_window_backend window_backend, pinc_graphics_api graphics_api);
 
-/// @brief Query the default graphics backend for this system, given a window backend.
-///        The window backend is required because it's used to determine the best graphics backend for the system.
+/// @brief Query the default graphics api for this system, given a window backend.
+///        The window backend is required because it's used to determine the best graphics api for the system.
 ///        use pinc_window_backend_any to query the default window backend.
-/// @return the default graphics backend.
-PINC_EXTERN pinc_graphics_backend PINC_CALL pinc_query_graphics_backend_default(pinc_window_backend window_backend);
+/// @return the default graphics api.
+PINC_EXTERN pinc_graphics_api PINC_CALL pinc_query_graphics_api_default(pinc_window_backend window_backend);
 
-/// @brief Query the default framebuffer format that would be chosen for a given window and graphics backend.
-/// @param window_backend the window backend to query. Must be a supported graphics backend of the window backend.
-/// @param graphics_backend the graphics backend to query.
+/// @brief Query the default framebuffer format that would be chosen for a given window and graphics api.
+/// @param window_backend the window backend to query. Must be a supported graphics api of the window backend.
+/// @param graphics_api the graphics api to query.
 /// @return the default framebuffer format.
-PINC_EXTERN pinc_framebuffer_format PINC_CALL pinc_query_framebuffer_format_default(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend);
+PINC_EXTERN pinc_framebuffer_format PINC_CALL pinc_query_framebuffer_format_default(pinc_window_backend window_backend, pinc_graphics_api graphics_api);
 
-/// @brief Query the frame buffer format ids supported by a window backend and one of its supported graphics backend.
+/// @brief Query the frame buffer format ids supported by a window backend and one of its supported graphics api.
 /// @param window_backend the window backend to query from. Must be a supported window backend.
-/// @param graphics_backend the graphics backend to query from. Must be a supported graphics backend of the window backend.
+/// @param graphics_api the graphics api to query from. Must be a supported graphics api of the window backend, or pinc_graphics_api_none to use the default one.
 /// @param ids_dest a buffer to output the framebuffer format ids, or null to just query the number of formats.
 /// @param capacity the amount of space available for framebuffer format ids to be written. Ignored if dest is null.
 /// @return the number of framebuffer format ids supported.
-PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format* ids_dest, uint32_t capacity);
+PINC_EXTERN uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_backend window_backend, pinc_graphics_api graphics_api, pinc_framebuffer_format* ids_dest, uint32_t capacity);
 
 /// @brief Query the number of channels that a frame buffer format supports
 /// @param format_id the id of the framebuffer format.
@@ -414,7 +403,7 @@ PINC_EXTERN uint32_t PINC_CALL pinc_query_max_open_windows(pinc_window_backend w
 // Null framebuffer format is a shortcut to use the default framebuffer format.
 // samples is for MSAA. 1 is guaranteed to be supported
 // A depth bits of 0 means no depth buffer.
-PINC_EXTERN pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_backend graphics_backend, pinc_framebuffer_format framebuffer_format_id, uint32_t samples, uint32_t depth_buffer_bits);
+PINC_EXTERN pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_api graphics_api, pinc_framebuffer_format framebuffer_format_id, uint32_t samples, uint32_t depth_buffer_bits);
 
 /// @subsection post initialization related functions
 
@@ -422,7 +411,7 @@ PINC_EXTERN void PINC_CALL pinc_deinit(void);
 
 PINC_EXTERN pinc_window_backend PINC_CALL pinc_query_set_window_backend(void);
 
-PINC_EXTERN pinc_graphics_backend PINC_CALL pinc_query_set_graphics_backend(void);
+PINC_EXTERN pinc_graphics_api PINC_CALL pinc_query_set_graphics_api(void);
 
 PINC_EXTERN uint32_t PINC_CALL pinc_query_set_framebuffer_format(void);
 
@@ -586,7 +575,7 @@ PINC_EXTERN pinc_return_code PINC_CALL pinc_set_vsync(bool sync);
 PINC_EXTERN bool PINC_CALL pinc_get_vsync(void);
 
 /// @brief Present the framebuffer of a given window and prepares a backbuffer to draw on.
-///        The number of backbuffers depends on the graphics backend, but it's generally 2 or 3.
+///        The number of backbuffers depends on the graphics api, but it's generally 2 or 3.
 /// @param window the window whose framebuffer to present.
 PINC_EXTERN void PINC_CALL pinc_window_present_framebuffer(pinc_window window);
 

@@ -19,8 +19,8 @@ typedef enum {
     PincObjectDiscriminator_none = 0,
     PincObjectDiscriminator_incompleteWindow,
     PincObjectDiscriminator_window,
-    PincObjectDiscriminator_incompleteRawGlContext,
-    PincObjectDiscriminator_rawGlContext,
+    PincObjectDiscriminator_incompleteGlContext,
+    PincObjectDiscriminator_glContext,
     PincObjectDiscriminator_framebufferFormat,
 
 } PincObjectDiscriminator;
@@ -79,8 +79,8 @@ typedef struct {
     PincPool incompleteWindowObjects;
     // Live for init, type: WindowHandle
     PincPool windowHandleObjects;
-    // Live for init, type: IncompleteRawGlContext
-    PincPool incompleteRawGlContextObjects;
+    // Live for init, type: IncompleteGlContext
+    PincPool incompleteGlContextObjects;
     // Live for init, type: RawOpenglContextHandle
     PincPool rawOpenglContextHandleObjects;
     // Live for init, type: FramebufferFormat
@@ -137,17 +137,17 @@ static inline WindowHandle* PincObject_ref_window(pinc_object id) {
     return &((WindowHandle*)staticState.windowHandleObjects.objectsArray)[obj.internalIndex];
 }
 
-static inline IncompleteRawGlContext* PincObject_ref_incompleteRawGlContext(pinc_object id) {
+static inline IncompleteGlContext* PincObject_ref_incompleteGlContext(pinc_object id) {
     PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
     PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
-    PErrorUser(obj.discriminator == PincObjectDiscriminator_incompleteRawGlContext, "Object must be an incomplete OpenGL context");
-    return &((IncompleteRawGlContext*)staticState.incompleteRawGlContextObjects.objectsArray)[obj.internalIndex];
+    PErrorUser(obj.discriminator == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    return &((IncompleteGlContext*)staticState.incompleteGlContextObjects.objectsArray)[obj.internalIndex];
 }
 
-static inline RawOpenglContextHandle* PincObject_ref_rawGlContext(pinc_object id) {
+static inline RawOpenglContextHandle* PincObject_ref_glContext(pinc_object id) {
     PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
     PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
-    PErrorUser(obj.discriminator == PincObjectDiscriminator_rawGlContext, "Object must be a complete OpenGL context");
+    PErrorUser(obj.discriminator == PincObjectDiscriminator_glContext, "Object must be a complete OpenGL context");
     return &((RawOpenglContextHandle*)staticState.rawOpenglContextHandleObjects.objectsArray)[obj.internalIndex];
 }
 

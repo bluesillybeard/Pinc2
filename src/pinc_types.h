@@ -44,7 +44,7 @@ typedef struct {
     uint32_t versionMinor;
     bool versionEs;
     bool core;
-} IncompleteRawGlContext;
+} IncompleteGlContext;
 
 typedef void* RawOpenglContextHandle;
 
