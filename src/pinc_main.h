@@ -30,6 +30,8 @@ typedef struct {
     PincObjectDiscriminator discriminator;
     // Where in the internal object-specific array this is
     uint32_t internalIndex;
+    // user data
+    void* userData;
 } PincObject;
 
 // Object pool struct

@@ -259,7 +259,6 @@ None of these are going to be implemented any time soon - if ever.
     - Capture mouse just forces it to be in the window. As much as I hate this as a user, may as well just add it for completeness.
     - Lock mouse forces it to be in the window, and is used for first-person games for camera movement, and sometimes by applications (like Blender) to have infinite mouse movement for certain operations (like changing unbounded sliders or panning the camera).
 - header option to only include types and not functions
-- User data pointer for every Pinc object
 - Potentially allow a different framebuffer format for each window
 - binding policy
     - how bindings to new languages should be handled, maintained, etc.

@@ -244,6 +244,7 @@ pinc_object PincObject_allocate(PincObjectDiscriminator discriminator) {
     PErrorSanitize(staticState.objects.objectsNum < UINT32_MAX, "Integer overflow");
     obj->discriminator = discriminator;
     obj->internalIndex = PincObject_allocateInternal(discriminator);
+    obj->userData = 0;
     return object_index+1;
 }
 
@@ -253,6 +254,7 @@ void PincObject_reallocate(pinc_object id, PincObjectDiscriminator discriminator
     PincObject_freeInternal(obj->discriminator, obj->internalIndex);
     obj->discriminator = discriminator;
     obj->internalIndex = PincObject_allocateInternal(discriminator);
+    // The user data is left as-is, so people don't confused of why their user data is reset when they complete an object.
 }
 
 void PincObject_free(pinc_object id) {
@@ -261,6 +263,7 @@ void PincObject_free(pinc_object id) {
     PincObject_freeInternal(obj->discriminator, obj->internalIndex);
     obj->discriminator = PincObjectDiscriminator_none;
     obj->internalIndex = 0;
+    obj->userData = 0;
     PincPool_free(&staticState.objects, id-1, sizeof(PincObject));
 }
 
@@ -331,7 +334,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_incomplete_init(void) {
     return pinc_return_code_pass;
 }
 
-PINC_EXTERN bool PINC_CALL pinc_query_window_backend_support(pinc_window_backend window_backend) {
+PINC_EXPORT bool PINC_CALL pinc_query_window_backend_support(pinc_window_backend window_backend) {
     // TODO: only backend is SDL2, shortcuts are taken
     #if PINC_HAVE_WINDOW_SDL2 == 1
     if(window_backend == pinc_window_backend_sdl2) return true;
@@ -344,13 +347,13 @@ PINC_EXPORT pinc_window_backend PINC_CALL pinc_query_window_backend_default(void
     return pinc_window_backend_sdl2;
 }
 
-PINC_EXTERN bool PINC_CALL pinc_query_graphics_api_support(pinc_window_backend window_backend, pinc_graphics_api graphics_api) {
+PINC_EXPORT bool PINC_CALL pinc_query_graphics_api_support(pinc_window_backend window_backend, pinc_graphics_api graphics_api) {
     P_UNUSED(window_backend);
     // TODO: only window backend is SDL2, shortcuts are taken
     return WindowBackend_queryGraphicsApiSupport(&staticState.sdl2WindowBackend, graphics_api);
 }
 
-PINC_EXTERN pinc_graphics_api PINC_CALL pinc_query_graphics_api_default(pinc_window_backend window_backend) {
+PINC_EXPORT pinc_graphics_api PINC_CALL pinc_query_graphics_api_default(pinc_window_backend window_backend) {
     // TODO: only api is opengl, shortcuts are taken
     P_UNUSED(window_backend);
     return pinc_graphics_api_opengl;
@@ -559,6 +562,20 @@ PINC_EXPORT bool PINC_CALL pinc_get_object_complete(pinc_object obj) {
     P_UNUSED(obj);
     PPANIC("pinc_get_object_complete not implemented");
     return false;
+}
+
+PINC_EXPORT void PINC_CALL pinc_set_object_user_data(pinc_object obj, void* user_data) {
+    PErrorUser(obj <= staticState.objects.objectsNum, "Invalid object ID");
+    PincObject* object = &((PincObject*)staticState.objects.objectsArray)[obj-1];
+    PErrorUser(object->discriminator != PincObjectDiscriminator_none, "Cannot set user data of empty object");
+    object->userData = user_data;
+}
+
+PINC_EXPORT void* PINC_CALL pinc_get_object_user_data(pinc_object obj) {
+    PErrorUser(obj <= staticState.objects.objectsNum, "Invalid object ID");
+    PincObject* object = &((PincObject*)staticState.objects.objectsArray)[obj-1];
+    PErrorUser(object->discriminator != PincObjectDiscriminator_none, "Cannot get user data of empty object");
+    return object->userData;
 }
 
 PINC_EXPORT pinc_window PINC_CALL pinc_window_create_incomplete(void) {
