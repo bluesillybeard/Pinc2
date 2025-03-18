@@ -267,6 +267,167 @@ void PincObject_free(pinc_object id) {
     PincPool_free(&staticState.objects, id-1, sizeof(PincObject));
 }
 
+static void PincEventBackEnsureCapacity(uint32_t capacity) {
+    if(staticState.eventsBufferBackCapacity >= capacity) return;
+    if(!staticState.eventsBufferBack) {
+        staticState.eventsBufferBack = Allocator_allocate(rootAllocator, 8 * sizeof(PincEvent));
+        staticState.eventsBufferBackCapacity = 8;
+        staticState.eventsBufferBackNum = 0;
+    } else {
+        uint32_t newCapacity = staticState.eventsBufferBackCapacity * 2;
+        staticState.eventsBufferBack = Allocator_reallocate(rootAllocator, staticState.eventsBufferBack, staticState.eventsBufferBackCapacity * sizeof(PincEvent), newCapacity * sizeof(PincEvent));
+        staticState.eventsBufferBackCapacity = newCapacity;
+    }
+}
+
+static inline void PincEventBackAppend(PincEvent* ev) {
+    PincEventBackEnsureCapacity(staticState.eventsBufferBackNum+1);
+    staticState.eventsBufferBack[staticState.eventsBufferBackNum] = *ev;
+    staticState.eventsBufferBackNum += 1;
+}
+
+void PincEventCloseSignal(int64_t timeUnixMillis, pinc_window window) {
+    PincEvent e = {
+        .currentWindow = staticState.realCurrentWindow,
+        .timeUnixMillis = timeUnixMillis,
+        .type = pinc_event_type_close_signal,
+        .data.closeSignal = {
+            .window = window,
+        },
+    };
+    PincEventBackAppend(&e);
+}
+
+void PincEventMouseButton(int64_t timeUnixMillis, uint32_t oldState, uint32_t state) {
+    PincEvent e = {
+        .currentWindow = staticState.realCurrentWindow,
+        .timeUnixMillis = timeUnixMillis,
+        .type = pinc_event_type_mouse_button,
+        .data.mouseButton = {
+            .oldState = oldState,
+            .state = state,
+        },
+    };
+    PincEventBackAppend(&e);
+}
+
+void PincEventResize(int64_t timeUnixMillis, pinc_window window, uint32_t oldWidth, uint32_t oldHeight, uint32_t width, uint32_t height) {
+    PincEvent e = {
+        .currentWindow = staticState.realCurrentWindow,
+        .timeUnixMillis = timeUnixMillis,
+        .type = pinc_event_type_resize,
+        .data.resize = {
+            .window = window,
+            .oldWidth = oldWidth,
+            .oldHeight = oldHeight,
+            .width = width,
+            .height = height,
+        },
+    };
+    PincEventBackAppend(&e);
+}
+
+void PincEventFocus(int64_t timeUnixMillis, pinc_window window) {
+    PincEvent e = {
+        .currentWindow = staticState.realCurrentWindow,
+        .timeUnixMillis = timeUnixMillis,
+        .type = pinc_event_type_focus,
+        .data.focus = {
+            .newWindow = window,
+        },
+    };
+    staticState.realCurrentWindow = window;
+    PincEventBackAppend(&e);
+}
+
+void PincEventExposure(int64_t timeUnixMillis, pinc_window window, uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
+    PincEvent e = {
+        .currentWindow = staticState.realCurrentWindow,
+        .timeUnixMillis = timeUnixMillis,
+        .type = pinc_event_type_exposure,
+        .data.exposure = {
+            .window = window,
+            .x = x,
+            .y = y,
+            .width = width,
+            .height = height,
+        },
+    };
+    PincEventBackAppend(&e);
+}
+
+void PincEventKeyboardButton(int64_t timeUnixMillis, pinc_keyboard_key key, bool state, bool repeat) {
+    PincEvent e = {
+        .currentWindow = staticState.realCurrentWindow,
+        .timeUnixMillis = timeUnixMillis,
+        .type = pinc_event_type_keyboard_button,
+        .data.keyboardButton = {
+            .key = key,
+            .state = state,
+            .repeat = repeat,
+        },
+    };
+    PincEventBackAppend(&e);
+}
+
+void PincEventCursorMove(int64_t timeUnixMillis, pinc_window window, uint32_t oldX, uint32_t oldY, uint32_t x, uint32_t y) {
+    PincEvent e = {
+        .currentWindow = staticState.realCurrentWindow,
+        .timeUnixMillis = timeUnixMillis,
+        .type = pinc_event_type_cursor_move,
+        .data.cursorMove = {
+            .window = window,
+            .oldX = oldX,
+            .oldY = oldY,
+            .x = x,
+            .y = y,
+        },
+    };
+    PincEventBackAppend(&e);
+}
+
+void PincEventCursorTransition(int64_t timeUnixMillis, pinc_window oldWindow, uint32_t oldX, uint32_t oldY, pinc_window window, uint32_t x, uint32_t y) {
+    PincEvent e = {
+        .currentWindow = staticState.realCurrentWindow,
+        .timeUnixMillis = timeUnixMillis,
+        .type = pinc_event_type_cursor_transition,
+        .data.cursorTransition = {
+            .oldWindow = oldWindow,
+            .oldX = oldX,
+            .oldY = oldY,
+            .window = window,
+            .x = x,
+            .y = y,
+        },
+    };
+    PincEventBackAppend(&e);
+}
+
+void PincEventTextInput(int64_t timeUnixMillis, uint32_t codepoint) {
+    PincEvent e = {
+        .currentWindow = staticState.realCurrentWindow,
+        .timeUnixMillis = timeUnixMillis,
+        .type = pinc_event_type_text_input,
+        .data.textInput = {
+            .codepoint = codepoint,
+        },
+    };
+    PincEventBackAppend(&e);
+}
+
+void PincEventScroll(int64_t timeUnixMillis, float vertical, float horizontal) {
+    PincEvent e = {
+        .currentWindow = staticState.realCurrentWindow,
+        .timeUnixMillis = timeUnixMillis,
+        .type = pinc_event_type_scroll,
+        .data.scroll = {
+            .vertical = vertical,
+            .horizontal = horizontal,
+        },
+    };
+    PincEventBackAppend(&e);
+}
+
 // Below are the actual implementations of the Pinc API functions.
 
 PINC_EXPORT void PINC_CALL pinc_preinit_set_error_callback(pinc_error_callback callback) {
@@ -515,6 +676,9 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
     PincPool_deinit(&staticState.rawOpenglContextHandleObjects, sizeof(RawOpenglContextHandle));
     PincPool_deinit(&staticState.framebufferFormatObjects, sizeof(FramebufferFormat));
 
+    Allocator_free(rootAllocator, staticState.eventsBuffer, staticState.eventsBufferNum * sizeof(PincEvent));
+    Allocator_free(rootAllocator, staticState.eventsBufferBack, staticState.eventsBufferBackNum * sizeof(PincEvent));
+
     if(staticState.tempAlloc.vtable){
         arena_free(&staticState.arenaAllocatorObject);
     }
@@ -608,7 +772,7 @@ PINC_EXPORT pinc_window PINC_CALL pinc_window_create_incomplete(void) {
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_window_complete(pinc_window window) {\
     IncompleteWindow* object = PincObject_ref_incompleteWindow(window);
-    WindowHandle handle = WindowBackend_completeWindow(&staticState.windowBackend, object);
+    WindowHandle handle = WindowBackend_completeWindow(&staticState.windowBackend, object, window);
     if(!handle) {
         return pinc_return_code_error;
     }
@@ -715,7 +879,7 @@ PINC_EXPORT float PINC_CALL pinc_window_get_scale_factor(pinc_window window) {
     return 0;
 }
 
-PINC_EXPORT int PINC_CALL pinc_window_has_scale_factor(pinc_window window) {
+PINC_EXPORT bool PINC_CALL pinc_window_has_scale_factor(pinc_window window) {
     P_UNUSED(window);
     PPANIC("pinc_window_has_scale_factor not implemented");
     return 0;
@@ -809,7 +973,7 @@ PINC_EXPORT void PINC_CALL pinc_window_present_framebuffer(pinc_window window) {
     WindowBackend_windowPresentFramebuffer(&staticState.windowBackend, *object);
 }
 
-PINC_EXPORT bool PINC_CALL pinc_mouse_button_get(int button) {
+PINC_EXPORT bool PINC_CALL pinc_mouse_button_get(uint32_t button) {
     P_UNUSED(button);
     PPANIC("pinc_mouse_button_get not implemented");
     return false;
@@ -836,98 +1000,236 @@ PINC_EXPORT pinc_window PINC_CALL pinc_get_cursor_window(void) {
     return 0;
 }
 
+PINC_EXPORT pinc_window PINC_CALL pinc_get_focus_window(void) {
+    return staticState.currentWindow;
+}
+
 PINC_EXPORT void PINC_CALL pinc_step(void) {
     PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
     WindowBackend_step(&staticState.windowBackend);
     arena_reset(&staticState.arenaAllocatorObject);
+    // Event buffer swap
+    PincEvent* te = staticState.eventsBuffer;
+    uint32_t tc = staticState.eventsBufferCapacity;
+    staticState.eventsBuffer = staticState.eventsBufferBack;
+    staticState.eventsBufferNum = staticState.eventsBufferBackNum;
+    staticState.eventsBufferCapacity = staticState.eventsBufferBackCapacity;
+    staticState.eventsBufferBack = te;
+    staticState.eventsBufferBackCapacity = tc;
+    staticState.eventsBufferBackNum = 0;
+
+    staticState.currentWindow = staticState.realCurrentWindow;
 }
 
-PINC_EXPORT bool PINC_CALL pinc_event_window_closed(pinc_window window) {
-    WindowHandle* object = PincObject_ref_window(window);
-    return WindowBackend_windowEventClosed(&staticState.windowBackend, *object);
+PINC_EXPORT uint32_t PINC_CALL pinc_event_get_num(void) {
+    return staticState.eventsBufferNum;
 }
 
-PINC_EXPORT bool PINC_CALL pinc_event_window_mouse_button(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_event_window_mouse_button not implemented");
-    return false;
+PINC_EXPORT pinc_event_type PINC_CALL pinc_event_get_type(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    return staticState.eventsBuffer[event_index].type;
 }
 
-PINC_EXPORT bool PINC_CALL pinc_event_window_resized(pinc_window window) {
-    WindowHandle* object = PincObject_ref_window(window);
-    return WindowBackend_windowEventResized(&staticState.windowBackend, *object);
+PINC_EXPORT pinc_window PINC_CALL pinc_event_get_window(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    return staticState.eventsBuffer[event_index].currentWindow;
 }
 
-PINC_EXPORT bool PINC_CALL pinc_event_window_focused(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_event_window_focused not implemented");
-    return false;
+PINC_EXPORT int64_t PINC_CALL pinc_event_get_timestamp_unix_millis(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    return staticState.eventsBuffer[event_index].timeUnixMillis;
 }
 
-PINC_EXPORT bool PINC_CALL pinc_event_window_unfocused(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_event_window_unfocused not implemented");
-    return false;
+PINC_EXPORT pinc_window PINC_CALL pinc_event_close_signal_window(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_close_signal, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.closeSignal.window;
 }
 
-PINC_EXPORT bool PINC_CALL pinc_event_window_exposed(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_event_window_exposed not implemented");
-    return false;
+PINC_EXPORT uint32_t PINC_CALL pinc_event_mouse_button_old_state(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_mouse_button, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.mouseButton.oldState;
 }
 
-PINC_EXPORT uint32_t PINC_CALL pinc_event_window_keyboard_button_get(pinc_window window, pinc_keyboard_key* key_buffer, uint32_t capacity) {
-    P_UNUSED(window);
-    P_UNUSED(key_buffer);
-    P_UNUSED(capacity);
-    PPANIC("pinc_event_window_keyboard_button_get not implemented");
-    return 0;
+PINC_EXPORT uint32_t PINC_CALL pinc_event_mouse_button_state(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_mouse_button, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.mouseButton.state;
 }
 
-PINC_EXPORT uint32_t PINC_CALL pinc_event_window_keyboard_button_get_repeat(pinc_window window, bool* repeat_buffer, uint32_t capacity) {
-    P_UNUSED(window);
-    P_UNUSED(repeat_buffer);
-    P_UNUSED(capacity);
-    PPANIC("pinc_event_window_keyboard_button_get_repeat not implemented");
-    return 0;
+PINC_EXPORT uint32_t PINC_CALL pinc_event_resize_old_width(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_resize, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.resize.oldWidth;
 }
 
-PINC_EXPORT bool PINC_CALL pinc_event_window_cursor_move(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_event_window_cursor_move not implemented");
-    return false;
+PINC_EXPORT uint32_t PINC_CALL pinc_event_resize_old_height(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_resize, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.resize.oldHeight;
 }
 
-PINC_EXPORT bool PINC_CALL pinc_event_window_cursor_exit(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_event_window_cursor_exit not implemented");
-    return false;
+PINC_EXPORT uint32_t PINC_CALL pinc_event_resize_width(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_resize, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.resize.width;
 }
 
-PINC_EXPORT bool PINC_CALL pinc_event_window_cursor_enter(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_event_window_cursor_enter not implemented");
-    return false;
+PINC_EXPORT uint32_t PINC_CALL pinc_event_resize_height(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_resize, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.resize.height;
 }
 
-PINC_EXPORT uint32_t PINC_CALL pinc_event_window_text_get(pinc_window window, uint8_t* return_buf, uint32_t capacity) {
-    P_UNUSED(window);
-    P_UNUSED(return_buf);
-    P_UNUSED(capacity);
-    PPANIC("pinc_event_window_text_get not implemented");
-    return 0;
+PINC_EXPORT pinc_window PINC_CALL pinc_event_resize_window(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_resize, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.resize.window;
 }
 
-PINC_EXPORT float PINC_CALL pinc_window_scroll_vertical(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_window_scroll_vertical not implemented");
-    return 0;
+PINC_EXPORT pinc_window PINC_CALL pinc_event_focus_old_window(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_focus, "Wrong event type");
+    return staticState.eventsBuffer[event_index].currentWindow;
 }
 
-PINC_EXPORT float PINC_CALL pinc_window_scroll_horizontal(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_window_scroll_horizontal not implemented");
-    return 0;
+PINC_EXPORT pinc_window PINC_CALL pinc_event_focus_window(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_focus, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.focus.newWindow;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pinc_event_exposure_x(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_exposure, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.exposure.x;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pinc_event_exposure_y(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_exposure, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.exposure.y;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pinc_event_exposure_width(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_exposure, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.exposure.width;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pinc_event_exposure_height(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_exposure, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.exposure.height;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pinc_event_exposure_window(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_exposure, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.exposure.window;
+}
+
+PINC_EXPORT pinc_keyboard_key PINC_CALL pinc_event_keyboard_button(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_keyboard_button, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.keyboardButton.key;
+}
+
+PINC_EXPORT bool PINC_CALL pinc_event_keyboard_button_state(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_keyboard_button, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.keyboardButton.state;
+}
+
+PINC_EXPORT bool PINC_CALL pinc_event_keyboard_button_repeat(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_keyboard_button, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.keyboardButton.repeat;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pinc_event_cursor_move_old_x(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_cursor_move, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.cursorMove.oldX;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pinc_event_cursor_move_old_y(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_cursor_move, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.cursorMove.oldY;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pinc_event_cursor_move_x(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_cursor_move, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.cursorMove.x;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pinc_event_cursor_move_y(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_cursor_move, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.cursorMove.y;
+}
+
+PINC_EXPORT pinc_window PINC_CALL pinc_event_cursor_move_window(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_cursor_move, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.cursorMove.window;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pinc_event_cursor_transition_old_x(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_cursor_transition, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.cursorTransition.oldX;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pinc_event_cursor_transition_old_y(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_cursor_transition, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.cursorTransition.oldY;
+}
+
+PINC_EXPORT pinc_window PINC_CALL pinc_event_cursor_transition_old_window(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_cursor_transition, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.cursorTransition.oldWindow;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pinc_event_cursor_transition_x(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_cursor_transition, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.cursorTransition.x;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pinc_event_cursor_transition_y(uint32_t event_index){
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_cursor_transition, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.cursorTransition.y;
+}
+
+PINC_EXPORT pinc_window PINC_CALL pinc_event_cursor_transition_window(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_cursor_transition, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.cursorTransition.window;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pinc_event_text_input_codepoint(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_text_input, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.textInput.codepoint;
+}
+
+PINC_EXPORT float PINC_CALL pinc_event_scroll_vertical(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_scroll, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.scroll.vertical;
+}
+
+PINC_EXPORT float PINC_CALL pinc_event_scroll_horizontal(uint32_t event_index) {
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == pinc_event_type_scroll, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.scroll.horizontal;
 }
 
 // ### OPENGL FUNCTIONS ###

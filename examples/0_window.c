@@ -18,9 +18,23 @@ int main(void) {
     }
     bool running = true;
     while(running) {
+        // Over the course of a step, Pinc will collect all events for your application.
+        // The events you get are the ones collected since the last call to step, in a sort of double-buffered type way.
+        // So if you receive an event right after step(), you will not see it until the next call to step().
         pinc_step();
-        if(pinc_event_window_closed(window)) {
-            running = false;
+        // Then we can iterate the events
+        uint32_t num_events = pinc_event_get_num();
+        for(uint32_t i=0; i<num_events; ++i) {
+            switch(pinc_event_get_type(i)) {
+                case pinc_event_type_close_signal: {
+                    // Just in case there are other windows that we don't know about
+                    if(window == pinc_event_close_signal_window(i)) {
+                        running = false;
+                        printf("Closed window\n");
+                    }
+                    break;
+                }
+            }
         }
         pinc_window_present_framebuffer(window);
     }

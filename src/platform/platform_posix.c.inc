@@ -175,3 +175,12 @@ size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
     if(res < 0) pAssertFail();
     return (size_t)res;
 }
+
+#include <time.h>
+
+int64_t pCurrentTimeMillis(void) {
+    // This is in the posix standard, so it should be extremely well supported
+    struct timespec theTime;
+    clock_gettime(CLOCK_MONOTONIC, &theTime);
+    return theTime.tv_sec * 1000 + theTime.tv_nsec / 1000000;
+}

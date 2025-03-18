@@ -31,7 +31,7 @@ struct WindowBackend;
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj), step, (obj)) \
     /* ### Window Property Functions ## */ \
     /* May return null in the case of an error */ \
-    PINC_WINDOW_INTERFACE_FUNCTION(WindowHandle, (struct WindowBackend* obj, IncompleteWindow const * incomplete), completeWindow, (obj, incomplete)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(WindowHandle, (struct WindowBackend* obj, IncompleteWindow const * incomplete, pinc_window frontHandle), completeWindow, (obj, incomplete, frontHandle)) \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, WindowHandle window), deinitWindow, (obj, window)) \
     /* This function takes ownership of the title's memory. It is assumed to be on the pinc root allocator. */ \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, WindowHandle window, uint8_t* title, size_t titleLen), setWindowTitle, (obj, window, title, titleLen)) \
@@ -57,9 +57,6 @@ struct WindowBackend;
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, WindowHandle window), getWindowHidden, (obj, window)) \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, bool vsync), setVsync, (obj, vsync)) \
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj), getVsync, (obj)) \
-    /* ### Window Event Functions ### */ \
-    PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, WindowHandle window), windowEventClosed, (obj, window)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, WindowHandle window), windowEventResized, (obj, window)) \
     /* ### Other Window Functions ### */ \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, WindowHandle window), windowPresentFramebuffer, (obj, window)) \
     /* ### OpenGL functions */ \
@@ -94,7 +91,6 @@ typedef struct WindowBackend {
     struct WindowBackendVtable vt;
 } WindowBackend;
 
-
 #undef PINC_WINDOW_INTERFACE_FUNCTION
 #undef PINC_WINDOW_INTERFACE_PROCEDURE
 
@@ -120,7 +116,6 @@ PINC_WINDOW_INTERFACE
 
 #undef PINC_WINDOW_INTERFACE_FUNCTION
 #undef PINC_WINDOW_INTERFACE_PROCEDURE
-
 
 // These are declared here to avoid a circular reference between pinc_main.h and window.h
 // However, the variables themselves are located in pinc_main.c

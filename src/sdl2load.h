@@ -36,6 +36,8 @@
     /* added in 2.26.0 */ SDL_FUNC(void, getWindowSizeInPixels, SDL_GetWindowSizeInPixels, (SDL_Window* window, int* width, int* height)) \
     SDL_FUNC(void, destroyWindow, SDL_DestroyWindow, (SDL_Window* window)) \
     SDL_FUNC(uint32_t, getWindowFlags, SDL_GetWindowFlags, (SDL_Window * window)) \
+    SDL_FUNC(uint32_t, getTicks, SDL_GetTicks, (void)) \
+    SDL_FUNC(uint64_t, getTicks64, SDL_GetTicks64, (void)) \
 
 #undef SDL_FUNC
 

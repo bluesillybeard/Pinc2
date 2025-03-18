@@ -265,6 +265,8 @@ None of these are going to be implemented any time soon - if ever.
     - building the library and shipping the .so for dynamic languages, integrating with the build system of native languages, etc.
 - expose the Pinc temp allocator for user convenience
 - Allow a different graphics API per window
+    - Maybe even completely separate the idea of a graphics API and a window, like what SDL2 somewhat does
+    - Probably wait until more than just OpenGL is supported
 
 ## TODO for internal library
 - test and get working on different compilers / implementations of libc

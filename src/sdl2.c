@@ -7,20 +7,12 @@
 #include "window.h"
 #include "sdl2load.h"
 
-typedef struct Sdl2WindowEvents {
-    bool closed;
-    bool resized;
-} Sdl2WindowEvents;
-
-#define PINC_SDL2_EMPTY_WINDOW_EVENTS (Sdl2WindowEvents) {\
-    .closed = false,\
-    .resized = false,\
-}
-
 typedef struct {
     SDL_Window* sdlWindow;
     PString title;
-    Sdl2WindowEvents events;
+    pinc_window frontHandle;
+    uint32_t width;
+    uint32_t height;
 } Sdl2Window;
 
 typedef struct {
@@ -36,6 +28,7 @@ typedef struct {
     Sdl2Window** windows;
     size_t windowsNum;
     size_t windowsCapacity;
+    uint32_t mouseState;
 } Sdl2WindowBackend;
 
 // Adds a window to the list of windows
@@ -179,7 +172,7 @@ static Sdl2Window* _dummyWindow(struct WindowBackend* obj) {
         .focused = false,
         .hidden = true,
     };
-    this->dummyWindow = sdl2completeWindow(obj, &windowSettings);
+    this->dummyWindow = sdl2completeWindow(obj, &windowSettings, 0);
     // sdl2completeWindow sets this to true, under the assumption the user called it.
     // We are requesting the dummy window not for the user's direct use, so it's NOT in use.
     this->dummyWindowInUse = false;
@@ -342,11 +335,12 @@ void sdl2deinit(struct WindowBackend* obj) {
 void sdl2step(struct WindowBackend* obj) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
 
-    // Iterate all windows and reset their event data
-    // TODO: would it be a good idea to make an 'official' way to do this, or is it best for the backend to store its own list of windows?
-    for(uintptr_t windowIndex = 0; windowIndex < this->windowsNum; ++windowIndex) {
-        this->windows[windowIndex]->events = PINC_SDL2_EMPTY_WINDOW_EVENTS;
-    }
+    // The offset between SDL2's getTicks() and platform's pCurrentTimeMillis()
+    // so that getTicks + timeOffset == pCurrentTimeMillis() (with some margin of error)
+    int64_t timeOffset = pCurrentTimeMillis() - ((int64_t)this->libsdl2.getTicks());
+    // TODO: see if you can do something about the premature rollover with only 32 bits
+    // This might already do that simply by the nature of calculating the offset based on the faulty getTicks,
+    // However I'm not certain enough as of yet.
 
     SDL_Event event;
     // NEXTLOOP:
@@ -361,11 +355,20 @@ void sdl2step(struct WindowBackend* obj) {
                 PErrorAssert(windowObj, "Pinc SDL2 window object from WindowEvent is NULL!");
                 switch (event.window.event) {
                     case SDL_WINDOWEVENT_CLOSE:{
-                        windowObj->events.closed = true;
+                        PincEventCloseSignal(((int64_t)event.window.timestamp) + timeOffset, windowObj->frontHandle);
                         break;
                     }
+                    case SDL_WINDOWEVENT_SIZE_CHANGED:
                     case SDL_WINDOWEVENT_RESIZED:{
-                        windowObj->events.resized = true;
+                        // Is this a good time to say just how much I dislike SDL2's event union struct thing?
+                        // It's such a big confusing mess. What in the heck is data1 and data2?
+                        // Everything is sorta half-manually baked together in weirdly signed mixed data types...
+                        // SDL2's imperfect documentation does not make it any easier either.
+                        PErrorAssert(event.window.data1 > 0, "Integer underflow");
+                        PErrorAssert(event.window.data2 > 0, "Integer underflow");
+                        PincEventResize(((int64_t)event.window.timestamp) + timeOffset, windowObj->frontHandle, windowObj->width, windowObj->height, (uint32_t)event.window.data1, (uint32_t)event.window.data2);
+                        windowObj->width = (uint32_t)event.window.data1;
+                        windowObj->height = (uint32_t)event.window.data2;
                         break;
                     }
                     default:{
@@ -375,6 +378,43 @@ void sdl2step(struct WindowBackend* obj) {
                 }
                 break;
             }
+            case SDL_MOUSEBUTTONDOWN: {
+                // TODO: We only care about mouse 0?
+                // What does it even mean to have multiple mice? Multiple cursors?
+                // On my X11 based system, it seems all mouse events are merged into mouse 0,
+                if(event.button.which == 0) {
+                    // SDL2's event.button.button is mapped like this:
+                    // 1 -> left
+                    // 2 -> middle
+                    // 3 -> right
+                    // 4 -> back
+                    // 5 -> forward
+                    // However, Pinc maps the bits like this:
+                    // 0 -> left    (1s place)
+                    // 1 -> right   (2s place)
+                    // 2 -> middle  (4s place)
+                    // 3 -> back    (8s place)
+                    // 4 -> forward (16s place)
+                    uint32_t buttonBit;
+                    switch (event.button.button)
+                    {
+                        case 1: buttonBit = 0; break;
+                        case 2: buttonBit = 2; break;
+                        case 3: buttonBit = 1; break;
+                        case 4: buttonBit = 3; break;
+                        case 5: buttonBit = 4; break;
+                        // There are certainly more buttons, but for now I don't think they really exist.
+                        default: PErrorAssert(false, "Invalid button index!");
+                    }
+                    uint32_t buttonBitMask = 1<<buttonBit;
+                    // event.button.state is 1 when pressed, 0 when released. SDL2 is ABI stable, so this is safe.
+                    PErrorAssert(event.button.state < 2, "It appears SDL2's ABI has changed. The universe as we know it is broken!");
+                    // Cast here because for some reason the compiler thinks one of these is signed
+                    uint32_t newState = (this->mouseState & ~buttonBitMask) | (((uint32_t)event.button.state)<<buttonBit);
+                    PincEventMouseButton(((int64_t)event.button.timestamp) + timeOffset, this->mouseState, newState);
+                    this->mouseState = newState;
+                }
+            }
             default:{
                 // TODO: Once all SDL events are handled, assert.
                 break;
@@ -383,7 +423,7 @@ void sdl2step(struct WindowBackend* obj) {
     }
 }
 
-WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow const * incomplete) {
+WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow const * incomplete, pinc_window frontHandle) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     // TODO: is ResetHints a good idea?
     uint32_t windowFlags = 0;
@@ -458,6 +498,7 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
         char* titleNullTerm = PString_marshalAlloc(incomplete->title, tempAllocator);
         this->libsdl2.setWindowTitle(dummyWindow->sdlWindow, titleNullTerm);
         Allocator_free(tempAllocator, titleNullTerm, incomplete->title.len+1);
+        dummyWindow->frontHandle = frontHandle;
         return dummyWindow;
     }
     SDL_MAKE_NEW_WINDOW:
@@ -490,6 +531,7 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
             this->dummyWindow = windowObj;
             this->dummyWindowInUse = true;
         }
+        windowObj->frontHandle = frontHandle;
         return (WindowHandle)windowObj;
     }
 }
@@ -688,18 +730,6 @@ bool sdl2getVsync(struct WindowBackend* obj) {
     P_UNUSED(obj);
     // TODO
     return false;
-}
-
-bool sdl2windowEventClosed(struct WindowBackend* obj, WindowHandle window) {
-    P_UNUSED(obj);
-    Sdl2Window* windowObj = (Sdl2Window*)window;
-    return windowObj->events.closed;
-}
-
-bool sdl2windowEventResized(struct WindowBackend* obj, WindowHandle window) {
-    P_UNUSED(obj);
-    Sdl2Window* windowObj = (Sdl2Window*)window;
-    return windowObj->events.resized;
 }
 
 void sdl2windowPresentFramebuffer(struct WindowBackend* obj, WindowHandle window) {

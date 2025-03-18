@@ -112,11 +112,25 @@ int main(void) {
     bool running = true;
     while(running) {
         pinc_step();
-        if(pinc_event_window_closed(window)) {
-            running = false;
-        }
-        if(pinc_event_window_resized(window)) {
-            glViewport(0, 0, (int)pinc_window_get_width(window), (int)pinc_window_get_height(window));
+        uint32_t num_events = pinc_event_get_num();
+        for(uint32_t i=0; i<num_events; ++i) {
+            switch(pinc_event_get_type(i)) {
+                case pinc_event_type_close_signal: {
+                    // Just in case there are other windows that we don't know about
+                    if(window == pinc_event_close_signal_window(i)) {
+                        running = false;
+                        printf("Closed window\n");
+                    }
+                    break;
+                }
+                case pinc_event_type_resize: {
+                    // Just in case there are other windows that we don't know about
+                    if(window == pinc_event_resize_window(i)) {
+                        glViewport(0, 0, (int)pinc_event_resize_width(i), (int)pinc_event_resize_height(i));
+                    }
+                    break;
+                }
+            }
         }
         // Draw a triangle with OpenGL.
         glClearColor(0, 0, 0, 1);

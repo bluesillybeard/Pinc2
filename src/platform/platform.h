@@ -136,4 +136,8 @@ void pPrintFormat(char const* fmt, ...);
 // Returns the number of characters that would have been written given enough space
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v);
 
+// A monotonic time counter in milliseconds.
+// The only strict requirement is that it is relatively consistent so two time values can be compared with decent accuracy.
+int64_t pCurrentTimeMillis(void);
+
 #endif

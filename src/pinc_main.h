@@ -54,6 +54,89 @@ void PincPool_free(PincPool* pool, uint32_t index, size_t elementSize);
 
 void PincPool_deinit(PincPool* pool, size_t elementSize);
 
+// Compound structs are my best friend
+typedef struct {
+    pinc_event_type type;
+    pinc_window currentWindow;
+    int64_t timeUnixMillis;
+    union PincEventUnion {
+        struct PincEventCloseSignal {
+            pinc_window window;
+        } closeSignal;
+        struct PincEventMouseButton {
+            uint32_t oldState;
+            uint32_t state;
+        } mouseButton;
+        struct PincEventResize {
+            pinc_window window;
+            uint32_t oldWidth;
+            uint32_t oldHeight;
+            uint32_t width;
+            uint32_t height;
+        } resize;
+        struct PincEventFocus {
+            // the old window is in currentWindow
+            pinc_window newWindow;
+        } focus;
+        struct PincEventExposure {
+            pinc_window window;
+            uint32_t x;
+            uint32_t y;
+            uint32_t width;
+            uint32_t height;
+        } exposure;
+        struct PincEventKeyboardButton {
+            pinc_keyboard_key key;
+            bool state;
+            bool repeat;
+        } keyboardButton;
+        struct PincEventCursorMove {
+            pinc_window window;
+            uint32_t oldX;
+            uint32_t oldY;
+            uint32_t x;
+            uint32_t y;
+        } cursorMove;
+        struct PincEventCursorTransition {
+            pinc_window oldWindow;
+            uint32_t oldX;
+            uint32_t oldY;
+            pinc_window window;
+            uint32_t x;
+            uint32_t y;
+        } cursorTransition;
+        struct PincEventTextInput {
+            uint32_t codepoint;
+        } textInput;
+        struct PincEventScroll {
+            float vertical;
+            float horizontal;
+        } scroll;
+    } data;
+} PincEvent;
+
+// Call these functions to trigger events
+// TODO: Would it possibly make sense to make these public? Is there are use case for that?
+void PincEventCloseSignal(int64_t timeUnixMillis, pinc_window window);
+
+void PincEventMouseButton(int64_t timeUnixMillis, uint32_t oldState, uint32_t state);
+
+void PincEventResize(int64_t timeUnixMillis, pinc_window window, uint32_t oldWidth, uint32_t oldHeight, uint32_t width, uint32_t height);
+
+void PincEventFocus(int64_t timeUnixMillis, pinc_window window);
+
+void PincEventExposure(int64_t timeUnixMillis, pinc_window window, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+
+void PincEventKeyboardButton(int64_t timeUnixMillis, pinc_keyboard_key key, bool state, bool repeat);
+
+void PincEventCursorMove(int64_t timeUnixMillis, pinc_window window, uint32_t oldX, uint32_t oldY, uint32_t x, uint32_t y);
+
+void PincEventCursorTransition(int64_t timeUnixMillis, pinc_window oldWindow, uint32_t oldX, uint32_t oldY, pinc_window window, uint32_t x, uint32_t y);
+
+void PincEventTextInput(int64_t timeUnixMillis, uint32_t codepoint);
+
+void PincEventScroll(int64_t timeUnixMillis, float vertical, float horizontal);
+
 // Pinc static state
 
 typedef enum {
@@ -87,6 +170,20 @@ typedef struct {
     PincPool rawOpenglContextHandleObjects;
     // Live for init, type: FramebufferFormat
     PincPool framebufferFormatObjects;
+
+    PincEvent* eventsBuffer;
+    uint32_t eventsBufferNum;
+    uint32_t eventsBufferCapacity;
+
+    PincEvent* eventsBufferBack;
+    uint32_t eventsBufferBackNum;
+    uint32_t eventsBufferBackCapacity;
+
+    // Current window as far as the user cares, so it only changes within pinc_step
+    pinc_window currentWindow;
+
+    // The real current window.
+    pinc_window realCurrentWindow;
 
     // Defined by the user, These are either all live or none live
     // userAllocObj can be null while these are live

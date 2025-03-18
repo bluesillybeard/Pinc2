@@ -93,32 +93,29 @@ typedef enum {
     /// @brief No window backend, for doing offline / headless rendering
     pinc_window_backend_none,
     pinc_window_backend_sdl2,
-} pinc_window_backend;
+} pinc_window_backend_enum;
 
-// evil enum int trick. This may seem stupid, but remember that C is a volatile language
+// This may seem stupid, but remember that C is a volatile language
 // where 'enum' means anything from 8 bits to 64 bits depending on all kings of things.
 // It isn't even necessarily consistent across different versions or configurations of the same compiler on the same platform.
 // Considering one of Pinc's primary goals is to have a predicable ABI for bindings to other languages,
 // making all enums a predictable size is paramount.
-#undef pinc_window_backend
-#define pinc_window_backend uint32_t
+typedef uint32_t pinc_window_backend;
 
 typedef enum {
     /// @brief Represents any backend, or an unknown backend. Generally only works for calling pinc_complete_init.
     pinc_graphics_api_any = 0,
     pinc_graphics_api_opengl,
-} pinc_graphics_api;
+} pinc_graphics_api_enum;
 
-#undef pinc_graphics_api
-#define pinc_graphics_api uint32_t
+typedef uint32_t pinc_graphics_api;
 
 typedef enum {
     pinc_return_code_pass = 0,
     pinc_return_code_error = 1,
-} pinc_return_code;
+} pinc_return_code_enum;
 
-#undef pinc_return_code
-#define pinc_return_code uint32_t
+typedef uint32_t pinc_return_code;
 
 typedef enum {
     pinc_object_type_none = 0,
@@ -129,10 +126,35 @@ typedef enum {
     pinc_object_type_pipeline,
     pinc_object_type_vertex_array,
     pinc_object_type_texture,
-} pinc_object_type;
+} pinc_object_type_enum;
 
-#undef pinc_object_type
-#define pinc_object_type uint32_t
+typedef uint32_t pinc_object_type;
+
+// TODO: this needs better docs and clarification on semantics and exactly when these events are triggered.
+typedef enum {
+    // A window was signalled to close.
+    pinc_event_type_close_signal,
+    // Mouse button state changed.
+    pinc_event_type_mouse_button,
+    // A window was resized.
+    pinc_event_type_resize,
+    // The current window with focus changed. For now, only one window can be focused at a time. This event carries the new focused window as wel las the old one.
+    pinc_event_type_focus,
+    // The WM / Compositor is explicitly requesting a screen refresh. DO NOT rely on this for all screen refreshes.
+    pinc_event_type_exposure,
+    // Keyboard button state change or repeat.
+    pinc_event_type_keyboard_button,
+    // Mouse cursor moved.
+    pinc_event_type_cursor_move,
+    // Mouse cursor moved from one window to another
+    pinc_event_type_cursor_transition,
+    // Text was typed
+    pinc_event_type_text_input,
+    // Scroll wheel / pad
+    pinc_event_type_scroll,
+} pinc_event_type_enum;
+
+typedef uint32_t pinc_event_type;
 
 /// @brief enumeration of pinc keyboard codes
 ///     These are not physical, but logical - when the user presses the button labeled 'q' on their keyboard, that's the key reported here.
@@ -504,8 +526,8 @@ PINC_EXTERN float PINC_CALL pinc_window_get_scale_factor(pinc_window window);
 /// @brief get if a window has its scale factor defined. Whether this is true depends on the backend, whether the scale is set, and if the window is complete.
 ///        In general, it is safe to assume 1 unless it is set otherwise.
 /// @param window the window. Asserts the object is valid, and is a window
-/// @return 1 if the windows scale factor is set, 0 if not.
-PINC_EXTERN int PINC_CALL pinc_window_has_scale_factor(pinc_window window);
+/// @return true if the windows scale factor is set, false if not.
+PINC_EXTERN bool PINC_CALL pinc_window_has_scale_factor(pinc_window window);
 
 /// @brief set if a window is resizable or not
 /// @param window the window. Asserts the object is valid, is a window, has its width defined (see pinc_window_has_width), and has its height defined (see pinc_window_has_height)
@@ -588,9 +610,9 @@ PINC_EXTERN void PINC_CALL pinc_window_present_framebuffer(pinc_window window);
 // TODO: Clipboard
 
 /// @brief Get the state of a mouse button
-/// @param button the button to check. Generally, 0 is the left button, 1 is the right, and 2 is the middle
+/// @param button the button to check. 0 is the left button, 1 is the right, 2 is the middle, 3 is back and 4 is forward.
 /// @return 1 if the button is pressed, 0 if it is not pressed OR if this application has no focused windows.
-PINC_EXTERN bool PINC_CALL pinc_mouse_button_get(int button);
+PINC_EXTERN bool PINC_CALL pinc_mouse_button_get(uint32_t button);
 
 /// @brief Get the state of a keyboard key.
 /// @param button A value of pinc_keyboard_key to check
@@ -608,82 +630,100 @@ PINC_EXTERN uint32_t PINC_CALL pinc_get_cursor_y(void);
 // Get the window the cursor is currently in, or 0 if the cursor is not over a window in this application.
 PINC_EXTERN pinc_window PINC_CALL pinc_get_cursor_window(void);
 
+// Get the window that currently has focus
+PINC_EXTERN pinc_window PINC_CALL pinc_get_focus_window(void);
+
 /// @section main loop & events
 
 /// @brief Flushes internal buffers and collects user input
 PINC_EXTERN void PINC_CALL pinc_step(void);
 
-/// @brief Gets if a window was signalled to close during the last step.
-/// @param window the window to query. Only accepts complete windows.
-/// @return 1 if a window was signalled to close in the last step, 0 otherwise.
-PINC_EXTERN bool PINC_CALL pinc_event_window_closed(pinc_window window);
+PINC_EXTERN uint32_t PINC_CALL pinc_event_get_num(void);
 
-/// @brief Get if there was a mouse press/release from the last step
-/// @param window The window to check - although all windows share the same cursor,
-///     it is possible for multiple windows to be clicked in the same step.
-/// @return 1 if there any mouse buttons were pressed or released, 0 otherwise.
-PINC_EXTERN bool PINC_CALL pinc_event_window_mouse_button(pinc_window window);
+PINC_EXTERN pinc_event_type PINC_CALL pinc_event_get_type(uint32_t event_index);
 
-/// @brief Gets if a window was resized during the last step.
-/// @param window the window to query. Only accepts complete windows.
-/// @return if the window was resized during the last step
-PINC_EXTERN bool PINC_CALL pinc_event_window_resized(pinc_window window);
+/// @brief Returns the window that had focus at the time of the event. This is not necessarily the currently focused window.
+/// @return The window that was focused when the event happened, or 0 if no window was focused.
+PINC_EXTERN pinc_window PINC_CALL pinc_event_get_window(uint32_t event_index);
 
-/// @brief Gets if a window received input focus in the last step.
-///        If a window lost and gained focus in the same step, it is safe to assume that window is not focused.
-/// @param window the window to query. Only accepts complete windows.
-/// @return 1 if the window was focused in the last step, 0 otherwise.
-PINC_EXTERN bool PINC_CALL pinc_event_window_focused(pinc_window window);
+PINC_EXTERN int64_t PINC_CALL pinc_event_get_timestamp_unix_millis(uint32_t event_index);
 
-/// @brief gets if a window lost input focus in the last step, unless it regained focus in that same step.
-/// @param window the window to query. Only accepts complete windows.
-/// @return 1 if the window was focused in the last step, 0 otherwise.
-PINC_EXTERN bool PINC_CALL pinc_event_window_unfocused(pinc_window window);
+// the window that received the close signal
+PINC_EXTERN pinc_window PINC_CALL pinc_event_close_signal_window(uint32_t event_index);
 
-/// @brief gets if a window should be redrawn from last step.
-/// @param window the window to query. Only accepts complete windows.
-/// @return 1 if the window should be redrawn this step, 0 otherwise.
-PINC_EXTERN bool PINC_CALL pinc_event_window_exposed(pinc_window window);
+/// @brief Get the old state of the mouse buttons before the event ocurred. Only defined for mouse button events.
+/// @return The state of the mouse buttons in a bitfield. The 5 bits, from least to most significant, are left, right, middle, back, and forward respectively.
+PINC_EXTERN uint32_t PINC_CALL pinc_event_mouse_button_old_state(uint32_t event_index);
 
-// Keyboard events require a window because it's possible for multiple windows to have key events in a single step
+/// @brief Get the new state of the mouse buttons after the event ocurred. Only defined for mouse button events.
+/// @return The state of the mouse buttons in a bitfield. The 5 bits, from least to most significant, are left, right, middle, back, and forward respectively.
+PINC_EXTERN uint32_t PINC_CALL pinc_event_mouse_button_state(uint32_t event_index);
 
-/// @brief Get key events in the last step. Key events are generateted for presses, releases, and repeats. release v.s press or repeat is detected by getting that key's state after the event.
-/// @param window the window to get events from. Only accepts complete windows
-/// @param key_buffer a buffer to place the key events into. Events happened from lowest index to highest index. accepts null.
-/// @param capacity the number of keys the buffer can hold. Ignored if key_buffer is null
-/// @return the number of key events
-PINC_EXTERN uint32_t PINC_CALL pinc_event_window_keyboard_button_get(pinc_window window, pinc_keyboard_key* key_buffer, uint32_t capacity);
+// The size of the window before it was resized
+PINC_EXTERN uint32_t PINC_CALL pinc_event_resize_old_width(uint32_t event_index);
 
-/// @brief Get whether key events from the last step were repeats or not. Index-matched with the output of event_window_keyboard_button_get.
-/// @param window the window to get events from. Only accepts complete windows
-/// @param repeat_buffer a buffer to place the repeat values into. Accepts null.
-/// @param capacity the number of values repeat_buffer can hold
-/// @return the number of key events
-PINC_EXTERN uint32_t PINC_CALL pinc_event_window_keyboard_button_get_repeat(pinc_window window, bool* repeat_buffer, uint32_t capacity);
+PINC_EXTERN uint32_t PINC_CALL pinc_event_resize_old_height(uint32_t event_index);
 
-/// @brief Get if the cursor moved within a window during the last step.
-///        Requires a window because it's possible for the cursor to move from one window to another window in a single step.
-/// @param window the window to query. Only accepts complete windows.
-/// @return 1 if the cursor moved in this window, 0 if not.
-PINC_EXTERN bool PINC_CALL pinc_event_window_cursor_move(pinc_window window);
+PINC_EXTERN uint32_t PINC_CALL pinc_event_resize_width(uint32_t event_index);
 
-/// @brief Get if the cursor has left a window during the last step.
-/// @param window the window to query. Only accepts complete windows.
-/// @return 1 if the cursor left the window, 0 if not.
-PINC_EXTERN bool PINC_CALL pinc_event_window_cursor_exit(pinc_window window);
+PINC_EXTERN uint32_t PINC_CALL pinc_event_resize_height(uint32_t event_index);
 
-/// @brief Get if the cursor has entered a window during the last step.
-/// @param window the window to query. Only accepts complete windows.
-/// @return 1 if the cursor entered the window, 0 if not.
-PINC_EXTERN bool PINC_CALL pinc_event_window_cursor_enter(pinc_window window);
+PINC_EXTERN pinc_window PINC_CALL pinc_event_resize_window(uint32_t event_index);
 
-// returns text that was typed into a window since the last step. Encoded in UTF 8.
-PINC_EXTERN uint32_t PINC_CALL pinc_event_window_text_get(pinc_window window, uint8_t* return_buf, uint32_t capacity);
+// The window that was focused before the event - will always return the same thing as pinc_event_get_window, assuming a valid focus event.
+PINC_EXTERN pinc_window PINC_CALL pinc_event_focus_old_window(uint32_t event_index);
 
-// TODO: doc
-PINC_EXTERN float PINC_CALL pinc_window_scroll_vertical(pinc_window window);
+// The window that gained focus
+PINC_EXTERN pinc_window PINC_CALL pinc_event_focus_window(uint32_t event_index);
 
-// TODO: doc
-PINC_EXTERN float PINC_CALL pinc_window_scroll_horizontal(pinc_window window);
+// The top left of the exposed area
+PINC_EXTERN uint32_t PINC_CALL pinc_event_exposure_x(uint32_t event_index);
+PINC_EXTERN uint32_t PINC_CALL pinc_event_exposure_y(uint32_t event_index);
+
+PINC_EXTERN uint32_t PINC_CALL pinc_event_exposure_width(uint32_t event_index);
+PINC_EXTERN uint32_t PINC_CALL pinc_event_exposure_height(uint32_t event_index);
+
+PINC_EXTERN uint32_t PINC_CALL pinc_event_exposure_window(uint32_t event_index);
+
+// The button whose state changed
+PINC_EXTERN pinc_keyboard_key PINC_CALL pinc_event_keyboard_button(uint32_t event_index);
+
+// The state of the button after the event
+PINC_EXTERN bool PINC_CALL pinc_event_keyboard_button_state(uint32_t event_index);
+
+// Whether this keyboard button event is a repeat or not
+PINC_EXTERN bool PINC_CALL pinc_event_keyboard_button_repeat(uint32_t event_index);
+
+// Where the cursor was before it moved in the window
+PINC_EXTERN uint32_t PINC_CALL pinc_event_cursor_move_old_x(uint32_t event_index);
+PINC_EXTERN uint32_t PINC_CALL pinc_event_cursor_move_old_y(uint32_t event_index);
+
+// Where the cursor moved to within the window
+PINC_EXTERN uint32_t PINC_CALL pinc_event_cursor_move_x(uint32_t event_index);
+PINC_EXTERN uint32_t PINC_CALL pinc_event_cursor_move_y(uint32_t event_index);
+
+// The window that the cursor moved within
+PINC_EXTERN pinc_window PINC_CALL pinc_event_cursor_move_window(uint32_t event_index);
+
+// Where the cursor was before it moved from the previous window, relative to the previous window. Will return 0 if there is no source window / if the source window is foreign.
+PINC_EXTERN uint32_t PINC_CALL pinc_event_cursor_transition_old_x(uint32_t event_index);
+PINC_EXTERN uint32_t PINC_CALL pinc_event_cursor_transition_old_y(uint32_t event_index);
+// Will return 0 if there is no source window / if the source window is foreign.
+PINC_EXTERN pinc_window PINC_CALL pinc_event_cursor_transition_old_window(uint32_t event_index);
+
+// Where the cursor moved to within the new window
+PINC_EXTERN uint32_t PINC_CALL pinc_event_cursor_transition_x(uint32_t event_index);
+PINC_EXTERN uint32_t PINC_CALL pinc_event_cursor_transition_y(uint32_t event_index);
+
+// Will not necessarily return the same thing as pinc_event_get_window
+PINC_EXTERN pinc_window PINC_CALL pinc_event_cursor_transition_window(uint32_t event_index);
+
+// The unicode codepoint that was typed
+PINC_EXTERN uint32_t PINC_CALL pinc_event_text_input_codepoint(uint32_t event_index);
+
+// The amount of vertical scroll
+PINC_EXTERN float PINC_CALL pinc_event_scroll_vertical(uint32_t event_index);
+
+PINC_EXTERN float PINC_CALL pinc_event_scroll_horizontal(uint32_t event_index);
 
 #endif
