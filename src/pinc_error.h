@@ -2,6 +2,8 @@
 #define PINC_ERROR_H
 
 #include "pinc_options.h"
+#include "libs/pstring.h"
+#include <pinc.h>
 // TODO: should we make errors use __file__ and __line__ macros?
 
 // NOTE: This function is implemented in pinc_main.c - there is no pinc_error.c

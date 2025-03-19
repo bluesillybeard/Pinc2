@@ -3,8 +3,6 @@
 
 // most options are handled by the external handle (as they must be shared between pinc and the user)
 #include <pinc.h>
-#include "platform/platform.h"
-#include "libs/pstring.h"
 #include "libs/dynamic_allocator.h"
 #include "pinc_options.h"
 #include "pinc_error.h"

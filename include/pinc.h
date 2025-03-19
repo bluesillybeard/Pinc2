@@ -120,12 +120,6 @@ typedef uint32_t pinc_return_code;
 typedef enum {
     pinc_object_type_none = 0,
     pinc_object_type_window,
-    pinc_object_type_vertex_attributes,
-    pinc_object_type_uniforms,
-    pinc_object_type_shaders,
-    pinc_object_type_pipeline,
-    pinc_object_type_vertex_array,
-    pinc_object_type_texture,
 } pinc_object_type_enum;
 
 typedef uint32_t pinc_object_type;

@@ -1,5 +1,3 @@
-#include "platform.h"
-
 // Platform implementation detection thingy
 
 #if defined (__unix) || (__linux)

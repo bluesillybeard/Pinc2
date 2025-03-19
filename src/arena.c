@@ -1,6 +1,5 @@
 // "Implementation" for arena.h
 
-#include "libs/dynamic_allocator.h"
 #include "pinc_main.h"
 
 // This has to be here because pinc_main.h includes arena.h which defines a default value for ARENA_BACKEND.

@@ -64,7 +64,8 @@ PFN pLibrarySymbol(void* library, uint8_t* symbolNameUtf8, size_t nameSize) {
     pFree(nameUtf8NullTerm, nameSize+1);
     // GCC's -Wpedantic is extra strict and does not allow a void* to be cast into a function pointer.
     // This is an artifact of the ancient world back when a function pointer wasn't necessarily the same size as a pointer to memory.
-    // It appears POSIX *guarantees* that fact, seeing as dlsym returns void* instead of a void function pointer.
+    // (side not about wasm or function pointer sanitization or whatever)
+    // It appears POSIX guarantees that fact, seeing as dlsym returns void* instead of a void function pointer.
     // Anyway, they gave us a nice way to disable that warning using __extension__.
     #ifdef __GNUC__
     return __extension__ (PFN)sym;

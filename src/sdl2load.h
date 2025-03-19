@@ -7,6 +7,7 @@
 
 // Classic macro trick. This tends to break LSP. Rather annoying, but better than having to repeat every function declaration 5 times.
 // Reminder: you can use the -E flag in gcc or clang to preprocess the file without compiling it
+// Even clangd gets confused from this mega death macro, if you have a better way that isn't just writing every function 3 times, send it in.
 
 #define SDL_FUNC(type, name, realName, args)
 #define SDL_FUNCTIONS \
@@ -29,7 +30,7 @@
     SDL_FUNC(void, glSwapWindow, SDL_GL_SwapWindow, (SDL_Window* window)) \
     SDL_FUNC(SDL_GLContext, glCreateContext, SDL_GL_CreateContext, (SDL_Window* window)) \
     SDL_FUNC(int, glMakeCurrent, SDL_GL_MakeCurrent, (SDL_Window* window, SDL_GLContext context)) \
-    SDL_FUNC(PINC_PFN, glGetProcAddress, SDL_GL_GetProcAddress, (const char* proc)) \
+    SDL_FUNC(PFN, glGetProcAddress, SDL_GL_GetProcAddress, (const char* proc)) \
     SDL_FUNC(SDL_GLContext, glGetCurrentContext, SDL_GL_GetCurrentContext, (void)) \
     SDL_FUNC(void, getWindowSize, SDL_GetWindowSize, (SDL_Window* window, int* width, int* height)) \
     /* added in 2.0.1 */ SDL_FUNC(void, glGetDrawableSize, SDL_GL_GetDrawableSize, (SDL_Window* window, int* width, int* height)) \
@@ -41,7 +42,7 @@
 
 #undef SDL_FUNC
 
-#define SDL_FUNC(type, name, realName, args) typedef type (SDLCALL * PFN_##realName) args;
+#define SDL_FUNC(_type, _name, _realName, _args) typedef _type (SDLCALL * PFN_##_realName) _args;
 
 SDL_FUNCTIONS
 #undef SDL_FUNC

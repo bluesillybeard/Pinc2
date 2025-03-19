@@ -622,36 +622,6 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
                     pinc_window_deinit(id);
                     break;
                 }
-                case pinc_object_type_vertex_attributes: {
-                    // TODO
-                    PPANIC("Not Implemented");
-                    break;
-                }
-                case pinc_object_type_uniforms: {
-                    // TODO
-                    PPANIC("Not Implemented");
-                    break;
-                }
-                case pinc_object_type_shaders: {
-                    // TODO
-                    PPANIC("Not Implemented");
-                    break;
-                }
-                case pinc_object_type_pipeline: {
-                    // TODO
-                    PPANIC("Not Implemented");
-                    break;
-                }
-                case pinc_object_type_vertex_array: {
-                    // TODO
-                    PPANIC("Not Implemented");
-                    break;
-                }
-                case pinc_object_type_texture: {
-                    // TODO
-                    PPANIC("Not Implemented");
-                    break;
-                }
                 default:
                     PErrorAssert(false, "Invalid object type! This is an error in Pinc itself.");
             }

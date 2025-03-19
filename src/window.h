@@ -4,10 +4,9 @@
 #define PINC_WINDOW_H
 
 #include <pinc.h>
-#include "pinc_main.h"
-#include "libs/pstring.h"
 #include <pinc_opengl.h>
 #include "pinc_types.h"
+#include "pinc_error.h"
 
 // Tip: if you don't know what's going on with macros, use the '-E' flag in gcc to preprocess the file without compiling it.
 
