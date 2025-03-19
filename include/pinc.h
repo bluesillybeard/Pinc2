@@ -120,6 +120,9 @@ typedef uint32_t pinc_return_code;
 typedef enum {
     pinc_object_type_none = 0,
     pinc_object_type_window,
+    pinc_object_type_framebufferFormat,
+    pinc_object_type_incompleteGlContext,
+    pinc_object_type_glContext,
 } pinc_object_type_enum;
 
 typedef uint32_t pinc_object_type;
@@ -433,7 +436,7 @@ PINC_EXTERN uint32_t PINC_CALL pinc_query_set_framebuffer_format(void);
 
 PINC_EXTERN pinc_object_type PINC_CALL pinc_get_object_type(pinc_object obj);
 
-PINC_EXTERN bool PINC_CALL pinc_get_object_complete(pinc_object obj);
+PINC_EXTERN bool PINC_CALL pinc_get_object_complete(pinc_object id);
 
 PINC_EXTERN void PINC_CALL pinc_set_object_user_data(pinc_object obj, void* user_data);
 

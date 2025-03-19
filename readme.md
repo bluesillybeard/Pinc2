@@ -78,6 +78,14 @@ The original version written in Zig can be found [here](https://github.com/blues
 - Make sure all functions that take pinc_window_backend or pinc_graphics_api can take 'any' to reference the default one.
 - add platform implementation for Windows
 - Add state validation to all functions
+- Make things consistent...
+    - Change all object handle types to include handle in the name
+    - Rename object handle parameters to 'handle' instead of using 'obj' or 'id'
+    - Commit to a naming convention, such as:
+        - TypesAreNamedLikeThis
+        - functionsAreaNamedLikeThis
+        - EnumValueType_enumValue
+        - This is just an example for this TODO
 
 ## Implemented platforms
 - Posix / Unix

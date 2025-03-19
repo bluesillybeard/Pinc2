@@ -1,4 +1,7 @@
 #include <pinc.h>
+#include <stdint.h>
+#include "libs/dynamic_allocator.h"
+#include "pinc_error.h"
 #include "platform/platform.h"
 #include "pinc_main.h"
 
@@ -521,11 +524,36 @@ PINC_EXPORT pinc_graphics_api PINC_CALL pinc_query_graphics_api_default(pinc_win
 }
 
 PINC_EXPORT pinc_framebuffer_format pinc_query_framebuffer_format_default(pinc_window_backend window_backend, pinc_graphics_api graphics_api) {
-    P_UNUSED(window_backend);
-    P_UNUSED(graphics_api);
-    // TODO: Holy Moly this is just awful
-    // Relying on the fact that the first objects to be created are framebuffer formats
-    return 1;
+    // Use the front-end API to do what a user would effectively do
+    uint32_t numFramebufferFormats = pinc_query_framebuffer_format_ids(window_backend, graphics_api, 0, 0);
+    PErrorExternal(numFramebufferFormats, "No framebuffer formats available");
+    uint32_t* ids = Allocator_allocate(tempAllocator, numFramebufferFormats * sizeof(uint32_t));
+    pinc_query_framebuffer_format_ids(window_backend, graphics_api, ids, numFramebufferFormats);
+    
+    // framebuffer format default can be tuned here
+    uint32_t const score_per_channel = 2;
+    uint32_t const score_per_bit = 1;
+    uint32_t const score_for_srgb = 16;
+
+    pinc_framebuffer_format bestFormatHandle = ids[0];
+    uint32_t bestScore = 0;
+    for(uint32_t i=1; i<numFramebufferFormats; ++i) {
+        pinc_framebuffer_format fmt = ids[i];
+        uint32_t channels = pinc_query_framebuffer_format_channels(fmt);
+        PErrorAssert(channels <= 4, "Invalid number of channels");
+        uint32_t score = channels * score_per_channel;
+        for(uint32_t c=0; c<channels; ++c) {
+            score += pinc_query_framebuffer_format_channel_bits(fmt, c) * score_per_bit;
+        }
+        if(pinc_query_framebuffer_format_color_space(fmt) == pinc_color_space_srgb) {
+            score += score_for_srgb;
+        }
+        if(score > bestScore) {
+            bestFormatHandle = fmt;
+            bestScore = score;
+        }
+    }
+    return bestFormatHandle;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_backend window_backend, pinc_graphics_api graphics_api, pinc_framebuffer_format* ids_dest, uint32_t capacity) {
@@ -534,7 +562,8 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_framebuffer_format_ids(pinc_window_bac
     // TODO: only window backend is SDL2, shortcuts are taken
     // TODO: sort framebuffers from best to worst, so applications can just loop from first to last and pick the first one they see that they like
     // - Note: probably best to do this in init when all of the framebuffer formats are queried to begin with
-
+    // TODO: it's probably a good idea to make all object types have a way to get their ID instead of having to search the whole map
+    // - While you're at it, it might be worth adding generation info to the handle to catch use after frees
     pinc_object currentObject = 1;
     uint32_t currentIndex = 0;
 
@@ -682,8 +711,6 @@ PINC_EXPORT pinc_object_type PINC_CALL pinc_get_object_type(pinc_object id) {
     case PincObjectDiscriminator_incompleteWindow:
     case PincObjectDiscriminator_window:
         return pinc_object_type_window;
-    // Objects that are not normal Pinc objects.
-    // TODO: these should probably just be fully promoted to regular Pinc objects.
     case PincObjectDiscriminator_glContext:
     case PincObjectDiscriminator_incompleteGlContext:
         return pinc_object_type_none;
@@ -692,10 +719,20 @@ PINC_EXPORT pinc_object_type PINC_CALL pinc_get_object_type(pinc_object id) {
     }
 }
 
-PINC_EXPORT bool PINC_CALL pinc_get_object_complete(pinc_object obj) {
-    P_UNUSED(obj);
-    PPANIC("pinc_get_object_complete not implemented");
-    return false;
+PINC_EXPORT bool PINC_CALL pinc_get_object_complete(pinc_object id) {
+    PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
+    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
+    switch (obj.discriminator)
+    {
+    case PincObjectDiscriminator_none:
+    case PincObjectDiscriminator_incompleteWindow:
+    case PincObjectDiscriminator_incompleteGlContext:
+        return false;
+    case PincObjectDiscriminator_window:
+    case PincObjectDiscriminator_glContext:
+    case PincObjectDiscriminator_framebufferFormat:
+        return true;
+    }
 }
 
 PINC_EXPORT void PINC_CALL pinc_set_object_user_data(pinc_object obj, void* user_data) {
@@ -782,9 +819,12 @@ PINC_EXPORT void PINC_CALL pinc_window_set_title(pinc_window window, const char*
     {
         case PincObjectDiscriminator_incompleteWindow:{
             IncompleteWindow* object = PincObject_ref_incompleteWindow(window);
-            // TODO: potential optimization here (this code is quite cold though)
-            PString_free(&object->title, rootAllocator);
-            object->title = PString_copy((PString){.str = (uint8_t*)title_buf, .len = title_len}, rootAllocator);
+            if(title_len == object->title.len) {
+                pMemCopy(title_buf, object->title.str, title_len);
+            } else {
+                PString_free(&object->title, rootAllocator);
+                object->title = PString_copy((PString){.str = (uint8_t*)title_buf, .len = title_len}, rootAllocator);
+            }
             break;
         }
         case PincObjectDiscriminator_window:{
@@ -1390,7 +1430,11 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_set_context_reset_isolation(p
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_set_context_version(pinc_opengl_context incomplete_context, uint32_t major, uint32_t minor, bool es, bool core) {
-    // TODO check that this version is available
+    if(pinc_query_opengl_version_supported(pinc_window_backend_any, major, minor, es) == pinc_opengl_support_status_none) {
+        PErrorExternal(false, "Opengl version not supported");
+        return pinc_return_code_error;
+    }
+
     IncompleteGlContext* contextObj = PincObject_ref_incompleteGlContext(incomplete_context);
     contextObj->versionMajor = major;
     contextObj->versionMinor = minor;
