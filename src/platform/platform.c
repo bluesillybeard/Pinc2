@@ -4,4 +4,8 @@
 
 #include "platform_posix.c.inc"
 
+#else
+
+#error "No implementation for this platform!"
+
 #endif

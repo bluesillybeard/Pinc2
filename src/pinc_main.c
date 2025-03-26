@@ -2,10 +2,12 @@
 #include <stdint.h>
 #include "libs/dynamic_allocator.h"
 #include "pinc_error.h"
+#include "pinc_types.h"
 #include "platform/platform.h"
 #include "pinc_main.h"
 
 #include "sdl2.h"
+#include "window.h"
 
 // Implementations of things in pinc_main.h
 
@@ -615,6 +617,7 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend wi
         framebuffer_format_id = pinc_query_framebuffer_format_default(window_backend, graphics_api);
     }
     FramebufferFormat* framebuffer = PincObject_ref_framebufferFormat(framebuffer_format_id);
+    staticState.framebufferFormat = framebuffer_format_id;
     pinc_return_code result = WindowBackend_completeInit(&staticState.sdl2WindowBackend, graphics_api, *framebuffer, samples, depth_buffer_bits);
     if(result == pinc_return_code_error) {
         return pinc_return_code_error;
@@ -696,9 +699,13 @@ PINC_EXPORT pinc_graphics_api PINC_CALL pinc_query_set_graphics_api(void) {
     return pinc_graphics_api_opengl;
 }
 
-PINC_EXPORT uint32_t PINC_CALL pinc_query_set_framebuffer_format(void) {
-    PPANIC("pinc_query_set_framebuffer_format not implemented");
-    return 0;
+PINC_EXPORT pinc_framebuffer_format PINC_CALL pinc_query_set_framebuffer_format(void) {
+    if(staticState.framebufferFormat) {
+        return staticState.framebufferFormat;
+    } else {
+        PErrorUser(false, "Framebuffer format is not determined until pinc_complete_init");
+        return 0;
+    }
 }
 
 PINC_EXPORT pinc_object_type PINC_CALL pinc_get_object_type(pinc_object id) {
@@ -842,129 +849,326 @@ PINC_EXPORT void PINC_CALL pinc_window_set_title(pinc_window window, const char*
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_window_get_title(pinc_window window, char* title_buf, uint32_t title_capacity) {
-    P_UNUSED(window);
-    P_UNUSED(title_buf);
-    P_UNUSED(title_capacity);
-    PPANIC("pinc_window_get_title not implemented");
-    return false;
+    WindowHandle* win = PincObject_ref_window(window);
+    size_t len;
+    uint8_t const* title = WindowBackend_getWindowTitle(&staticState.windowBackend, *win, &len);
+    PErrorAssert(len > UINT32_MAX, "Integer Overflow");
+    if(title_buf) {
+        uint32_t amountToWrite = title_capacity;
+        if(title_capacity > len) {
+            amountToWrite = (uint32_t)len;
+        }
+        pMemCopy(title, title_buf, amountToWrite);
+    }
+    return (uint32_t) len;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_width(pinc_window window, uint32_t width) {
-    P_UNUSED(window);
-    P_UNUSED(width);
-    PPANIC("pinc_window_set_width not implemented");
+    switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow:{
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            ob->width = width;
+            ob->hasWidth = true;
+            break;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            WindowBackend_setWindowWidth(&staticState.windowBackend, *ob, width);
+            break;
+        }
+        default: {
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_window_get_width(pinc_window window) {
-    WindowHandle* object = PincObject_ref_window(window);
-    return WindowBackend_getWindowWidth(&staticState.windowBackend, *object);
+        switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow:{
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            PErrorUser(ob->hasWidth, "Window does not have its width set");
+            return ob->width;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            return WindowBackend_getWindowWidth(&staticState.windowBackend, *ob);
+        }
+        default: {
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
-PINC_EXPORT uint32_t PINC_CALL pinc_window_has_width(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_window_has_width not implemented");
-    return 0;
+PINC_EXPORT bool PINC_CALL pinc_window_has_width(pinc_window window) {
+        switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow:{
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            return ob->hasWidth;
+        }
+        case PincObjectDiscriminator_window: {
+            return true;
+        }
+        default: {
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_height(pinc_window window, uint32_t height) {
-    P_UNUSED(window);
-    P_UNUSED(height);
-    PPANIC("pinc_window_set_height not implemented");
+    switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow:{
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            ob->height = height;
+            ob->hasHeight = true;
+            break;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            WindowBackend_setWindowHeight(&staticState.windowBackend, *ob, height);
+            break;
+        }
+        default: {
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT uint32_t PINC_CALL pinc_window_get_height(pinc_window window) {
-    WindowHandle* object = PincObject_ref_window(window);
-    return WindowBackend_getWindowHeight(&staticState.windowBackend, *object);
+        switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow:{
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            PErrorUser(ob->hasHeight, "Window does not have its height set");
+            return ob->height;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            return WindowBackend_getWindowHeight(&staticState.windowBackend, *ob);
+        }
+        default: {
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_has_height(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_window_has_height not implemented");
-    return false;
+        switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow:{
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            return ob->hasHeight;
+        }
+        case PincObjectDiscriminator_window: {
+            return true;
+        }
+        default: {
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT float PINC_CALL pinc_window_get_scale_factor(pinc_window window) {
     P_UNUSED(window);
-    PPANIC("pinc_window_get_scale_factor not implemented");
-    return 0;
+    // TODO: probably want to refactor how scale factors work anyway
+    return 1;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_has_scale_factor(pinc_window window) {
     P_UNUSED(window);
-    PPANIC("pinc_window_has_scale_factor not implemented");
-    return 0;
+    // TODO: probably want to refactor how scale factors work anyway
+    return false;
 }
 
-PINC_EXPORT void PINC_CALL pinc_window_set_resizable(pinc_window window, bool resizable) {\
-    P_UNUSED(window);
-    P_UNUSED(resizable);
-    PPANIC("pinc_window_set_resizable not implemented");
+PINC_EXPORT void PINC_CALL pinc_window_set_resizable(pinc_window window, bool resizable) {
+    switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow: {
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            ob->resizable = resizable;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            WindowBackend_setWindowResizable(&staticState.windowBackend, *ob, resizable);
+        }
+        default:{
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_get_resizable(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_window_get_resizable not implemented");
-    return false;
+    switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow: {
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            return ob->resizable;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            return WindowBackend_getWindowResizable(&staticState.windowBackend, *ob);
+        }
+        default:{
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_minimized(pinc_window window, bool minimized) {
-    P_UNUSED(window);
-    P_UNUSED(minimized);
-    PPANIC("pinc_window_set_minimized not implemented");
+    switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow: {
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            ob->minimized = minimized;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            WindowBackend_setWindowMinimized(&staticState.windowBackend, *ob, minimized);
+        }
+        default:{
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_get_minimized(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_window_get_minimized not implemented");
-    return false;
+    switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow: {
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            return ob->minimized;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            return WindowBackend_getWindowMinimized(&staticState.windowBackend, *ob);
+        }
+        default:{
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_maximized(pinc_window window, bool maximized) {
-    P_UNUSED(window);
-    P_UNUSED(maximized);
-    PPANIC("pinc_window_set_maximized not implemented");
+    switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow: {
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            ob->maximized = maximized;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            WindowBackend_setWindowMaximized(&staticState.windowBackend, *ob, maximized);
+        }
+        default:{
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_get_maximized(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_window_get_maximized not implemented");
-    return false;
+    switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow: {
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            return ob->maximized;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            return WindowBackend_getWindowMaximized(&staticState.windowBackend, *ob);
+        }
+        default:{
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_fullscreen(pinc_window window, bool fullscreen) {
-    P_UNUSED(window);
-    P_UNUSED(fullscreen);
-    PPANIC("pinc_window_set_fullscreen not implemented");
+    switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow: {
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            ob->fullscreen = fullscreen;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            WindowBackend_setWindowFullscreen(&staticState.windowBackend, *ob, fullscreen);
+        }
+        default:{
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_get_fullscreen(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_window_get_fullscreen not implemented");
-    return false;
+    switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow: {
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            return ob->fullscreen;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            return WindowBackend_getWindowFullscreen(&staticState.windowBackend, *ob);
+        }
+        default:{
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_focused(pinc_window window, bool focused) {
-    P_UNUSED(window);
-    P_UNUSED(focused);
-    PPANIC("pinc_window_set_focused not implemented");
+    // TODO: should this trigger a focus changed event?
+    // TODO: Either way, it needs to set the current window.
+    switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow: {
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            ob->focused = focused;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            WindowBackend_setWindowFocused(&staticState.windowBackend, *ob, focused);
+        }
+        default:{
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_get_focused(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_window_get_focused not implemented");
-    return false;
+    switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow: {
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            return ob->resizable;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            return WindowBackend_getWindowResizable(&staticState.windowBackend, *ob);
+        }
+        default:{
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_hidden(pinc_window window, bool hidden) {
-    P_UNUSED(window);
-    P_UNUSED(hidden);
-    PPANIC("pinc_window_set_hidden not implemented");
+    switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow: {
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            ob->hidden = hidden;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            WindowBackend_setWindowHidden(&staticState.windowBackend, *ob, hidden);
+        }
+        default:{
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_get_hidden(pinc_window window) {
-    P_UNUSED(window);
-    PPANIC("pinc_window_get_hidden not implemented");
-    return false;
+    switch (PincObject_discriminator(window)) {
+        case PincObjectDiscriminator_incompleteWindow: {
+            IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
+            return ob->hidden;
+        }
+        case PincObjectDiscriminator_window: {
+            WindowHandle* ob = PincObject_ref_window(window);
+            return WindowBackend_getWindowHidden(&staticState.windowBackend, *ob);
+        }
+        default:{
+            PErrorUser(false, "Not a window object");
+        }
+    }
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_set_vsync(bool sync) {

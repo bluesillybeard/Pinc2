@@ -432,7 +432,7 @@ PINC_EXTERN pinc_window_backend PINC_CALL pinc_query_set_window_backend(void);
 
 PINC_EXTERN pinc_graphics_api PINC_CALL pinc_query_set_graphics_api(void);
 
-PINC_EXTERN uint32_t PINC_CALL pinc_query_set_framebuffer_format(void);
+PINC_EXTERN pinc_framebuffer_format PINC_CALL pinc_query_set_framebuffer_format(void);
 
 PINC_EXTERN pinc_object_type PINC_CALL pinc_get_object_type(pinc_object obj);
 
@@ -497,8 +497,8 @@ PINC_EXTERN uint32_t PINC_CALL pinc_window_get_width(pinc_window window);
 
 /// @brief get if a window has its width defined. A windows width will become defined either when completed, or when set using pinc_window_set_width
 /// @param window the window. Asserts the object is valid, and is a window
-/// @return 1 if the windows width is set, 0 if not.
-PINC_EXTERN uint32_t PINC_CALL pinc_window_has_width(pinc_window window);
+/// @return true if the windows width is set, false if not.
+PINC_EXTERN bool PINC_CALL pinc_window_has_width(pinc_window window);
 
 /// @brief set the height of a window's drawable area, in pixels
 /// @param window the window whose height to set. Asserts the object is valid, and is a window

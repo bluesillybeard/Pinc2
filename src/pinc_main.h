@@ -183,6 +183,9 @@ typedef struct {
     // The real current window.
     pinc_window realCurrentWindow;
 
+    // The chosen framebuffer format
+    pinc_framebuffer_format framebufferFormat;
+
     // Defined by the user, These are either all live or none live
     // userAllocObj can be null while these are live
     void* userAllocObj;

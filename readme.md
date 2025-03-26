@@ -275,6 +275,9 @@ None of these are going to be implemented any time soon - if ever.
 - Allow a different graphics API per window
     - Maybe even completely separate the idea of a graphics API and a window, like what SDL2 somewhat does
     - Probably wait until more than just OpenGL is supported
+- Change window states to an enum instead of a bunch of sorta-implicitly-exclusive bools
+- add window state change events
+- Split this readme into multiple files, it's getting too long
 
 ## TODO for internal library
 - test and get working on different compilers / implementations of libc
