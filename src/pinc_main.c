@@ -501,6 +501,8 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_incomplete_init(void) {
 }
 
 PINC_EXPORT bool PINC_CALL pinc_query_window_backend_support(pinc_window_backend window_backend) {
+    // We're assuming that there's at least one supported backend here
+    if(window_backend == pinc_window_backend_any) return true;
     // TODO: only backend is SDL2, shortcuts are taken
     #if PINC_HAVE_WINDOW_SDL2 == 1
     if(window_backend == pinc_window_backend_sdl2) return true;
@@ -515,6 +517,9 @@ PINC_EXPORT pinc_window_backend PINC_CALL pinc_query_window_backend_default(void
 
 PINC_EXPORT bool PINC_CALL pinc_query_graphics_api_support(pinc_window_backend window_backend, pinc_graphics_api graphics_api) {
     P_UNUSED(window_backend);
+    if(graphics_api == pinc_graphics_api_any) {
+        graphics_api = pinc_query_graphics_api_default(window_backend);
+    }
     // TODO: only window backend is SDL2, shortcuts are taken
     return WindowBackend_queryGraphicsApiSupport(&staticState.sdl2WindowBackend, graphics_api);
 }
@@ -526,6 +531,9 @@ PINC_EXPORT pinc_graphics_api PINC_CALL pinc_query_graphics_api_default(pinc_win
 }
 
 PINC_EXPORT pinc_framebuffer_format pinc_query_framebuffer_format_default(pinc_window_backend window_backend, pinc_graphics_api graphics_api) {
+    if(graphics_api == pinc_graphics_api_any) {
+        graphics_api = pinc_query_graphics_api_default(window_backend);
+    }
     // Use the front-end API to do what a user would effectively do
     uint32_t numFramebufferFormats = pinc_query_framebuffer_format_ids(window_backend, graphics_api, 0, 0);
     PErrorExternal(numFramebufferFormats, "No framebuffer formats available");
@@ -604,14 +612,14 @@ PINC_EXPORT uint32_t PINC_CALL pinc_query_max_open_windows(pinc_window_backend w
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_complete_init(pinc_window_backend window_backend, pinc_graphics_api graphics_api, pinc_framebuffer_format framebuffer_format_id, uint32_t samples, uint32_t depth_buffer_bits) {
-    // TODO: only window backend is SDL2, shortcuts are taken
-    PErrorUser(window_backend != pinc_window_backend_none, "Unsupported window backend");
+    PErrorUser(pinc_query_window_backend_support(window_backend), "Unsupported window backend");
+    PErrorUser(pinc_query_graphics_api_support(window_backend, graphics_api), "Unsupported graphics api");
     if(window_backend == pinc_window_backend_any) {
+        // TODO: only window backend is SDL2, shortcuts are taken
         window_backend = pinc_window_backend_sdl2;
     }
-    // TODO: only graphics api is opengl, shortcuts are taken
     if(graphics_api == pinc_graphics_api_any) {
-        graphics_api = pinc_graphics_api_opengl;
+        graphics_api = pinc_query_graphics_api_default(window_backend);
     }
     if(framebuffer_format_id == 0) {
         framebuffer_format_id = pinc_query_framebuffer_format_default(window_backend, graphics_api);
