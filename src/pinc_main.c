@@ -203,7 +203,7 @@ static uint32_t PincObject_allocateInternal(PincObjectDiscriminator discriminato
             break;
         }
         case PincObjectDiscriminator_glContext: {
-            return PincPool_alloc(&staticState.rawOpenglContextHandleObjects, sizeof(RawOpenglContextHandle));
+            return PincPool_alloc(&staticState.rawOpenglContextHandleObjects, sizeof(RawOpenglContextObject));
             break;
         }
         case PincObjectDiscriminator_framebufferFormat: {
@@ -233,7 +233,7 @@ static void PincObject_freeInternal(PincObjectDiscriminator discriminator, uint3
             break;
         }
         case PincObjectDiscriminator_glContext:{
-            PincPool_free(&staticState.rawOpenglContextHandleObjects, index, sizeof(RawOpenglContextHandle));
+            PincPool_free(&staticState.rawOpenglContextHandleObjects, index, sizeof(RawOpenglContextObject));
             break;
         }
         case PincObjectDiscriminator_framebufferFormat:{
@@ -675,7 +675,7 @@ PINC_EXPORT void PINC_CALL pinc_deinit(void) {
     PincPool_deinit(&staticState.incompleteWindowObjects, sizeof(IncompleteWindow));
     PincPool_deinit(&staticState.windowHandleObjects, sizeof(WindowHandle));
     PincPool_deinit(&staticState.incompleteGlContextObjects, sizeof(IncompleteGlContext));
-    PincPool_deinit(&staticState.rawOpenglContextHandleObjects, sizeof(RawOpenglContextHandle));
+    PincPool_deinit(&staticState.rawOpenglContextHandleObjects, sizeof(RawOpenglContextObject));
     PincPool_deinit(&staticState.framebufferFormatObjects, sizeof(FramebufferFormat));
 
     Allocator_free(rootAllocator, staticState.eventsBuffer, staticState.eventsBufferNum * sizeof(PincEvent));
@@ -1656,8 +1656,9 @@ PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_context_complete(pinc_opengl_
         return pinc_return_code_error;
     }
     PincObject_reallocate(incomplete_context, PincObjectDiscriminator_glContext);
-    RawOpenglContextHandle* handleObject = PincObject_ref_glContext(incomplete_context);
-    *handleObject = contextHandle;
+    RawOpenglContextObject* handleObject = PincObject_ref_glContext(incomplete_context);
+    handleObject->handle = contextHandle;
+    handleObject->front_handle = incomplete_context;
     return pinc_return_code_pass;
 }
 
@@ -1715,14 +1716,16 @@ PINC_EXPORT bool PINC_CALL pinc_opengl_get_context_reset_isolation(pinc_opengl_c
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_opengl_make_current(pinc_window window, pinc_opengl_context context) {
     WindowHandle* windowObj = PincObject_ref_window(window);
-    RawOpenglContextHandle* contextObj = PincObject_ref_glContext(context);
-    return WindowBackend_glMakeCurrent(&staticState.windowBackend, *windowObj, *contextObj);
+    RawOpenglContextObject* contextObj = PincObject_ref_glContext(context);
+    return WindowBackend_glMakeCurrent(&staticState.windowBackend, *windowObj, contextObj->handle);
 }
 
-PINC_EXPORT pinc_window PINC_CALL pinc_opengl_get_current(void) {
-    // TODO
-    PPANIC("Not implemented");
-    return 0;
+PINC_EXPORT pinc_window PINC_CALL pinc_opengl_get_current_window(void) {
+    return WindowBackend_glGetCurrentWindow(&staticState.windowBackend);
+}
+
+PINC_EXPORT pinc_opengl_context PINC_CALL pinc_opengl_get_current_context(void) {
+    return WindowBackend_glGetCurrentContext(&staticState.windowBackend);
 }
 
 PINC_EXPORT PINC_PFN PINC_CALL pinc_opengl_get_proc(char const * procname) {
@@ -1731,4 +1734,3 @@ PINC_EXPORT PINC_PFN PINC_CALL pinc_opengl_get_proc(char const * procname) {
 
     return WindowBackend_glGetProc(&staticState.windowBackend, procname);
 }
-

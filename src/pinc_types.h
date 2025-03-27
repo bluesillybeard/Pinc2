@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <pinc.h>
 #include "libs/pstring.h"
+#include "pinc_opengl.h"
 
 // Internal versions of external Pinc api pieces
 
@@ -47,5 +48,10 @@ typedef struct {
 } IncompleteGlContext;
 
 typedef void* RawOpenglContextHandle;
+
+typedef struct {
+    RawOpenglContextHandle handle;
+    pinc_opengl_context front_handle;
+} RawOpenglContextObject;
 
 #endif

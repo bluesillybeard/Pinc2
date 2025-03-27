@@ -70,6 +70,8 @@ struct WindowBackend;
     PINC_WINDOW_INTERFACE_FUNCTION(pinc_opengl_support_status, (struct WindowBackend* obj), queryGlResetIsolation, (obj)) \
     PINC_WINDOW_INTERFACE_FUNCTION(RawOpenglContextHandle, (struct WindowBackend* obj, IncompleteGlContext incompleteContext), glCompleteContext, (obj, incompleteContext)) \
     PINC_WINDOW_INTERFACE_FUNCTION(pinc_return_code, (struct WindowBackend* obj, WindowHandle window, RawOpenglContextHandle context), glMakeCurrent, (obj, window, context)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(pinc_window, (struct WindowBackend* obj), glGetCurrentWindow, (obj)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(pinc_opengl_context, (struct WindowBackend* obj), glGetCurrentContext, (obj)) \
     PINC_WINDOW_INTERFACE_FUNCTION(PINC_PFN, (struct WindowBackend* obj, char const* procname), glGetProc, (obj, procname)) \
 
 #undef PINC_WINDOW_INTERFACE_FUNCTION

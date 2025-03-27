@@ -82,7 +82,8 @@ PINC_EXTERN bool PINC_CALL pinc_opengl_get_context_reset_isolation(pinc_opengl_c
 /// @return a pinc return code indicating the success of this function
 PINC_EXTERN pinc_return_code PINC_CALL pinc_opengl_make_current(pinc_window window, pinc_opengl_context context);
 
-PINC_EXTERN pinc_window PINC_CALL pinc_opengl_get_current(void);
+PINC_EXTERN pinc_window PINC_CALL pinc_opengl_get_current_window(void);
+PINC_EXTERN pinc_opengl_context PINC_CALL pinc_opengl_get_current_context(void);
 
 /// @brief Get the function pointer to an OpenGL function. On most platforms, this requires a current OpenGL context.
 ///     Note that every OpenGL implementation has its own ideas about what function pointers end up with which contexts.

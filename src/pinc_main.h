@@ -164,7 +164,7 @@ typedef struct {
     PincPool windowHandleObjects;
     // Live for init, type: IncompleteGlContext
     PincPool incompleteGlContextObjects;
-    // Live for init, type: RawOpenglContextHandle
+    // Live for init, type: RawOpenglContextObject
     PincPool rawOpenglContextHandleObjects;
     // Live for init, type: FramebufferFormat
     PincPool framebufferFormatObjects;
@@ -244,11 +244,11 @@ static inline IncompleteGlContext* PincObject_ref_incompleteGlContext(pinc_objec
     return &((IncompleteGlContext*)staticState.incompleteGlContextObjects.objectsArray)[obj.internalIndex];
 }
 
-static inline RawOpenglContextHandle* PincObject_ref_glContext(pinc_object id) {
+static inline RawOpenglContextObject* PincObject_ref_glContext(pinc_object id) {
     PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
     PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
     PErrorUser(obj.discriminator == PincObjectDiscriminator_glContext, "Object must be a complete OpenGL context");
-    return &((RawOpenglContextHandle*)staticState.rawOpenglContextHandleObjects.objectsArray)[obj.internalIndex];
+    return &((RawOpenglContextObject*)staticState.rawOpenglContextHandleObjects.objectsArray)[obj.internalIndex];
 }
 
 static inline FramebufferFormat* PincObject_ref_framebufferFormat(pinc_object id) {

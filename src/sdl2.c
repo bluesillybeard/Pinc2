@@ -1,4 +1,7 @@
+#include "SDL2/SDL_video.h"
+#include "pinc_opengl.h"
 #include "pinc_options.h"
+#include "pinc_types.h"
 // To make the build system as simple as possible, backend source files must remove themselves rather than rely on the build system
 #if PINC_HAVE_WINDOW_SDL2==1
 
@@ -854,6 +857,40 @@ pinc_return_code sdl2glMakeCurrent(struct WindowBackend* obj, WindowHandle windo
         return pinc_return_code_error;
     }
     return pinc_return_code_pass;
+}
+
+pinc_window sdl2glGetCurrentWindow(struct WindowBackend* obj) {
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    SDL_Window* sdlWin = this->libsdl2.glGetCurrentWindow();
+    if(!sdlWin) {
+        return 0;
+    }
+    Sdl2Window* thisWin = this->libsdl2.getWindowData(sdlWin, "pincSdl2Window");
+    if(!thisWin) {
+        return 0;
+    }
+    return thisWin->frontHandle;
+}
+
+pinc_opengl_context sdl2glGetCurrentContext(struct WindowBackend* obj) {
+    // TODO: I'm not too confident about this, it should be tested properly
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    SDL_GLContext sdlContext = this->libsdl2.glGetCurrentContext();
+    if(!sdlContext) {
+        return 0;
+    }
+    // We need to turn this into a pinc opengl context object
+    // Unlike with windows, SDL2 does not have user data on opengl contexts (much sad)
+    for(size_t i=0; i<staticState.rawOpenglContextHandleObjects.objectsNum; ++i) {
+        // Unlike a window, an OpenGl context contains no other information than just the opaque pointer
+        // So no need to wrap it in a struct or anything
+        RawOpenglContextObject iobject = ((RawOpenglContextObject*)staticState.rawOpenglContextHandleObjects.objectsArray)[i];
+        if(sdlContext == iobject.handle) {
+            return iobject.front_handle;
+        }
+    }
+    // Assume no context is current
+    return 0;
 }
 
 PINC_PFN sdl2glGetProc(struct WindowBackend* obj, char const* procname) {

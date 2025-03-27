@@ -43,50 +43,6 @@ The original version written in Zig can be found [here](https://github.com/blues
 - Pinc's API has a complete memory barrier from your application. Pinc will not give you pointers to accidentally store, and it will not store any pointers you give it. (other than some callbacks and related pointers)
 - Pinc is written for C99. If your compiler doesn't support C99, you are on your own my friend.
 
-## This library is barely even started. Here's what's left to do:
-- implement SDL2 + OpenGl backend
-    - add tests as things are implemented
-- Make sure all of the important TODOs are handled
-- Make the library public
-    - Not yet at where the Zig version is, but the library is usable.
-- finish pinc graphics header
-    - Just base it off the original one.
-    - Changes I want to make:
-        - move the texture sampling properties from the uniform to the pipeline
-        - More dynamic pipeline state
-        - Remove GLSL and use a custom shader definition compatible with fixed function rendering (aim for minimal features like OpenGL 1.0 or the N64)
-        - Add GLSL as an optional feature that a graphics backend may or may not have
-        - Add indexed framebuffer / texture (where colors are an enum instead of brightness values)
-            - This may be as simple as adding a new color space and some query functions.
-            - Note: Modern APIs don't support this directly (lol I wonder why), so this capability needs to be queryable
-            - SDL2 supports this! I'm genuinely not quite sure why they would, seeing as they only target platforms of the last ~20 years, but still neat.
-        - scissor rectangle
-        - add framebuffer objects / arbitrary draw surfaces
-            - many APIs do not support these so they must be optional to implement
-            - With that said, on the OpenGL 1.1 - 2.1 side, ARB_framebuffer_object or EXT_framebuffer_object are apparently widely supported, and almost guaranteed on 2.x hardware.
-        - queue based rendering - the user makes a queue, submits all of it at once, and can query if it's finished or not.
-            - Not so nice in OpenGL land, which does all of the sync explicitly, but this is a nice abstraction that many other APIs can benefit from.
-                - Note: Look at OpenGL sync objects, ARB_sync, NV_fence.
-                - Note: Look into NV_command_list, also ARB_shader_draw_parameters may be useful
-- set up interface for graphics backend
-- implement opengl 2.1 backend
-- implement the rest of the examples from the original project
-- Celebrate! we've made it back to where we left off in the original Zig version of Pinc.
-    - And in fact, with some new things that the original prototype-like thing did not have
-
-## Absolutely Important TODOs for before the library goes anywhere
-- Make sure all functions that take pinc_window_backend or pinc_graphics_api can take 'any' to reference the default one.
-- add platform implementation for Windows
-- Add state validation to all functions
-- Make things consistent...
-    - Change all object handle types to include handle in the name
-    - Rename object handle parameters to 'handle' instead of using 'obj' or 'id'
-    - Commit to a naming convention, such as:
-        - TypesAreNamedLikeThis
-        - functionsAreaNamedLikeThis
-        - EnumValueType_enumValue
-        - This is just an example for this TODO
-
 ## Implemented platforms
 - Posix / Unix
 
@@ -210,6 +166,50 @@ None of these are going to be implemented any time soon - if ever.
     - are you crazy!? Also, good luck getting OpenGL or Vulkan to work.
 - Xcb
     - Not worth the effort. Xlib works fine for X11.
+
+## Next Steps / Roadmap
+- implement SDL2 + OpenGl backend
+    - add tests as things are implemented
+- Make sure all of the important TODOs are handled
+- Not yet at where the Zig version is, but the library is usable.
+- finish pinc graphics header
+    - Just base it off the original one.
+    - Changes I want to make:
+        - move the texture sampling properties from the uniform to the pipeline
+        - More dynamic pipeline state
+        - Remove GLSL and use a custom shader definition compatible with fixed function rendering (aim for minimal features like OpenGL 1.0 or the N64)
+        - Add GLSL as an optional feature that a graphics backend may or may not have
+        - Add indexed framebuffer / texture (where colors are an enum instead of brightness values)
+            - This may be as simple as adding a new color space and some query functions.
+            - Note: Modern APIs don't support this directly (lol I wonder why), so this capability needs to be queryable
+            - SDL2 supports this! I'm genuinely not quite sure why they would, seeing as they only target platforms of the last ~20 years, but still neat.
+        - scissor rectangle
+        - add framebuffer objects / arbitrary draw surfaces
+            - many APIs do not support these so they must be optional to implement
+            - With that said, on the OpenGL 1.1 - 2.1 side, ARB_framebuffer_object or EXT_framebuffer_object are apparently widely supported, and almost guaranteed on 2.x hardware.
+        - queue based rendering - the user makes a queue, submits all of it at once, and can query if it's finished or not.
+            - Not so nice in OpenGL land, which does all of the sync explicitly, but this is a nice abstraction that many other APIs can benefit from.
+                - Note: Look at OpenGL sync objects, ARB_sync, NV_fence.
+                - Note: Look into NV_command_list, also ARB_shader_draw_parameters may be useful
+- set up interface for graphics backend
+- implement opengl 2.1 backend
+- implement the rest of the examples from the original project
+- Celebrate! we've made it back to where we left off in the original Zig version of Pinc.
+    - And in fact, with some new things that the original prototype-like thing did not have
+
+## Absolutely Important TODOs for before the library goes anywhere
+- Make sure all functions that take pinc_window_backend or pinc_graphics_api can take 'any' to reference the default one.
+- add platform implementation for Windows
+- Add state validation to all functions
+- Make things consistent...
+    - Change all object handle types to include handle in the name
+    - Rename object handle parameters to 'handle' instead of using 'obj' or 'id', as well as include their completeness
+        - example: complete_window_handle, incomplete_window_handle, window_handle (for either)
+    - Commit to a naming convention, such as:
+        - TypesAreNamedLikeThis
+        - functionsAreaNamedLikeThis
+        - EnumValueType_enumValue
+        - This is just an example for this TODO
 
 ## TODO for API features / changes
 - better text selection input. ex: SDL_TextSelectionEvent
