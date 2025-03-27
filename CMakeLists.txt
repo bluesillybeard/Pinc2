@@ -43,8 +43,6 @@ project(pinc
     LANGUAGES C
 )
 
-include(GNUInstallDirs)
-
 add_library(pinc
     # Actual source files
     src/pinc_main.c

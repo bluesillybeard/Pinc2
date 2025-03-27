@@ -54,7 +54,7 @@ void* pLoadLibrary(uint8_t const* nameUtf8, size_t nameSize) {
     // TODO: there will eventually be options to have Pinc link with libraries statically or with the normal OS linker instead of at runtime
 }
 
-PFN pLibrarySymbol(void* library, uint8_t* symbolNameUtf8, size_t nameSize) {
+PFN pLibrarySymbol(void* library, uint8_t const* symbolNameUtf8, size_t nameSize) {
     // Cannot assume name is null terminated, which is what dlsym needs
     uint8_t* nameUtf8NullTerm = pAlloc(nameSize+1);
     pMemCopy(symbolNameUtf8, nameUtf8NullTerm, nameSize);

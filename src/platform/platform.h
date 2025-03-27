@@ -65,7 +65,7 @@ void* pLoadLibrary(uint8_t const* nameUtf8, size_t nameSize);
 /// @param symbolNameUtf8 The name of the symbol, encoded in UTF8
 /// @param nameSize The number of bytes in the name
 /// @return A pointer to that symbol.
-PFN pLibrarySymbol(void* library, uint8_t* symbolNameUtf8, size_t nameSize);
+PFN pLibrarySymbol(void* library, uint8_t const* symbolNameUtf8, size_t nameSize);
 
 /// @brief Unload a library that is no longer needed.
 /// @param library The library to unload.
