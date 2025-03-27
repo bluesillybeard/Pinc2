@@ -140,4 +140,10 @@ size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v);
 // The only strict requirement is that it is relatively consistent so two time values can be compared with decent accuracy.
 int64_t pCurrentTimeMillis(void);
 
+// functions for ease of use
+
+static inline void pPrintErrorEZ(char* message) {
+    pPrintError((uint8_t*)message, sizeof(message));
+}
+
 #endif

@@ -168,11 +168,11 @@ None of these are going to be implemented any time soon - if ever.
     - Not worth the effort. Xlib works fine for X11.
 
 ## Next Steps / Roadmap
-- implement SDL2 + OpenGl backend
+- implement the rest of SDL2 + OpenGl backend
     - add tests as things are implemented
 - Make sure all of the important TODOs are handled
 - Not yet at where the Zig version is, but the library is usable.
-- finish pinc graphics header
+- create pinc graphics
     - Just base it off the original one.
     - Changes I want to make:
         - move the texture sampling properties from the uniform to the pipeline
@@ -191,16 +191,16 @@ None of these are going to be implemented any time soon - if ever.
             - Not so nice in OpenGL land, which does all of the sync explicitly, but this is a nice abstraction that many other APIs can benefit from.
                 - Note: Look at OpenGL sync objects, ARB_sync, NV_fence.
                 - Note: Look into NV_command_list, also ARB_shader_draw_parameters may be useful
-- set up interface for graphics backend
-- implement opengl 2.1 backend
+    - set up interface for graphics backend
+    - implement opengl 2.1 backend
 - implement the rest of the examples from the original project
 - Celebrate! we've made it back to where we left off in the original Zig version of Pinc.
     - And in fact, with some new things that the original prototype-like thing did not have
+- implement many examples, inspired from the likes of SDL and GLFW
+- proper documentation to guide users on how to use this library
 
 ## Absolutely Important TODOs for before the library goes anywhere
-- Make sure all functions that take pinc_window_backend or pinc_graphics_api can take 'any' to reference the default one.
 - add platform implementation for Windows
-- Add state validation to all functions
 - Make things consistent...
     - Change all object handle types to include handle in the name
     - Rename object handle parameters to 'handle' instead of using 'obj' or 'id', as well as include their completeness

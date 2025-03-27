@@ -144,7 +144,7 @@ typedef enum {
 } PincState;
 
 typedef struct {
-    // TODO: Keep track of what stage of initialization we're in
+    // Keep track of what stage of initialization we're in
     PincState initState;
     // See doc for rootAllocator macro. Live for incomplete and init
     Allocator alloc;
@@ -194,6 +194,7 @@ typedef struct {
     pinc_realloc_callback userReallocFn;
     pinc_free_callback userFreeFn;
 
+    // TODO: is this still needed?
     bool windowBackendSet;
     WindowBackend windowBackend;
 } PincStaticState;
