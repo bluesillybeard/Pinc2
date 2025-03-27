@@ -211,6 +211,8 @@ static uint32_t PincObject_allocateInternal(PincObjectDiscriminator discriminato
             break;
         }
     }
+    // This should be impossible, but GCC doesn't seem to implement exhaustive enums properly and complains about it
+    return 0;
 }
 
 static void PincObject_freeInternal(PincObjectDiscriminator discriminator, uint32_t index) {
@@ -813,6 +815,8 @@ PINC_EXPORT pinc_object_type PINC_CALL pinc_get_object_type(pinc_object id) {
     case PincObjectDiscriminator_framebufferFormat:
         return pinc_object_type_none;
     }
+    // This should be impossible, but GCC complains about it anyway
+    return pinc_object_type_none;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_get_object_complete(pinc_object id) {
@@ -830,6 +834,8 @@ PINC_EXPORT bool PINC_CALL pinc_get_object_complete(pinc_object id) {
     case PincObjectDiscriminator_framebufferFormat:
         return true;
     }
+    // This should be impossible, but GCC complains about it
+    return false;
 }
 
 PINC_EXPORT void PINC_CALL pinc_set_object_user_data(pinc_object obj, void* user_data) {
@@ -1088,10 +1094,12 @@ PINC_EXPORT void PINC_CALL pinc_window_set_resizable(pinc_window window, bool re
         case PincObjectDiscriminator_incompleteWindow: {
             IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
             ob->resizable = resizable;
+            break;
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
             WindowBackend_setWindowResizable(&staticState.windowBackend, *ob, resizable);
+            break;
         }
         default:{
             PErrorUser(false, "Not a window object");
@@ -1122,10 +1130,12 @@ PINC_EXPORT void PINC_CALL pinc_window_set_minimized(pinc_window window, bool mi
         case PincObjectDiscriminator_incompleteWindow: {
             IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
             ob->minimized = minimized;
+            break;
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
             WindowBackend_setWindowMinimized(&staticState.windowBackend, *ob, minimized);
+            break;
         }
         default:{
             PErrorUser(false, "Not a window object");
@@ -1156,10 +1166,12 @@ PINC_EXPORT void PINC_CALL pinc_window_set_maximized(pinc_window window, bool ma
         case PincObjectDiscriminator_incompleteWindow: {
             IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
             ob->maximized = maximized;
+            break;
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
             WindowBackend_setWindowMaximized(&staticState.windowBackend, *ob, maximized);
+            break;
         }
         default:{
             PErrorUser(false, "Not a window object");
@@ -1190,10 +1202,12 @@ PINC_EXPORT void PINC_CALL pinc_window_set_fullscreen(pinc_window window, bool f
         case PincObjectDiscriminator_incompleteWindow: {
             IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
             ob->fullscreen = fullscreen;
+            break;
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
             WindowBackend_setWindowFullscreen(&staticState.windowBackend, *ob, fullscreen);
+            break;
         }
         default:{
             PErrorUser(false, "Not a window object");
@@ -1226,10 +1240,12 @@ PINC_EXPORT void PINC_CALL pinc_window_set_focused(pinc_window window, bool focu
         case PincObjectDiscriminator_incompleteWindow: {
             IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
             ob->focused = focused;
+            break;
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
             WindowBackend_setWindowFocused(&staticState.windowBackend, *ob, focused);
+            break;
         }
         default:{
             PErrorUser(false, "Not a window object");
@@ -1260,10 +1276,12 @@ PINC_EXPORT void PINC_CALL pinc_window_set_hidden(pinc_window window, bool hidde
         case PincObjectDiscriminator_incompleteWindow: {
             IncompleteWindow* ob = PincObject_ref_incompleteWindow(window);
             ob->hidden = hidden;
+            break;
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
             WindowBackend_setWindowHidden(&staticState.windowBackend, *ob, hidden);
+            break;
         }
         default:{
             PErrorUser(false, "Not a window object");

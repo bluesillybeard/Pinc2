@@ -1,7 +1,6 @@
 #ifndef PINC_MAIN_H
 #define PINC_MAIN_H
 
-// most options are handled by the external handle (as they must be shared between pinc and the user)
 #include <pinc.h>
 #include "libs/dynamic_allocator.h"
 #include "pinc_options.h"
