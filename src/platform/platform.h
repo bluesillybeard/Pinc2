@@ -12,6 +12,14 @@
 # if __GNUC__ || __clang__
 #   define P_UNUSED(var) (void) var
 #   define P_NORETURN __attribute__ ((__noreturn__))
+#   define P_INLINE inline
+#   define P_RESTRICT restrict
+# elif _MSC_VER
+#   define P_UNUSED(var) (void) var
+#   define P_NORETURN
+// Gotta love MSVC being a non-compliant compiler!
+#   define P_INLINE __inline
+#   define P_RESTRICT __restrict
 # else
 // Assume other compilers are not supported
 #   define P_UNUSED(var)
@@ -65,7 +73,7 @@ void* pLoadLibrary(uint8_t const* nameUtf8, size_t nameSize);
 /// @param symbolNameUtf8 The name of the symbol, encoded in UTF8
 /// @param nameSize The number of bytes in the name
 /// @return A pointer to that symbol.
-PFN pLibrarySymbol(void* library, uint8_t* symbolNameUtf8, size_t nameSize);
+PFN pLibrarySymbol(void* library, uint8_t const* symbolNameUtf8, size_t nameSize);
 
 /// @brief Unload a library that is no longer needed.
 /// @param library The library to unload.
@@ -82,7 +90,7 @@ size_t pStringLen(char const* str);
 /// @param source The source of the copy operation
 /// @param destination Destination of the copy operation
 /// @param numBytes The number of bytes to copy
-void pMemCopy(void const* restrict source, void* restrict destination, size_t numBytes);
+void pMemCopy(void const* P_RESTRICT source, void* P_RESTRICT destination, size_t numBytes);
 
 /// @brief Same thing as pMemCopy, but the source and destination may overlap.
 void pMemMove(void const* source, void* destination, size_t numBytes);
@@ -129,10 +137,6 @@ void pPrintError(uint8_t const* message, size_t len);
 
 void pPrintDebug(uint8_t const* message, size_t len);
 
-// TODO: replace this with a proper formatting system that isn't just a wrapper of libc's printf
-// Variadic arguments feel hacky and are annoying to deal with.
-void pPrintFormat(char const* fmt, ...);
-
 // Returns the number of characters that would have been written given enough space
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v);
 
@@ -142,7 +146,7 @@ int64_t pCurrentTimeMillis(void);
 
 // functions for ease of use
 
-static inline void pPrintErrorEZ(char* message) {
+static P_INLINE void pPrintErrorEZ(char* message) {
     pPrintError((uint8_t*)message, sizeof(message));
 }
 

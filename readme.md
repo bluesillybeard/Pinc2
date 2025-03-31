@@ -11,13 +11,10 @@ The original version written in Zig can be found [here](https://github.com/blues
 - Language agnostic - the API should avoid things that are difficult to port to other languages
     - The header is written in plain C, so any language with C FFI can be used
     - The external API only uses `int`, `char`, `void`, and basic pointers to arrays (`char*` and `len` for strings, `int*` and `len` for element arrays, etc)
-    - We do unfortunately require callbacks for some things. Fortunately, none of them matter to the core API - it's up to the binding how to handle them.
+    - Callbacks are rarely used
 
-- ZERO compile-time dependencies other than a functional C compiler / linker
-    - Headers for external libraries are rebuilt and baked into the library itself
-    - libraries can be linked statically, dynamically, or at runtime
-        - Note: this part hasn't been implemented yet!
-    - Note: certain base platform libraries are required (ex: libc on Posix / Unix, kernel32 on Windows), but those are usually built into the compiler anyway
+- ZERO compile-time dependencies other than a supported C compiler / linker
+    - Headers for external libraries are baked into the library itself (ex: sdl2), with care taken to avoid licensing issues
 
 - Easy to use
     - comparable to something like SDL or SFML
@@ -25,26 +22,21 @@ The original version written in Zig can be found [here](https://github.com/blues
 
 - Flexible
     - Bring your own build system (we just use cmake for convenience)
-        - unity build with a simple compiler command is an option. Note: not implemented yet!
-    - determines the API to use at runtime, reducing the number of required compile targets
-        - Note: we do not yet support cosmopolitan C, although it is a potential consideration
+        - unity build with a simple compiler command is an option.
 
 - Wide Support
     - Something along the lines of what ClassiCube supports: https://github.com/ClassiCube/ClassiCube/tree/master?tab=readme-ov-file
-    - this is why we use C: you would be hard pressed to find a platform that does not support C
-        - note: there may be some C++, objective-c, or Java code in this codebase. This is for BeOS/Haiku, Macos, and Android respectively, who decided to defy language-agnostic APIs in favor of using a more advanced programming language.
-    - Note: The library has barely been started, currently very few platforms are actually supported.
+    - Note: this is a goal, the reality is that every new platform requires consistent valuable development time...
 
 ## Other things
 - Pinc does not take hold of the entry point
-    - This means on certain platforms (Android for example), some shenanigans may be required. Android without Java is possible, but realistically it's best to make a JNI entry point.
 - Pinc does not provide a main loop
-    - For applet based platforms (ex: emscripten, WASI), this means potentially making your code either reentrant or just running it on another thread
-- Pinc's API has a complete memory barrier from your application. Pinc will not give you pointers to accidentally store, and it will not store any pointers you give it. (other than some callbacks and related pointers)
+- Pinc's API has a complete memory barrier from your application. Pinc does not give you pointers to keep, and it does not keep yours.
 - Pinc is written for C99. If your compiler doesn't support C99, you are on your own my friend.
 
 ## Implemented platforms
 - Posix / Unix
+- Windows / Win32
 
 ## Implemented window backends
 - SDL2
@@ -54,13 +46,15 @@ The original version written in Zig can be found [here](https://github.com/blues
 
 ## Implemented build systems
 - cmake
+- a single raw compiler command (if you can even call that a build system...)
 
 ## Implemented IDE setups:
 - Visual Studio Code
 
 ## Tested Compilers
 - Clang (the LLVM C compiler)
-- Gcc almost certainly works, it's not tested as regularly as Clang though
+- Gcc
+- MSVC / cl - note: not tested frequently, as that requires me to spin up my windows development workstation.
 
 ## Important notes
 
@@ -78,34 +72,20 @@ Pinc's current API is fundamentally incompatible with multithreading. It is sugg
 ## How to get started
 - Get familiar with cmake a bit
     - Follow a tutorial if you do not know C or cmake
-    - If you want to use another programming language than C or C++, you're on your own for now
+    - If you want to use another programming language than C, you're on your own for now
 - Compile the project with cmake
     - We recommend Clang + cmake since that is the system we use for testing and development
-    - use the main branch, it's tested regularly. We don't have CI set up yet though.
+    - use the main branch, it's meant to be the one that always works.
 - test it by running one of the examples (see build system documentation)
 - add it to your project
     - Again, see build system documentation
 
 It is a good idea to read through the header a bit as well as look at the examples to get a feel for the API. 
 
-## Q&A
-- Why make this when other libraries already exist?
-    - for fun
-    - To make a low-level windowing library that can be built and used, with only the requirement being a C compiler and some time.
-    - Additionally, a library with an insanely wide net of supported backends is very useful. Admittedly, the only backend implemented at the moment is based on SDL2, but take a look at the [Planned Backends](#planned-window-backends-not-final),
-- Why support fixed-function rendering It's so old! (and deprecated)
-    - I thought it would be cool to be able to run this on extremely ancient hardware and OS, for no other reason than to see it run. Partially inspired by [MattKC porting .NET framework 2 to Windows 95.](https://www.youtube.com/watch?v=CTUMNtKQLl8)
-    - Remember the wide support goal: we want this project to work on pretty much any platform that can render textured polygons
-    - It's easier (for now) than trying to get the same shader code to work across backends
-
 ## Planned supported platforms
-- Windows NT
-- Windows NT without libc
-- Windows 9x
-- Windows 9x without libc
 - Macos X
-- Haiku
 - emscripten
+- Haiku
 
 ## Maybe planned supported platforms (if someone wants to contribute)
 - Cosmopolitan C
@@ -116,6 +96,8 @@ It is a good idea to read through the header a bit as well as look at the exampl
     - Who on earth thinks this is a good idea. This is almost like doing windows without windows.h
     - Will require some assembly for all architectures to make syscalls
     - Will require a custom shared object loader
+- Windows 9x
+- Windows 9x without libc
 
 ## Planned graphics apis (NOT FINAL)
 - plain
@@ -127,14 +109,10 @@ It is a good idea to read through the header a bit as well as look at the exampl
 - Vulkan
 - Metal
 
-It's worth noting that at some point these should all be supported by the Pinc graphics system as well
-
 ## Planned window backends (NOT FINAL)
 - SDL 1
 - SDL 3
 - X11 (Xlib)
-- win32
-- windows 9x (more or less just win32 with an extremely limited set of features)
 - Cocoa
 - Wayland
 - GLFW
@@ -142,10 +120,9 @@ It's worth noting that at some point these should all be supported by the Pinc g
 - Android
 - IOS
 - Web canvas
-    - Pinc is compiled to WASM, and a bunch of JS boilerplate crap is used to create WebGL contexts and such. This is what Emscripten does to get GLFW to work.
+    - Pinc is compiled to WASM, and a bunch of JS boilerplate crap is used to create WebGL contexts and such.
 
 ## Planned backends / platforms in the VERY FAR future
-None of these are going to be implemented any time soon - if ever.
 - Playstation 4/5
 - Nintendo DS
 - Xbox
@@ -194,13 +171,13 @@ None of these are going to be implemented any time soon - if ever.
     - set up interface for graphics backend
     - implement opengl 2.1 backend
 - implement the rest of the examples from the original project
+    - Remove the link to the old Zig version
 - Celebrate! we've made it back to where we left off in the original Zig version of Pinc.
     - And in fact, with some new things that the original prototype-like thing did not have
 - implement many examples, inspired from the likes of SDL and GLFW
 - proper documentation to guide users on how to use this library
 
 ## Absolutely Important TODOs for before the library goes anywhere
-- add platform implementation for Windows
 - Make things consistent...
     - Change all object handle types to include handle in the name
     - Rename object handle parameters to 'handle' instead of using 'obj' or 'id', as well as include their completeness

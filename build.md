@@ -1,6 +1,6 @@
 # Building Pinc
 
-If all you want to do is build Pinc into a library or mess around with the examples cmake is the best way to do that. Other build systems are supported just so they can be used to (hopefully easily) import Pinc into a project using said build system.
+If all you want to do is build Pinc into a library or mess around with the examples, cmake is the best way to do that. Other build systems are supported just so they can be used to (hopefully easily) import Pinc into a project using said build system.
 
 ## Cmake
 
@@ -8,7 +8,7 @@ The CMakeLists.txt in the root of this project should be entirely self explanato
 
 ### Cmake usage - building Pinc
 
-Setting up cmake is fairly simple. First, make a directory called `build` in the Pinc rood directory:
+Setting up cmake is fairly simple. First, make a directory called `build` in the Pinc root directory, then cd into it:
 ```
 mkdir build
 cd build
@@ -31,3 +31,18 @@ These options can be set using `-D[option name]=[value]` in the cmake command. N
 The cmake build has these targets:
 - `pinc` - the actual pinc library object and headers
 - `example_[name]` - the examples - new examples are added constantly, so they are not listed here. See the `examples` folder for more information.
+
+## Raw compiler command
+
+Pinc only strictly requires these things in order to compile:
+- a decent C99 compiler
+- unitybuild.c which `#include`'s all of the Pinc source files
+- access to Pinc headers (`-I[pinc_dir]/include`)
+- access to internal pinc headers (`-I[pinc_dir]/src`)
+- On posix (`#if defined (__unix) || (__linux)`):
+    - an implementation of the C standard library, as well as `dlfcn.h` - I have yet to find a posix C compiler without these
+- On windows (`#if defined (__WIN32__)`):
+    - `windows.h` from at least windows XP / Server Edition 2003 - Clang, GCC, and cl.exe have this built-in
+    - `printf` from `stdio.h` because reasons (Will be removed soon, hopefully)
+
+Of course, all of the options in settings.md work just the same as in cmake.
