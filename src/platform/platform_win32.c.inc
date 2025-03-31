@@ -10,7 +10,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#include "pinc_error.h"
 #include "platform.h"
 
 // TODO: does it make any sense to expose this to the user?
@@ -30,7 +29,8 @@ void* pAllocAligned(size_t bytes, size_t alignment) {
     }
     (void)bytes;
     (void)alignment;
-    PPANIC("Aligned allocations are not implemented on Windows");
+    pPrintError((uint8_t*)"Aligned allocations are not implemented on Windows", sizeof("Aligned allocations are not implemented on Windows"));
+    pAssertFail();
     return NULL;
 }
 
@@ -154,7 +154,8 @@ int64_t pCurrentTimeMillis(void) {
     // TODO: However, it is almost certainly a good idea to get something that is accurate to 1-2 ms
     ULONGLONG ticks = GetTickCount64();
     if(ticks > INT64_MAX) {
-        PPANIC("integer Overflow");
+        pPrintError((uint8_t*)"Integer Overflow", sizeof("Integer Overflow"));
+        pAssertFail();
         return 0;
     }
     return (int64_t)ticks;
