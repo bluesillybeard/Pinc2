@@ -4,11 +4,9 @@
 
 // I love just having a single header with the entire API from heap allocation to writing to the console to opening a window to drawing graphics
 // It's super cool and awesome and totally not weird or outdated or anything
-#include <stdint.h>
-#include <stdio.h>
-#include <sysinfoapi.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <stdint.h>
 
 #include "platform.h"
 
@@ -78,7 +76,7 @@ size_t pStringLen(char const* str) {
     return l;
 }
 
-void pMemCopy(void const* restrict source, void* restrict destination, size_t numBytes) {
+void pMemCopy(void const* P_RESTRICT source, void* P_RESTRICT destination, size_t numBytes) {
     // It seems GCC specifically makes this just a macro to memcpy
     CopyMemory(destination, source, numBytes);
 }
@@ -91,7 +89,7 @@ void pMemMove(void const* source, void* destination, size_t numBytes) {
 void pMemSet(uint8_t value, void* destination, size_t numBytes) {
     // It seems win32 has no equivalent for memset
     // TODO: optimize this
-    uint8_t* restrict destBytes = destination;
+    uint8_t* P_RESTRICT destBytes = destination;
     for(size_t i=0; i<numBytes; ++i) {
         destBytes[i] = value;
     }
@@ -133,24 +131,35 @@ void pPrintDebug(uint8_t const* message, size_t len) {
     WriteConsoleA(console, message, (DWORD)len, &charsWritten, 0);
 }
 
-void pPrintFormat(char const* fmt, ...) {
-    // TODO: when eliminating libc, it's probably best to just eliminate this function as well
-    va_list args;
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    va_end(args);
-}
-
-#include <inttypes.h>
-
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
-    int res = snprintf(buf, capacity, "%" PRIu32, v);
-    if(res < 0) pAssertFail();
-    return (size_t)res;
+    // uint32_t can be at most 10 decimal digits
+    // One more for null terminator
+    char realbuf[11] = { 0 };
+    // Assuming ASCII or something similar
+    size_t i = 0;
+    while(v > 0) {
+        uint32_t d = v % 10;
+        v = v / 10;
+        char c = (char)(d+0x30);
+        i += 1;
+        realbuf[10-i] = c;
+    }
+    // Bro why are there so many edge cases like wth
+    if(buf){
+        size_t num = i+1;
+        if(num > capacity) {
+            num = capacity;
+        }
+        pMemCopy(&realbuf[10-i], buf, num);
+        if(num > 0){
+            buf[num-1] = 0;
+        }
+    }
+    return i+1;
 }
 
 int64_t pCurrentTimeMillis(void) {
-    // This is *probably* fast enough, in the accuracy of 10-20 ms
+    // This is *probably* good enough, in the accuracy of 10-20 ms
     // TODO: However, it is almost certainly a good idea to get something that is accurate to 1-2 ms
     ULONGLONG ticks = GetTickCount64();
     if(ticks > INT64_MAX) {

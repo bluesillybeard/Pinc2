@@ -112,7 +112,8 @@ bool psdl2Init(WindowBackend* obj) {
     // The only thing required for SDL2 support is for the SDL2 library to be present
     void* lib = sdl2LoadLib();
     if(!lib) {
-        pPrintFormat("SDL2 could not be loaded, disabling SDL2 backend.\n");
+        char* msg = "SDL2 could not be loaded, disabling SDL2 backend.\n";
+        pPrintDebug(msg, pStringLen(msg));
         // sdl2UnloadLib(lib);
         return false;
     }
@@ -122,9 +123,22 @@ bool psdl2Init(WindowBackend* obj) {
     // TODO: warn for any functions that were not loaded
     SDL_version sdlVersion;
     this->libsdl2.getVersion(&sdlVersion);
-    pPrintFormat("Loaded SDL2 version: %i.%i.%i\n", sdlVersion.major, sdlVersion.minor, sdlVersion.patch);
+    // TODO: we serously need a decent libc-free formatting library, this is getting rediculous
+    char* msg = "Loaded SDL2 version: ";
+    pPrintDebug(msg, strlen(msg));
+    char printbuf[11] = { 0 };
+    pBufPrintUint32(printbuf, 11, sdlVersion.major);
+    pPrintDebug(printbuf, strlen(printbuf));
+    pPrintDebug(".", 1);
+    pBufPrintUint32(printbuf, 11, sdlVersion.minor);
+    pPrintDebug(printbuf, strlen(printbuf));
+    pPrintDebug(".", 1);
+    pBufPrintUint32(printbuf, 11, sdlVersion.patch);
+    pPrintDebug(printbuf, strlen(printbuf));
+    pPrintDebug("\n", 1);
     if(sdlVersion.major < 2) {
-        pPrintFormat("SDL version too old, disabling SDL2 backend\n");
+        char* msg2 = "SDL version too old, disabling SDL2 backend\n";
+        pPrintDebug(msg, pStringLen(msg));
         // TODO: clean up
         return false;
     }
@@ -185,7 +199,7 @@ static Sdl2Window* _dummyWindow(struct WindowBackend* obj) {
 }
 
 // Quick function for convenience
-static inline void _framebufferFormatAdd(FramebufferFormat** formats, size_t* formatsNum, size_t* formatsCapacity, FramebufferFormat const* fmt) {
+static void _framebufferFormatAdd(FramebufferFormat** formats, size_t* formatsNum, size_t* formatsCapacity, FramebufferFormat const* fmt) {
     for(size_t formatid=0; formatid<(*formatsNum); formatid++) {
         FramebufferFormat ft = *formats[formatid];
         if(ft.color_space != fmt->color_space) {

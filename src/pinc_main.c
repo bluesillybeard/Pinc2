@@ -211,7 +211,6 @@ static uint32_t PincObject_allocateInternal(PincObjectDiscriminator discriminato
             break;
         }
     }
-    // This should be impossible, but GCC doesn't seem to implement exhaustive enums properly and complains about it
     return 0;
 }
 
@@ -287,7 +286,7 @@ static void PincEventBackEnsureCapacity(uint32_t capacity) {
     }
 }
 
-static inline void PincEventBackAppend(PincEvent* ev) {
+static P_INLINE void PincEventBackAppend(PincEvent* ev) {
     PincEventBackEnsureCapacity(staticState.eventsBufferBackNum+1);
     staticState.eventsBufferBack[staticState.eventsBufferBackNum] = *ev;
     staticState.eventsBufferBackNum += 1;
@@ -815,7 +814,6 @@ PINC_EXPORT pinc_object_type PINC_CALL pinc_get_object_type(pinc_object id) {
     case PincObjectDiscriminator_framebufferFormat:
         return pinc_object_type_none;
     }
-    // This should be impossible, but GCC complains about it anyway
     return pinc_object_type_none;
 }
 
@@ -1002,6 +1000,7 @@ PINC_EXPORT uint32_t PINC_CALL pinc_window_get_width(pinc_window window) {
             PErrorUser(false, "Not a window object");
         }
     }
+    return 0;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_has_width(pinc_window window) {
@@ -1018,6 +1017,7 @@ PINC_EXPORT bool PINC_CALL pinc_window_has_width(pinc_window window) {
             PErrorUser(false, "Not a window object");
         }
     }
+    return 0;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_height(pinc_window window, uint32_t height) {
@@ -1056,6 +1056,7 @@ PINC_EXPORT uint32_t PINC_CALL pinc_window_get_height(pinc_window window) {
             PErrorUser(false, "Not a window object");
         }
     }
+    return 0;
 }
 
 PINC_EXPORT bool PINC_CALL pinc_window_has_height(pinc_window window) {
@@ -1072,6 +1073,7 @@ PINC_EXPORT bool PINC_CALL pinc_window_has_height(pinc_window window) {
             PErrorUser(false, "Not a window object");
         }
     }
+    return 0;
 }
 
 PINC_EXPORT float PINC_CALL pinc_window_get_scale_factor(pinc_window window) {
@@ -1122,6 +1124,7 @@ PINC_EXPORT bool PINC_CALL pinc_window_get_resizable(pinc_window window) {
             PErrorUser(false, "Not a window object");
         }
     }
+    return 0;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_minimized(pinc_window window, bool minimized) {
@@ -1158,6 +1161,7 @@ PINC_EXPORT bool PINC_CALL pinc_window_get_minimized(pinc_window window) {
             PErrorUser(false, "Not a window object");
         }
     }
+    return 0;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_maximized(pinc_window window, bool maximized) {
@@ -1194,6 +1198,7 @@ PINC_EXPORT bool PINC_CALL pinc_window_get_maximized(pinc_window window) {
             PErrorUser(false, "Not a window object");
         }
     }
+    return 0;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_fullscreen(pinc_window window, bool fullscreen) {
@@ -1230,6 +1235,7 @@ PINC_EXPORT bool PINC_CALL pinc_window_get_fullscreen(pinc_window window) {
             PErrorUser(false, "Not a window object");
         }
     }
+    return 0;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_focused(pinc_window window, bool focused) {
@@ -1268,6 +1274,7 @@ PINC_EXPORT bool PINC_CALL pinc_window_get_focused(pinc_window window) {
             PErrorUser(false, "Not a window object");
         }
     }
+    return 0;
 }
 
 PINC_EXPORT void PINC_CALL pinc_window_set_hidden(pinc_window window, bool hidden) {
@@ -1304,6 +1311,7 @@ PINC_EXPORT bool PINC_CALL pinc_window_get_hidden(pinc_window window) {
             PErrorUser(false, "Not a window object");
         }
     }
+    return 0;
 }
 
 PINC_EXPORT pinc_return_code PINC_CALL pinc_set_vsync(bool sync) {

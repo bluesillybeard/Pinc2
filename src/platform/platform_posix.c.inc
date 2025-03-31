@@ -162,13 +162,6 @@ void pPrintDebug(uint8_t const* message, size_t len) {
     fwrite(message, sizeof(uint8_t), len, stdout);
 }
 
-void pPrintFormat(char const* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    va_end(args);
-}
-
 #include <inttypes.h>
 
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {

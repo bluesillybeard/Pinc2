@@ -16,14 +16,14 @@ typedef struct PString {
     size_t len;
 } PString;
 
-static inline PString PString_makeDirect(char* str) {
+static P_INLINE PString PString_makeDirect(char* str) {
     return (PString) {
         .str = (uint8_t*)str,
         .len = pStringLen(str),
     };
 }
 
-static inline PString PString_makeAlloc(char const* str, Allocator alloc) {
+static P_INLINE PString PString_makeAlloc(char const* str, Allocator alloc) {
     size_t len = pStringLen(str);
     uint8_t* newStr = Allocator_allocate(alloc, len);
     pMemCopy(str, newStr, len);
@@ -33,7 +33,7 @@ static inline PString PString_makeAlloc(char const* str, Allocator alloc) {
     };
 }
 
-static inline PString PString_copy(PString const str, Allocator alloc) {
+static P_INLINE PString PString_copy(PString const str, Allocator alloc) {
     uint8_t* newStr = Allocator_allocate(alloc, str.len);
     pMemCopy(str.str, newStr, str.len);
     return (PString) {
@@ -44,7 +44,7 @@ static inline PString PString_copy(PString const str, Allocator alloc) {
 
 // Makes a new traditional C string from a PString.
 // Returns null if the given string is null
-static inline char* PString_marshalAlloc(PString str, Allocator alloc) {
+static P_INLINE char* PString_marshalAlloc(PString str, Allocator alloc) {
     // If the length is zero, we can't return a pointer to a zero byte
     // as the user explicitly called for it to be allocated on alloc.
     char* newStr = Allocator_allocate(alloc, str.len+1);
@@ -54,7 +54,7 @@ static inline char* PString_marshalAlloc(PString str, Allocator alloc) {
 }
 
 // Marshals str into dest, where dest has capacity characters it can hold (including null terminator)
-static inline void PString_marshalDirect(PString str, char* dest, size_t capacity) {
+static P_INLINE void PString_marshalDirect(PString str, char* dest, size_t capacity) {
     if(capacity == 0) return;
     if(capacity > str.len) {
         capacity = str.len;
@@ -63,7 +63,7 @@ static inline void PString_marshalDirect(PString str, char* dest, size_t capacit
     dest[capacity] = 0;
 }
 
-static inline PString PString_slice(PString str, size_t start, size_t len) {
+static P_INLINE PString PString_slice(PString str, size_t start, size_t len) {
     // TODO: make these asserts nicer. Maybe integrate them with Pinc's error system with macros or something
     if(str.len <= start) pAssertFail(); // "Slice invalid: start index is out of bounds"
     if(str.len < len+start) pAssertFail(); // "Slice invalid: slice extends beyond end of source string"
@@ -73,7 +73,7 @@ static inline PString PString_slice(PString str, size_t start, size_t len) {
     };
 }
 
-static inline void PString_free(PString* str, Allocator alloc) {
+static P_INLINE void PString_free(PString* str, Allocator alloc) {
     Allocator_free(alloc, str->str, str->len);
     str->str = 0;
     str->len = 0;
@@ -84,7 +84,7 @@ static inline void PString_free(PString* str, Allocator alloc) {
 /// @param strings the strings to concatenate
 /// @param alloc The allocator that the new string will be allocated on. This function is guaranteed to only make a single allocation.
 /// @return the result of the concatenation, allocated with alloc.
-static inline PString PString_concat(size_t numStrings, PString strings[], Allocator alloc) {
+static P_INLINE PString PString_concat(size_t numStrings, PString strings[], Allocator alloc) {
     size_t totalLen = 0;
     for(size_t index = 0; index < numStrings; ++index) {
         totalLen += strings[index].len;
