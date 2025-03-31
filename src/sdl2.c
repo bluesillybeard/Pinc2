@@ -113,7 +113,7 @@ bool psdl2Init(WindowBackend* obj) {
     void* lib = sdl2LoadLib();
     if(!lib) {
         char* msg = "SDL2 could not be loaded, disabling SDL2 backend.\n";
-        pPrintDebug(msg, pStringLen(msg));
+        pPrintDebug((uint8_t*)msg, pStringLen(msg));
         // sdl2UnloadLib(lib);
         return false;
     }
@@ -123,22 +123,22 @@ bool psdl2Init(WindowBackend* obj) {
     // TODO: warn for any functions that were not loaded
     SDL_version sdlVersion;
     this->libsdl2.getVersion(&sdlVersion);
-    // TODO: we serously need a decent libc-free formatting library, this is getting rediculous
+    // TODO: we seriously need a decent libc-free formatting library, this is getting ridiculous
     char* msg = "Loaded SDL2 version: ";
-    pPrintDebug(msg, strlen(msg));
+    pPrintDebug((uint8_t*)msg, pStringLen(msg));
     char printbuf[11] = { 0 };
     pBufPrintUint32(printbuf, 11, sdlVersion.major);
-    pPrintDebug(printbuf, strlen(printbuf));
-    pPrintDebug(".", 1);
+    pPrintDebug((uint8_t*)printbuf, pStringLen(printbuf));
+    pPrintDebug((uint8_t*)".", 1);
     pBufPrintUint32(printbuf, 11, sdlVersion.minor);
-    pPrintDebug(printbuf, strlen(printbuf));
-    pPrintDebug(".", 1);
+    pPrintDebug((uint8_t*)printbuf, pStringLen(printbuf));
+    pPrintDebug((uint8_t*)".", 1);
     pBufPrintUint32(printbuf, 11, sdlVersion.patch);
-    pPrintDebug(printbuf, strlen(printbuf));
-    pPrintDebug("\n", 1);
+    pPrintDebug((uint8_t*)printbuf, pStringLen(printbuf));
+    pPrintDebug((uint8_t*)"\n", 1);
     if(sdlVersion.major < 2) {
         char* msg2 = "SDL version too old, disabling SDL2 backend\n";
-        pPrintDebug(msg, pStringLen(msg));
+        pPrintDebug((uint8_t*)msg2, pStringLen(msg));
         // TODO: clean up
         return false;
     }
