@@ -53,19 +53,19 @@ void PincPool_deinit(PincPool* pool, size_t elementSize);
 
 // Compound structs are my best friend
 typedef struct {
-    pinc_event_type type;
-    pinc_window currentWindow;
+    PincEventType type;
+    PincWindowHandle currentWindow;
     int64_t timeUnixMillis;
     union PincEventUnion {
         struct PincEventCloseSignal {
-            pinc_window window;
+            PincWindowHandle window;
         } closeSignal;
         struct PincEventMouseButton {
             uint32_t oldState;
             uint32_t state;
         } mouseButton;
         struct PincEventResize {
-            pinc_window window;
+            PincWindowHandle window;
             uint32_t oldWidth;
             uint32_t oldHeight;
             uint32_t width;
@@ -73,32 +73,32 @@ typedef struct {
         } resize;
         struct PincEventFocus {
             // the old window is in currentWindow
-            pinc_window newWindow;
+            PincWindowHandle newWindow;
         } focus;
         struct PincEventExposure {
-            pinc_window window;
+            PincWindowHandle window;
             uint32_t x;
             uint32_t y;
             uint32_t width;
             uint32_t height;
         } exposure;
         struct PincEventKeyboardButton {
-            pinc_keyboard_key key;
+            PincKeyboardKey key;
             bool state;
             bool repeat;
         } keyboardButton;
         struct PincEventCursorMove {
-            pinc_window window;
+            PincWindowHandle window;
             uint32_t oldX;
             uint32_t oldY;
             uint32_t x;
             uint32_t y;
         } cursorMove;
         struct PincEventCursorTransition {
-            pinc_window oldWindow;
+            PincWindowHandle oldWindow;
             uint32_t oldX;
             uint32_t oldY;
-            pinc_window window;
+            PincWindowHandle window;
             uint32_t x;
             uint32_t y;
         } cursorTransition;
@@ -114,21 +114,21 @@ typedef struct {
 
 // Call these functions to trigger events
 // TODO: Would it possibly make sense to make these public? Is there are use case for that?
-void PincEventCloseSignal(int64_t timeUnixMillis, pinc_window window);
+void PincEventCloseSignal(int64_t timeUnixMillis, PincWindowHandle window);
 
 void PincEventMouseButton(int64_t timeUnixMillis, uint32_t oldState, uint32_t state);
 
-void PincEventResize(int64_t timeUnixMillis, pinc_window window, uint32_t oldWidth, uint32_t oldHeight, uint32_t width, uint32_t height);
+void PincEventResize(int64_t timeUnixMillis, PincWindowHandle window, uint32_t oldWidth, uint32_t oldHeight, uint32_t width, uint32_t height);
 
-void PincEventFocus(int64_t timeUnixMillis, pinc_window window);
+void PincEventFocus(int64_t timeUnixMillis, PincWindowHandle window);
 
-void PincEventExposure(int64_t timeUnixMillis, pinc_window window, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+void PincEventExposure(int64_t timeUnixMillis, PincWindowHandle window, uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 
-void PincEventKeyboardButton(int64_t timeUnixMillis, pinc_keyboard_key key, bool state, bool repeat);
+void PincEventKeyboardButton(int64_t timeUnixMillis, PincKeyboardKey key, bool state, bool repeat);
 
-void PincEventCursorMove(int64_t timeUnixMillis, pinc_window window, uint32_t oldX, uint32_t oldY, uint32_t x, uint32_t y);
+void PincEventCursorMove(int64_t timeUnixMillis, PincWindowHandle window, uint32_t oldX, uint32_t oldY, uint32_t x, uint32_t y);
 
-void PincEventCursorTransition(int64_t timeUnixMillis, pinc_window oldWindow, uint32_t oldX, uint32_t oldY, pinc_window window, uint32_t x, uint32_t y);
+void PincEventCursorTransition(int64_t timeUnixMillis, PincWindowHandle oldWindow, uint32_t oldX, uint32_t oldY, PincWindowHandle window, uint32_t x, uint32_t y);
 
 void PincEventTextInput(int64_t timeUnixMillis, uint32_t codepoint);
 
@@ -152,7 +152,7 @@ typedef struct {
     // See doc for tempAllocator macro. Live for incomplete and init.
     Allocator tempAlloc;
     // Nullable, Lifetime separate from initState
-    pinc_error_callback userCallError;
+    PincErrorCallback userCallError;
     // Live for incomplete and init
     WindowBackend sdl2WindowBackend;
     // Live for init, type: PincObject
@@ -177,21 +177,21 @@ typedef struct {
     uint32_t eventsBufferBackCapacity;
 
     // Current window as far as the user cares, so it only changes within pinc_step
-    pinc_window currentWindow;
+    PincWindowHandle currentWindow;
 
     // The real current window.
-    pinc_window realCurrentWindow;
+    PincWindowHandle realCurrentWindow;
 
     // The chosen framebuffer format
-    pinc_framebuffer_format framebufferFormat;
+    PincFramebufferFormatHandle framebufferFormat;
 
     // Defined by the user, These are either all live or none live
     // userAllocObj can be null while these are live
     void* userAllocObj;
-    pinc_alloc_callback userAllocFn;
-    pinc_alloc_aligned_callback userAllocAlignedFn;
-    pinc_realloc_callback userReallocFn;
-    pinc_free_callback userFreeFn;
+    PincAllocCallback userAllocFn;
+    PincAllocAlignedCallback userAllocAlignedFn;
+    PincReallocCallback userReallocFn;
+    PincFreeCallback userFreeFn;
 
     // TODO: is this still needed?
     bool windowBackendSet;
@@ -211,47 +211,47 @@ extern PincStaticState pinc_intern_staticState;
 // A temporary allocator that is cleared at the end of pinc_step().
 #define tempAllocator staticState.tempAlloc
 
-pinc_object PincObject_allocate(PincObjectDiscriminator discriminator);
+PincObjectHandle PincObject_allocate(PincObjectDiscriminator discriminator);
 
 // Destroy the old object and make a new object in its place with the same ID.
-void PincObject_reallocate(pinc_object id, PincObjectDiscriminator discriminator);
+void PincObject_reallocate(PincObjectHandle id, PincObjectDiscriminator discriminator);
 
-void PincObject_free(pinc_object id);
+void PincObject_free(PincObjectHandle id);
 
-static P_INLINE PincObjectDiscriminator PincObject_discriminator(pinc_object id) {
+static P_INLINE PincObjectDiscriminator PincObject_discriminator(PincObjectHandle id) {
     PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
     return ((PincObject*)staticState.objects.objectsArray)[id-1].discriminator;
 }
 
-static P_INLINE IncompleteWindow* PincObject_ref_incompleteWindow(pinc_object id) {
+static P_INLINE IncompleteWindow* PincObject_ref_incompleteWindow(PincObjectHandle id) {
     PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
     PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
     PErrorUser(obj.discriminator == PincObjectDiscriminator_incompleteWindow, "Object must be an incomplete window");
     return &((IncompleteWindow*)staticState.incompleteWindowObjects.objectsArray)[obj.internalIndex];
 }
 
-static P_INLINE WindowHandle* PincObject_ref_window(pinc_object id) {
+static P_INLINE WindowHandle* PincObject_ref_window(PincObjectHandle id) {
     PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
     PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
     PErrorUser(obj.discriminator == PincObjectDiscriminator_window, "Object must be a complete window");
     return &((WindowHandle*)staticState.windowHandleObjects.objectsArray)[obj.internalIndex];
 }
 
-static P_INLINE IncompleteGlContext* PincObject_ref_incompleteGlContext(pinc_object id) {
+static P_INLINE IncompleteGlContext* PincObject_ref_incompleteGlContext(PincObjectHandle id) {
     PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
     PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
     PErrorUser(obj.discriminator == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
     return &((IncompleteGlContext*)staticState.incompleteGlContextObjects.objectsArray)[obj.internalIndex];
 }
 
-static P_INLINE RawOpenglContextObject* PincObject_ref_glContext(pinc_object id) {
+static P_INLINE RawOpenglContextObject* PincObject_ref_glContext(PincObjectHandle id) {
     PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
     PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
     PErrorUser(obj.discriminator == PincObjectDiscriminator_glContext, "Object must be a complete OpenGL context");
     return &((RawOpenglContextObject*)staticState.rawOpenglContextHandleObjects.objectsArray)[obj.internalIndex];
 }
 
-static P_INLINE FramebufferFormat* PincObject_ref_framebufferFormat(pinc_object id) {
+static P_INLINE FramebufferFormat* PincObject_ref_framebufferFormat(PincObjectHandle id) {
     PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
     PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
     PErrorUser(obj.discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");

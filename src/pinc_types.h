@@ -13,7 +13,7 @@
 typedef struct {
     uint32_t channels;
     uint32_t channel_bits[4];
-    pinc_color_space color_space;
+    PincColorSpace color_space;
 } FramebufferFormat;
 
 typedef struct {
@@ -51,7 +51,7 @@ typedef void* RawOpenglContextHandle;
 
 typedef struct {
     RawOpenglContextHandle handle;
-    pinc_opengl_context front_handle;
+    PincOpenglContextHandle front_handle;
 } RawOpenglContextObject;
 
 #endif

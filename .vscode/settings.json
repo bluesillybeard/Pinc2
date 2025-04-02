@@ -1,4 +1,7 @@
 {
+    // To stop c_cpp from interracting with clangd
+    // I really suggest using clangd instead of the official c++ extension, it provides a much better experience.
+    "C_Cpp.intelliSenseEngine": "disabled",
     // This is for the streetsidesoftware.code-spell-checker extension
     // Clearly, it is missing quite a lot of words, although many of these are not common words or names.
     "cSpell.words": [
