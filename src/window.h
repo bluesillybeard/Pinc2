@@ -22,15 +22,15 @@ struct WindowBackend;
     /* PINC_WINDOW_INTERFACE_FUNCTION(bool, (WindowBackend* obj), isSupported) */ \
     /* ### Initialization / query functions ### */ \
     PINC_WINDOW_INTERFACE_FUNCTION(FramebufferFormat*, (struct WindowBackend* obj, Allocator allocator, size_t* outNumFormats), queryFramebufferFormats, (obj, allocator, outNumFormats)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, pinc_graphics_api api), queryGraphicsApiSupport, (obj, api)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, PincGraphicsApi api), queryGraphicsApiSupport, (obj, api)) \
     PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj), queryMaxOpenWindows, (obj)) \
     /* The window backend is in charge of initializing the graphics api at this point */ \
-    PINC_WINDOW_INTERFACE_FUNCTION(pinc_return_code, (struct WindowBackend* obj, pinc_graphics_api graphicsApi, FramebufferFormat framebuffer, uint32_t samples, uint32_t depthBufferBits), completeInit, (obj, graphicsApi, framebuffer, samples, depthBufferBits)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincReturnCode, (struct WindowBackend* obj, PincGraphicsApi graphicsApi, FramebufferFormat framebuffer, uint32_t samples, uint32_t depthBufferBits), completeInit, (obj, graphicsApi, framebuffer, samples, depthBufferBits)) \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj), deinit, (obj)) \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj), step, (obj)) \
     /* ### Window Property Functions ## */ \
     /* May return null in the case of an error */ \
-    PINC_WINDOW_INTERFACE_FUNCTION(WindowHandle, (struct WindowBackend* obj, IncompleteWindow const * incomplete, pinc_window frontHandle), completeWindow, (obj, incomplete, frontHandle)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(WindowHandle, (struct WindowBackend* obj, IncompleteWindow const * incomplete, PincWindowHandle frontHandle), completeWindow, (obj, incomplete, frontHandle)) \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, WindowHandle window), deinitWindow, (obj, window)) \
     /* This function takes ownership of the title's memory. It is assumed to be on the pinc root allocator. */ \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, WindowHandle window, uint8_t* title, size_t titleLen), setWindowTitle, (obj, window, title, titleLen)) \
@@ -59,20 +59,20 @@ struct WindowBackend;
     /* ### Other Window Functions ### */ \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, WindowHandle window), windowPresentFramebuffer, (obj, window)) \
     /* ### OpenGL functions */ \
-    PINC_WINDOW_INTERFACE_FUNCTION(pinc_opengl_support_status, (struct WindowBackend* obj, uint32_t major, uint32_t minor, bool es) , queryGlVersionSupported, (obj, major, minor, es)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(pinc_opengl_support_status, (struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t channel, uint32_t bits), queryGlAccumulatorBits, (obj, framebuffer, channel, bits)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(pinc_opengl_support_status, (struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits), queryGlAlphaBits, (obj, framebuffer, bits)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(pinc_opengl_support_status, (struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits), queryGlDepthBits, (obj, framebuffer, bits)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(pinc_opengl_support_status, (struct WindowBackend* obj, FramebufferFormat framebuffer), queryGlStereoBuffer, (obj, framebuffer)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(pinc_opengl_support_status, (struct WindowBackend* obj), queryGlContextDebug, (obj)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(pinc_opengl_support_status, (struct WindowBackend* obj), queryGlForwardCompatible, (obj)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(pinc_opengl_support_status, (struct WindowBackend* obj), queryGlRobustAccess, (obj)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(pinc_opengl_support_status, (struct WindowBackend* obj), queryGlResetIsolation, (obj)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj, uint32_t major, uint32_t minor, bool es) , queryGlVersionSupported, (obj, major, minor, es)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t channel, uint32_t bits), queryGlAccumulatorBits, (obj, framebuffer, channel, bits)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits), queryGlAlphaBits, (obj, framebuffer, bits)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits), queryGlDepthBits, (obj, framebuffer, bits)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj, FramebufferFormat framebuffer), queryGlStereoBuffer, (obj, framebuffer)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj), queryGlContextDebug, (obj)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj), queryGlForwardCompatible, (obj)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj), queryGlRobustAccess, (obj)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj), queryGlResetIsolation, (obj)) \
     PINC_WINDOW_INTERFACE_FUNCTION(RawOpenglContextHandle, (struct WindowBackend* obj, IncompleteGlContext incompleteContext), glCompleteContext, (obj, incompleteContext)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(pinc_return_code, (struct WindowBackend* obj, WindowHandle window, RawOpenglContextHandle context), glMakeCurrent, (obj, window, context)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(pinc_window, (struct WindowBackend* obj), glGetCurrentWindow, (obj)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(pinc_opengl_context, (struct WindowBackend* obj), glGetCurrentContext, (obj)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(PINC_PFN, (struct WindowBackend* obj, char const* procname), glGetProc, (obj, procname)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincReturnCode, (struct WindowBackend* obj, WindowHandle window, RawOpenglContextHandle context), glMakeCurrent, (obj, window, context)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincWindowHandle, (struct WindowBackend* obj), glGetCurrentWindow, (obj)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglContextHandle, (struct WindowBackend* obj), glGetCurrentContext, (obj)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincPfn, (struct WindowBackend* obj, char const* procname), glGetProc, (obj, procname)) \
 
 #undef PINC_WINDOW_INTERFACE_FUNCTION
 #undef PINC_WINDOW_INTERFACE_PROCEDURE

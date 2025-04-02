@@ -178,15 +178,8 @@ It is a good idea to read through the header a bit as well as look at the exampl
 - proper documentation to guide users on how to use this library
 
 ## Absolutely Important TODOs for before the library goes anywhere
-- Make things consistent...
-    - Change all object handle types to include handle in the name
-    - Rename object handle parameters to 'handle' instead of using 'obj' or 'id', as well as include their completeness
-        - example: complete_window_handle, incomplete_window_handle, window_handle (for either)
-    - Commit to a naming convention, such as:
-        - TypesAreNamedLikeThis
-        - functionsAreaNamedLikeThis
-        - EnumValueType_enumValue
-        - This is just an example for this TODO
+- Document EVERYTHING
+
 
 ## TODO for API features / changes
 - better text selection input. ex: SDL_TextSelectionEvent

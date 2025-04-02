@@ -1,34 +1,35 @@
 // This example demonstrates that Pinc can be fully initialized and used, deinitialized, and initialized again in the same process.
 
 #include "example.h"
+#include "pinc.h"
 // open a quick window
 int main(void) {
     // Do it three times
     for(int i=0; i<3; ++i){
-        pinc_preinit_set_error_callback(example_error_callback);
-        pinc_incomplete_init();
+        pincPreinitSetErrorCallback(exampleErrorCallback);
+        pincInitIncomplete();
         // We don't care what we get, so don't set anything.
         // Everything is left default.
-        if(pinc_complete_init(pinc_window_backend_any, pinc_graphics_api_any, 0, 1, 0) == pinc_return_code_error) {
+        if(pincInitComplete(PincWindowBackend_any, PincGraphicsApi_any, 0, 1, 0) == PincReturnCode_error) {
             // Something went wrong. The error callback should have been called.
             return 100;
         }
-        pinc_window window = pinc_window_create_incomplete();
+        PincWindowHandle window = pincWindowCreateIncomplete();
         // Enter 0 for length so pinc does the work of finding the length for us
-        pinc_window_set_title(window, "Minimal Pinc Window!", 0);
-        if(pinc_window_complete(window) == pinc_return_code_error) {
+        pincWindowSetTitle(window, "Minimal Pinc Window!", 0);
+        if(pincWindowComplete(window) == PincReturnCode_error) {
             // Something went wrong. The error callback should have been called.
             return 100;
         }
         bool running = true;
         while(running) {
-            pinc_step();
-            uint32_t num_events = pinc_event_get_num();
+            pincStep();
+            uint32_t num_events = pincEventGetNum();
             for(uint32_t i=0; i<num_events; ++i) {
-                switch(pinc_event_get_type(i)) {
-                    case pinc_event_type_close_signal: {
+                switch(pincEventGetType(i)) {
+                    case PincEventType_closeSignal: {
                         // Just in case there are other windows that we don't know about
-                        if(window == pinc_event_close_signal_window(i)) {
+                        if(window == pincEventCloseSignalWindow(i)) {
                             running = false;
                             printf("Closed window\n");
                         }
@@ -36,9 +37,9 @@ int main(void) {
                     }
                 }
             }
-            pinc_window_present_framebuffer(window);
+            pincWindowPresentFramebuffer(window);
         }
-        pinc_window_deinit(window);
-        pinc_deinit();
+        pincWindowDeinit(window);
+        pincDeinit();
     }
 }

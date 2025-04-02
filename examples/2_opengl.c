@@ -1,6 +1,7 @@
 // This example demonstrates use with OpenGL
 
 #include "example.h"
+#include "pinc.h"
 #include <pinc_opengl.h>
 
 // Our own mini GL.h with function pointers
@@ -62,24 +63,24 @@ static PFN_glColor4f glColor4f;
 static PFN_glViewport glViewport;
 
 int main(void) {
-    pinc_preinit_set_error_callback(example_error_callback);
-    pinc_incomplete_init();
+    pincPreinitSetErrorCallback(exampleErrorCallback);
+    pincInitIncomplete();
 
     // Init pinc with the opengl API.
-    if(pinc_complete_init(pinc_window_backend_any, pinc_graphics_api_opengl, 0, 1, 0) == pinc_return_code_error) {
+    if(pincInitComplete(PincWindowBackend_any, PincGraphicsApi_opengl, 0, 1, 0) == PincReturnCode_error) {
         // Something went wrong. The error callback should have been called.
         return 100;
     }
 
-    if(pinc_query_opengl_version_supported(pinc_window_backend_any, 2, 1, false) == pinc_opengl_support_status_none) {
+    if(pincQueryOpenglVersionSupported(PincWindowBackend_any, 2, 1, false) == PincOpenglSupportStatus_none) {
         fprintf(stderr, "Support for OpenGL 1.2 is required.\n");
         return 100;
     }
 
-    pinc_window window = pinc_window_create_incomplete();
+    PincWindowHandle window = pincWindowCreateIncomplete();
     // Enter 0 for length so pinc does the work of finding the length for us
-    pinc_window_set_title(window, "Pinc OpenGL example", 0);
-    if(pinc_window_complete(window) == pinc_return_code_error) {
+    pincWindowSetTitle(window, "Pinc OpenGL example", 0);
+    if(pincWindowComplete(window) == PincReturnCode_error) {
         // Something went wrong. The error callback should have been called.
         return 100;
     }
@@ -89,44 +90,44 @@ int main(void) {
     // If you are familiar with OpenGL, you may be interested to here that the OpenGL context has no immediate binding to a window.
     // On many backends, this is done through a fake / dummy window. But, some backends (ex: Xlib) can create an OpenGl context plainly.
     // Note that most OpenGL calls will not work if the context is not bound to a window.
-    pinc_opengl_context gl_context = pinc_opengl_create_context_incomplete();
-    pinc_opengl_set_context_version(gl_context, 1, 2, false, false);
-    if(pinc_opengl_context_complete(gl_context) == pinc_return_code_error) {
+    PincOpenglContextHandle gl_context = pincOpenglCreateContextIncomplete();
+    pincOpenglSetContextVersion(gl_context, 1, 2, false, false);
+    if(pincOpenglSetContextComplete(gl_context) == PincReturnCode_error) {
         return 100;
     }
 
-    if(pinc_opengl_make_current(window, gl_context) == pinc_return_code_error) {
+    if(pincOpenglMakeCurrent(window, gl_context) == PincReturnCode_error) {
         return 100;
     }
 
     // Grab some OpenGL functions
 
-    glClearColor = (PFN_glClearColor) pinc_opengl_get_proc("glClearColor");
-    glClear = (PFN_glClear) pinc_opengl_get_proc("glClear");
-    glBegin = (PFN_glBegin) pinc_opengl_get_proc("glBegin");
-    glEnd = (PFN_glEnd) pinc_opengl_get_proc("glEnd");
-    glVertex2f = (PFN_glVertex2f) pinc_opengl_get_proc("glVertex2f");
-    glColor4f = (PFN_glColor4f) pinc_opengl_get_proc("glColor4f");
-    glViewport = (PFN_glViewport) pinc_opengl_get_proc("glViewport");
+    glClearColor = (PFN_glClearColor) pincOpenglGetProc("glClearColor");
+    glClear = (PFN_glClear) pincOpenglGetProc("glClear");
+    glBegin = (PFN_glBegin) pincOpenglGetProc("glBegin");
+    glEnd = (PFN_glEnd) pincOpenglGetProc("glEnd");
+    glVertex2f = (PFN_glVertex2f) pincOpenglGetProc("glVertex2f");
+    glColor4f = (PFN_glColor4f) pincOpenglGetProc("glColor4f");
+    glViewport = (PFN_glViewport) pincOpenglGetProc("glViewport");
 
     bool running = true;
     while(running) {
-        pinc_step();
-        uint32_t num_events = pinc_event_get_num();
+        pincStep();
+        uint32_t num_events = pincEventGetNum();
         for(uint32_t i=0; i<num_events; ++i) {
-            switch(pinc_event_get_type(i)) {
-                case pinc_event_type_close_signal: {
+            switch(pincEventGetType(i)) {
+                case PincEventType_closeSignal: {
                     // Just in case there are other windows that we don't know about
-                    if(window == pinc_event_close_signal_window(i)) {
+                    if(window == pincEventCloseSignalWindow(i)) {
                         running = false;
                         printf("Closed window\n");
                     }
                     break;
                 }
-                case pinc_event_type_resize: {
+                case PincEventType_resize: {
                     // Just in case there are other windows that we don't know about
-                    if(window == pinc_event_resize_window(i)) {
-                        glViewport(0, 0, (int)pinc_event_resize_width(i), (int)pinc_event_resize_height(i));
+                    if(window == pincEventResizeWindow(i)) {
+                        glViewport(0, 0, (int)pincEventResizeWidth(i), (int)pincEventResizeHeight(i));
                     }
                     break;
                 }
@@ -143,9 +144,9 @@ int main(void) {
             glColor4f(0.0, 0.0, 1.0, 1.0);
             glVertex2f(0.5, 0.5);
         glEnd();
-        pinc_window_present_framebuffer(window);
+        pincWindowPresentFramebuffer(window);
     }
-    pinc_opengl_context_deinit(gl_context);
-    pinc_window_deinit(window);
-    pinc_deinit();
+    pincOpenglSetContextDeinit(gl_context);
+    pincWindowDeinit(window);
+    pincDeinit();
 }
