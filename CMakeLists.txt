@@ -71,7 +71,7 @@ set_target_properties(pinc PROPERTIES VERSION ${PROJECT_VERSION})
 set_target_properties(pinc PROPERTIES PUBLIC_HEADER include/pinc.h)
 set_target_properties(pinc PROPERTIES PUBLIC_HEADER include/pinc_opengl.h)
 target_include_directories(pinc PUBLIC include)
-target_include_directories(pinc PRIVATE src)
+target_include_directories(pinc PRIVATE src ext)
 target_compile_definitions(pinc
     PUBLIC PINC_EXTERN=${PINC_EXTERN}
     PUBLIC PINC_EXPORT=${PINC_EXPORT}

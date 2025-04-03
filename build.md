@@ -2,6 +2,14 @@
 
 If all you want to do is build Pinc into a library or mess around with the examples, cmake is the best way to do that. Other build systems are supported just so they can be used to (hopefully easily) import Pinc into a project using said build system.
 
+## All build systems - Dependencies
+
+The only real build dependency is a decent compiler. Exactly what that actually means depends on the build system - those are listed below.
+
+At runtime, however, Pinc does require some libraries depending on the platform:
+- On Windows: SDL2.dll in the path
+- On Posix (Linux, unix, bsd, whatever): libSDL2.so or libSDL2-2.0.so in the path
+
 ## Cmake
 
 The CMakeLists.txt in the root of this project should be entirely self explanatory for anyone well versed with cmake. So, if you are comfortable, skip this document and go straight to just reading the CMakeLists.txt file, whose comments should guide you. This will still be available for reference if you get confused.
@@ -26,7 +34,7 @@ However, there are many options specific to the cmake build. Those are:
 - `PINC_COMPILE_OPTIONS` - Setting this will completely override the compiler options used to build Pinc
 - `PINC_LINK_OPTIONS` - Setting this will completely override the compiler options used to build Pinc
 
-These options can be set using `-D[option name]=[value]` in the cmake command. Note that these are cached, in order to change them you should delete `build/CMakeCache.txt`
+These options can be set using `-D[option name]=[value]` in the cmake command. Note that these are cached, in order to change them you should delete `build/CMakeCache.txt` before re-running the cmake command.
 
 The cmake build has these targets:
 - `pinc` - the actual pinc library object and headers
@@ -38,11 +46,14 @@ Pinc only strictly requires these things in order to compile:
 - a decent C99 compiler
 - unitybuild.c which `#include`'s all of the Pinc source files
 - access to Pinc headers (`-I[pinc_dir]/include`)
-- access to internal pinc headers (`-I[pinc_dir]/src`)
+- access to internal pinc headers (`-I[pinc_dir]/src` and `-I[pinc_dir]/ext`)
 - On posix (`#if defined (__unix) || (__linux)`):
     - an implementation of the C standard library, as well as `dlfcn.h` - I have yet to find a posix C compiler without these
-- On windows (`#if defined (__WIN32__)`):
+- On windows (`#if defined (_WIN32)`):
     - `windows.h` from at least windows XP / Server Edition 2003 - Clang, GCC, and cl.exe have this built-in
-    - `printf` from `stdio.h` because reasons (Will be removed soon, hopefully)
 
 Of course, all of the options in settings.md work just the same as in cmake.
+
+Example: `gcc -Ipinc/include -Ipinc/src -Ipinc/ext pinc/src/unitybuild.c -c -o build/libpinc.o`
+
+In case you missed it in the readme, anything that isn't baked into the compiler is either loaded dynamically or baked into Pinc itself. So you do not need any additional libraries and headers to build. You may still need libraries (such as SDL2) based on what window backends you have enabled.

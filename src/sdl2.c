@@ -1,4 +1,4 @@
-#include "SDL2/SDL_video.h"
+#include <SDL2/SDL_video.h>
 #include "pinc.h"
 #include "pinc_opengl.h"
 #include "pinc_options.h"
