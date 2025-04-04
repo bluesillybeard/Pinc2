@@ -72,7 +72,7 @@ int main(void) {
         return 100;
     }
 
-    if(pincQueryOpenglVersionSupported(PincWindowBackend_any, 2, 1, false) == PincOpenglSupportStatus_none) {
+    if(pincQueryOpenglVersionSupported(PincWindowBackend_any, 2, 1, PincOpenglContextProfile_core) == PincOpenglSupportStatus_none) {
         fprintf(stderr, "Support for OpenGL 1.2 is required.\n");
         return 100;
     }
@@ -86,13 +86,13 @@ int main(void) {
     }
 
     // Make OpenGL context - Just like with other Pinc objects, an OpenGL context is created, settings are set, then it is completed.
-    // However, this Pinc opengl context IS NOT a real Pinc object. It cannot be put into other Pinc functions.
     // If you are familiar with OpenGL, you may be interested to here that the OpenGL context has no immediate binding to a window.
     // On many backends, this is done through a fake / dummy window. But, some backends (ex: Xlib) can create an OpenGl context plainly.
     // Note that most OpenGL calls will not work if the context is not bound to a window.
     PincOpenglContextHandle gl_context = pincOpenglCreateContextIncomplete();
-    pincOpenglSetContextVersion(gl_context, 1, 2, false, false);
-    if(pincOpenglSetContextComplete(gl_context) == PincReturnCode_error) {
+    // This is actually the default in Pinc, but may as well set it anyway.
+    pincOpenglSetContextVersion(gl_context, 1, 2, PincOpenglContextProfile_core);
+    if(pincOpenglCompleteContext(gl_context) == PincReturnCode_error) {
         return 100;
     }
 
@@ -146,7 +146,7 @@ int main(void) {
         glEnd();
         pincWindowPresentFramebuffer(window);
     }
-    pincOpenglSetContextDeinit(gl_context);
+    pincOpenglDeinitContext(gl_context);
     pincWindowDeinit(window);
     pincDeinit();
 }

@@ -33,6 +33,7 @@
     SDL_FUNC(PFN, glGetProcAddress, SDL_GL_GetProcAddress, (const char* proc)) \
     SDL_FUNC(SDL_GLContext, glGetCurrentContext, SDL_GL_GetCurrentContext, (void)) \
     SDL_FUNC(SDL_Window*, glGetCurrentWindow, SDL_GL_GetCurrentWindow, (void)) \
+    SDL_FUNC(int, glSetAttribute, SDL_GL_SetAttribute, (SDL_GLattr attr, int value)) \
     SDL_FUNC(void, getWindowSize, SDL_GetWindowSize, (SDL_Window* window, int* width, int* height)) \
     /* added in 2.0.1 */ SDL_FUNC(void, glGetDrawableSize, SDL_GL_GetDrawableSize, (SDL_Window* window, int* width, int* height)) \
     /* added in 2.26.0 */ SDL_FUNC(void, getWindowSizeInPixels, SDL_GetWindowSizeInPixels, (SDL_Window* window, int* width, int* height)) \

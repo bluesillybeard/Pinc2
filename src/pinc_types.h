@@ -37,14 +37,14 @@ typedef struct {
     uint32_t accumulatorBits[4];
     uint32_t alphaBits;
     uint32_t depthBits;
+    uint32_t samples;
     bool stereo;
     bool debug;
-    bool forwardCompatible;
     bool robustAccess;
+    bool resetIsolation;
     uint32_t versionMajor;
     uint32_t versionMinor;
-    bool versionEs;
-    bool core;
+    PincOpenglContextProfile profile;
 } IncompleteGlContext;
 
 typedef void* RawOpenglContextHandle;

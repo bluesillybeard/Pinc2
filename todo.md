@@ -99,6 +99,12 @@
 - Change window states to an enum instead of a bunch of sorta-implicitly-exclusive bools
 - add window state change events
 - Split this readme into multiple files, it's getting too long
+- OpenGL share contexts
+- OpenGL stencil bits
+- OpenGL optional double buffering
+- OpenGL Release Behavior
+- OpenGL reset notification
+- OpenGL floatbuffers
 
 ## TODO for internal library
 - test and get working on different compilers / implementations of libc

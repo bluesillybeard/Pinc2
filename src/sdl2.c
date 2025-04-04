@@ -1,5 +1,7 @@
 #include <SDL2/SDL_video.h>
+#include "SDL2/SDL_stdinc.h"
 #include "pinc.h"
+#include "pinc_error.h"
 #include "pinc_opengl.h"
 #include "pinc_options.h"
 #include "pinc_types.h"
@@ -738,10 +740,11 @@ bool sdl2getWindowHidden(struct WindowBackend* obj, WindowHandle window) {
     return false;
 }
 
-void sdl2setVsync(struct WindowBackend* obj, bool vsync) {
+PincReturnCode sdl2setVsync(struct WindowBackend* obj, bool vsync) {
     P_UNUSED(obj);
     P_UNUSED(vsync);
     // TODO
+    return PincReturnCode_error;
 }
 
 bool sdl2getVsync(struct WindowBackend* obj) {
@@ -756,15 +759,12 @@ void sdl2windowPresentFramebuffer(struct WindowBackend* obj, WindowHandle window
     this->libsdl2.glSwapWindow(windowObj->sdlWindow);
 }
 
-PincOpenglSupportStatus sdl2queryGlVersionSupported(struct WindowBackend* obj, uint32_t major, uint32_t minor, bool es) {
+PincOpenglSupportStatus sdl2queryGlVersionSupported(struct WindowBackend* obj, uint32_t major, uint32_t minor, PincOpenglContextProfile profile) {
     P_UNUSED(obj);
     P_UNUSED(major);
     P_UNUSED(minor);
-    P_UNUSED(es);
+    P_UNUSED(profile);
     // SDL2 has no clean way to query OpenGL support before attempting to make a context.
-    // TODO: document in pinc.h that when this function returns 'maybe',
-    // that one should fall-back to using the tried-and-true method of trying to make a context with said version
-    // to see if it works. Also document that this function does not attempt to create a context to query the version.
     return PincOpenglSupportStatus_maybe;
 }
 
@@ -773,69 +773,132 @@ PincOpenglSupportStatus sdl2queryGlAccumulatorBits(struct WindowBackend* obj, Fr
     P_UNUSED(framebuffer);
     P_UNUSED(channel);
     P_UNUSED(bits);
-    // TODO
-    PPANIC("Not implemented");
-    return 0;
+    // SDL2 has no clean way to query OpenGL support before attempting to make a context.
+    return PincOpenglSupportStatus_maybe;
 }
 
 PincOpenglSupportStatus sdl2queryGlAlphaBits(struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits) {
     P_UNUSED(obj);
     P_UNUSED(framebuffer);
     P_UNUSED(bits);
-    // TODO
-    PPANIC("Not implemented");
-    return 0;
+    // SDL2 has no clean way to query OpenGL support before attempting to make a context.
+    return PincOpenglSupportStatus_maybe;
 }
 
 PincOpenglSupportStatus sdl2queryGlDepthBits(struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits) {
     P_UNUSED(obj);
     P_UNUSED(framebuffer);
     P_UNUSED(bits);
-    // TODO
-    PPANIC("Not implemented");
-    return 0;
+    // SDL2 has no clean way to query OpenGL support before attempting to make a context.
+    return PincOpenglSupportStatus_maybe;
+}
+
+PincOpenglSupportStatus sdl2queryGlSamples(struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t samples) {
+    P_UNUSED(obj);
+    P_UNUSED(framebuffer);
+    P_UNUSED(samples);
+    // SDL2 has no clean way to query OpenGL support before attempting to make a context.
+    return PincOpenglSupportStatus_maybe;
 }
 
 PincOpenglSupportStatus sdl2queryGlStereoBuffer(struct WindowBackend* obj, FramebufferFormat framebuffer) {
     P_UNUSED(obj);
     P_UNUSED(framebuffer);
-    // TODO
-    PPANIC("Not implemented");
-    return 0;
+    // SDL2 has no clean way to query OpenGL support before attempting to make a context.
+    return PincOpenglSupportStatus_maybe;
 }
 
 PincOpenglSupportStatus sdl2queryGlContextDebug(struct WindowBackend* obj) {
     P_UNUSED(obj);
-    // TODO
-    PPANIC("Not implemented");
-    return 0;
-}
-
-PincOpenglSupportStatus sdl2queryGlForwardCompatible(struct WindowBackend* obj) {
-    P_UNUSED(obj);
-    // TODO
-    PPANIC("Not implemented");
-    return 0;
+    // SDL2 has no clean way to query OpenGL support before attempting to make a context.
+    return PincOpenglSupportStatus_maybe;
 }
 
 PincOpenglSupportStatus sdl2queryGlRobustAccess(struct WindowBackend* obj) {
     P_UNUSED(obj);
-    // TODO
-    PPANIC("Not implemented");
-    return 0;
+    // SDL2 has no clean way to query OpenGL support before attempting to make a context.
+    return PincOpenglSupportStatus_maybe;
 }
 
 PincOpenglSupportStatus sdl2queryGlResetIsolation(struct WindowBackend* obj) {
     P_UNUSED(obj);
-    // TODO
-    PPANIC("Not implemented");
-    return 0;
+    // SDL2 has no clean way to query OpenGL support before attempting to make a context.
+    return PincOpenglSupportStatus_maybe;
 }
 
 RawOpenglContextHandle sdl2glCompleteContext(struct WindowBackend* obj, IncompleteGlContext incompleteContext) {
-    // TODO: Actually use the context information
-    P_UNUSED(incompleteContext);
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    FramebufferFormat* fmt = PincObject_ref_framebufferFormat(staticState.framebufferFormat);
+    // Due to reasons, we have to create a compatible RGB framebuffer format for the context
+    // TODO: is this actually valid?
+    uint32_t channel_bits[4] = { 0 };
+    channel_bits[0] = fmt->channel_bits[0];
+    switch(fmt->channels) {
+        case 1:
+        case 2:
+            channel_bits[1] = fmt->channel_bits[0];
+            channel_bits[2] = fmt->channel_bits[0];
+            break;
+        case 3:
+        case 4:
+            channel_bits[1] = fmt->channel_bits[1];
+            channel_bits[2] = fmt->channel_bits[2];
+            break;
+        default:
+            PPANIC("Invalid number of channels in framebuffer format");
+    }
+    channel_bits[3] = incompleteContext.alphaBits;
+    this->libsdl2.glSetAttribute(SDL_GL_RED_SIZE, channel_bits[0]);
+    this->libsdl2.glSetAttribute(SDL_GL_GREEN_SIZE, channel_bits[1]);
+    this->libsdl2.glSetAttribute(SDL_GL_BLUE_SIZE, channel_bits[2]);
+    this->libsdl2.glSetAttribute(SDL_GL_ALPHA_SIZE, channel_bits[3]);
+    this->libsdl2.glSetAttribute(SDL_GL_DEPTH_SIZE, incompleteContext.depthBits);
+    this->libsdl2.glSetAttribute(SDL_GL_ACCUM_RED_SIZE, incompleteContext.accumulatorBits[0]);
+    this->libsdl2.glSetAttribute(SDL_GL_ACCUM_GREEN_SIZE, incompleteContext.accumulatorBits[1]);
+    this->libsdl2.glSetAttribute(SDL_GL_ACCUM_BLUE_SIZE, incompleteContext.accumulatorBits[2]);
+    this->libsdl2.glSetAttribute(SDL_GL_ACCUM_ALPHA_SIZE, incompleteContext.accumulatorBits[3]);
+    int stereo = 0;
+    if(incompleteContext.stereo) {
+        stereo = 1;
+    }
+    this->libsdl2.glSetAttribute(SDL_GL_STEREO, stereo);
+    // TODO: As far as I can tell, MULTISAMPLEBUFFERS is only 1 or 0. Nobody explains a use case with more than 1.
+    // the ARB samples extension doesn't even mention the idea of more than one buffer, and has no way to set a number of them
+    // But the ARB extension hasn't been modified in at least 15 years.
+    if(incompleteContext.samples > 1) {
+        this->libsdl2.glSetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+    } else {
+        this->libsdl2.glSetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
+    }
+    this->libsdl2.glSetAttribute(SDL_GL_MULTISAMPLESAMPLES, incompleteContext.samples);
+    this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, incompleteContext.versionMajor);
+    this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, incompleteContext.versionMinor);
+    int glFlags;
+    switch (incompleteContext.profile) {
+        case PincOpenglContextProfile_legacy:
+            PErrorUser(false, "SDL2 does not support creating a legacy context");
+            return 0;
+        case PincOpenglContextProfile_compatibility:
+            this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+            break;
+        case PincOpenglContextProfile_core:
+            this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+            break;
+        case PincOpenglContextProfile_forward:
+            this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+            glFlags |= SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG;
+            break;
+    }
+    if(incompleteContext.robustAccess) {
+        glFlags |= SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG;
+    }
+    if(incompleteContext.debug) {
+        glFlags |= SDL_GL_CONTEXT_DEBUG_FLAG;
+    }
+    this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_FLAGS, glFlags);
+
+    // TODO: SDL says it needs the attributes set before creating the window,
+    // But is that actually true beyond just the framebuffer format?
     Sdl2Window* dummyWindow = _dummyWindow(obj);
     SDL_GLContext sdlGlContext = this->libsdl2.glCreateContext(dummyWindow->sdlWindow);
     if(!sdlGlContext) {

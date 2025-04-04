@@ -1315,14 +1315,13 @@ PINC_EXPORT bool PINC_CALL pincWindowGetHidden(PincWindowHandle window) {
 }
 
 PINC_EXPORT PincReturnCode PINC_CALL pincSetVsync(bool sync) {
-    P_UNUSED(sync);
-    PPANIC("pincSetVsync not implemented");
-    return PincReturnCode_error;
+    PincValidateForState(PincState_init);
+    return WindowBackend_setVsync(&staticState.windowBackend, sync);
 }
 
 PINC_EXPORT bool PINC_CALL pincGetVsync(void) {
-    PPANIC("pincGetVsync not implemented");
-    return false;
+    PincValidateForState(PincState_init);
+    return WindowBackend_getVsync(&staticState.windowBackend);
 }
 
 PINC_EXPORT void PINC_CALL pincWindowPresentFramebuffer(PincWindowHandle window) {
@@ -1599,7 +1598,7 @@ PINC_EXPORT float PINC_CALL pincEventScrollHorizontal(uint32_t event_index) {
 // ### OPENGL FUNCTIONS ###
 #include <pinc_opengl.h>
 
-PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglVersionSupported(PincWindowBackend backend, uint32_t major, uint32_t minor, bool es) {
+PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglVersionSupported(PincWindowBackend backend, uint32_t major, uint32_t minor, PincOpenglContextProfile profile) {
     PincValidateForStates(PincState_init, PincState_incomplete);
     // TODO: Only backend is sdl2, shortcuts are taken
     if(backend == PincWindowBackend_any) {
@@ -1608,7 +1607,7 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglVersionSupported(Pi
     PErrorUser(backend == PincWindowBackend_sdl2, "Unsupported window backend");
     PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
 
-    return WindowBackend_queryGlVersionSupported(&staticState.sdl2WindowBackend, major, minor, es);
+    return WindowBackend_queryGlVersionSupported(&staticState.sdl2WindowBackend, major, minor, profile);
 }
 
 PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglAccumulatorBits(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer_format_id, uint32_t channel, uint32_t bits){
@@ -1650,6 +1649,19 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglDepthBits(PincWindo
     return WindowBackend_queryGlDepthBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
 }
 
+PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglSamples(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer_format_handle, uint32_t samples) {
+    PincValidateForStates(PincState_init, PincState_incomplete);
+    // TODO: Only backend is sdl2, shortcuts are taken
+    if(backend == PincWindowBackend_any) {
+        backend = PincWindowBackend_sdl2;
+    }
+    if(framebuffer_format_handle == 0) {
+        framebuffer_format_handle = pincQueryFramebufferFormatDefault(backend, PincGraphicsApi_opengl);
+    }
+    FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_handle);
+    return WindowBackend_queryGlSamples(&staticState.sdl2WindowBackend, *framebufferFormatObj, samples);
+}
+
 PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglStereoBuffer(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer_format_id) {
     PincValidateForStates(PincState_init, PincState_incomplete);
     // TODO: Only backend is sdl2, shortcuts are taken
@@ -1672,17 +1684,6 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglContextDebug(PincWi
     PErrorUser(backend == PincWindowBackend_sdl2, "Unsupported window backend");
     PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
     return WindowBackend_queryGlContextDebug(&staticState.sdl2WindowBackend);
-}
-
-PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglForwardCompatible(PincWindowBackend backend){
-    PincValidateForStates(PincState_init, PincState_incomplete);
-    // TODO: Only backend is sdl2, shortcuts are taken
-    if(backend == PincWindowBackend_any) {
-        backend = PincWindowBackend_sdl2;
-    }
-    PErrorUser(backend == PincWindowBackend_sdl2, "Unsupported window backend");
-    PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
-    return WindowBackend_queryGlForwardCompatible(&staticState.sdl2WindowBackend);
 }
 
 PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglRobustAccess(PincWindowBackend backend){
@@ -1718,12 +1719,12 @@ PINC_EXPORT PincOpenglContextHandle PINC_CALL pincOpenglCreateContextIncomplete(
         .depthBits = 16,
         .stereo = false,
         .debug = false,
-        .forwardCompatible = false,
         .robustAccess = false,
+        // The reasoning for this default is that OpenGL 1.2 is the absolute most widely supported version - more or less 100% of OpenGL hardware supports it.
+        // With that said, 99% of users should override the default.
         .versionMajor = 1,
-        .versionMinor = 0,
-        .versionEs = false,
-        .core = false,
+        .versionMinor = 2,
+        .profile = PincOpenglContextProfile_core,
     };
 
     return id;
@@ -1756,6 +1757,15 @@ PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextDepthBits(PincOpenglCon
     return PincReturnCode_error;
 }
 
+PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextSamples(PincOpenglContextHandle incomplete_context, uint32_t samples) {
+    PincValidateForState(PincState_init);
+    P_UNUSED(incomplete_context);
+    P_UNUSED(samples);
+    // TODO
+    PPANIC("Not implemented");
+    return PincReturnCode_error;
+}
+
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextStereoBuffer(PincOpenglContextHandle incomplete_context, bool stereo) {
     PincValidateForState(PincState_init);
     P_UNUSED(incomplete_context);
@@ -1769,15 +1779,6 @@ PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextDebug(PincOpenglContext
     PincValidateForState(PincState_init);
     P_UNUSED(incomplete_context);
     P_UNUSED(debug);
-    // TODO
-    PPANIC("Not implemented");
-    return PincReturnCode_error;
-}
-
-PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextForwardCompatible(PincOpenglContextHandle incomplete_context, bool compatible) {
-    PincValidateForState(PincState_init);
-    P_UNUSED(incomplete_context);
-    P_UNUSED(compatible);
     // TODO
     PPANIC("Not implemented");
     return PincReturnCode_error;
@@ -1801,9 +1802,9 @@ PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextResetIsolation(PincOpen
     return PincReturnCode_error;
 }
 
-PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextVersion(PincOpenglContextHandle incomplete_context, uint32_t major, uint32_t minor, bool es, bool core) {
+PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextVersion(PincOpenglContextHandle incomplete_context, uint32_t major, uint32_t minor, PincOpenglContextProfile profile) {
     PincValidateForState(PincState_init);
-    if(pincQueryOpenglVersionSupported(PincWindowBackend_any, major, minor, es) == PincOpenglSupportStatus_none) {
+    if(pincQueryOpenglVersionSupported(PincWindowBackend_any, major, minor, profile) == PincOpenglSupportStatus_none) {
         PErrorExternal(false, "Opengl version not supported");
         return PincReturnCode_error;
     }
@@ -1811,14 +1812,11 @@ PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextVersion(PincOpenglConte
     IncompleteGlContext* contextObj = PincObject_ref_incompleteGlContext(incomplete_context);
     contextObj->versionMajor = major;
     contextObj->versionMinor = minor;
-    contextObj->versionEs = es;
-    contextObj->core = core;
-    contextObj->forwardCompatible = !core;
-    PErrorUser((!es) && (!core), "pinc_opengl_set_context_version: OpenGl context can either be core or ES, not both");
+    contextObj->profile = profile;
     return PincReturnCode_pass;
 }
 
-PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextComplete(PincOpenglContextHandle incomplete_context) {
+PINC_EXPORT PincReturnCode PINC_CALL pincOpenglCompleteContext(PincOpenglContextHandle incomplete_context) {
     PincValidateForState(PincState_init);
     IncompleteGlContext* contextObj = PincObject_ref_incompleteGlContext(incomplete_context);
     RawOpenglContextHandle contextHandle = WindowBackend_glCompleteContext(&staticState.windowBackend, *contextObj);
@@ -1832,7 +1830,7 @@ PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextComplete(PincOpenglCont
     return PincReturnCode_pass;
 }
 
-PINC_EXPORT void PINC_CALL pincOpenglSetContextDeinit(PincOpenglContextHandle context) {
+PINC_EXPORT void PINC_CALL pincOpenglDeinitContext(PincOpenglContextHandle context) {
     P_UNUSED(context);
     // TODO
 }
@@ -1846,8 +1844,17 @@ PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextAccumulatorBits(PincOpenglCon
 }
 
 // TODO
-PINC_EXTERN uint32_t PINC_CALL pincOpenglGetContextAlphaBits(PincOpenglContextHandle incomplete_context);
-PINC_EXTERN uint32_t PINC_CALL pincOpenglGetContextDepthBits(PincOpenglContextHandle incomplete_context);
+PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextAlphaBits(PincOpenglContextHandle incomplete_context) {
+    return 0;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextDepthBits(PincOpenglContextHandle incomplete_context) {
+    return 0;
+}
+
+PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextSamples(PincOpenglContextHandle incomplete_context) {
+    return 0;
+}
 
 PINC_EXPORT bool PINC_CALL pincOpenglGetContextStereoBuffer(PincOpenglContextHandle incomplete_context) {
     P_UNUSED(incomplete_context);
@@ -1857,13 +1864,6 @@ PINC_EXPORT bool PINC_CALL pincOpenglGetContextStereoBuffer(PincOpenglContextHan
 }
 
 PINC_EXPORT bool PINC_CALL pincOpenglGetContextDebug(PincOpenglContextHandle incomplete_context) {
-    P_UNUSED(incomplete_context);
-    // TODO
-    PPANIC("Not implemented");
-    return false;
-}
-
-PINC_EXPORT bool PINC_CALL pincOpenglGetContextForwardCompatible(PincOpenglContextHandle incomplete_context) {
     P_UNUSED(incomplete_context);
     // TODO
     PPANIC("Not implemented");
