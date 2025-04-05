@@ -136,6 +136,7 @@
     - meson?
     - autoconf?
 - linking / using ANGLE for better macos+opengl support, among other improvements to OpenGL
+- Add generation info to object handles
 
 ## Planned supported platforms
 - Macos X
@@ -168,6 +169,7 @@
 - SDL 1
 - SDL 3
 - X11 (Xlib)
+- Win32 (not to be confused with the win32 api, the win32 WINDOW BACKEND)
 - Cocoa
 - Wayland
 - GLFW

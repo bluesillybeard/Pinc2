@@ -69,6 +69,15 @@ struct WindowBackend;
     PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj), queryGlRobustAccess, (obj)) \
     PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj), queryGlResetIsolation, (obj)) \
     PINC_WINDOW_INTERFACE_FUNCTION(RawOpenglContextHandle, (struct WindowBackend* obj, IncompleteGlContext incompleteContext), glCompleteContext, (obj, incompleteContext)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(void, (struct WindowBackend* obj, RawOpenglContextObject context), glDeinitContext, (obj, context)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj, RawOpenglContextObject context, uint32_t channel), glGetContextAccumulatorBits, (obj, context, channel)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextAlphaBits, (obj, context)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextDepthBits, (obj, context)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextSamples, (obj, context)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextStereoBuffer, (obj, context)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextDebug, (obj, context)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextRobustAccess, (obj, context)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextResetIsolation, (obj, context)) \
     PINC_WINDOW_INTERFACE_FUNCTION(PincReturnCode, (struct WindowBackend* obj, WindowHandle window, RawOpenglContextHandle context), glMakeCurrent, (obj, window, context)) \
     PINC_WINDOW_INTERFACE_FUNCTION(PincWindowHandle, (struct WindowBackend* obj), glGetCurrentWindow, (obj)) \
     PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglContextHandle, (struct WindowBackend* obj), glGetCurrentContext, (obj)) \

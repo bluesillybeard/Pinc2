@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "libs/dynamic_allocator.h"
 #include "pinc_error.h"
+#include "pinc_opengl.h"
 #include "pinc_types.h"
 #include "platform/platform.h"
 #include "pinc_main.h"
@@ -444,8 +445,7 @@ static bool PincStateValidForIncomplete(void) {
     // TODO: Only window backend is sdl2, shortcuts are taken
     SttVld(staticState.sdl2WindowBackend.obj, "SDL2 backend not live");
     #endif
-    // More difficult validation that costs significant performance
-    // TODO
+    // TODO: More difficult validation that costs significant performance
     return true;
 }
 
@@ -459,8 +459,7 @@ static bool PincStateValidForComplete(void) {
     SttVld(staticState.framebufferFormat, "Framebuffer format not live");
     SttVld(staticState.windowBackend.obj, "Window backend not live");
     #endif
-    // More difficult validation that costs significant performance
-    // TODO
+    // TODO: More difficult validation that costs significant performance
     return true;
 }
 #undef StateValidMacroForConvenience
@@ -647,8 +646,7 @@ PINC_EXPORT uint32_t PINC_CALL pincQueryFramebufferFormats(PincWindowBackend win
     // TODO: only window backend is SDL2, shortcuts are taken
     // TODO: sort framebuffers from best to worst, so applications can just loop from first to last and pick the first one they see that they like
     // - Note: probably best to do this in init when all of the framebuffer formats are queried to begin with
-    // TODO: it's probably a good idea to make all object types have a way to get their ID instead of having to search the whole map
-    // - While you're at it, it might be worth adding generation info to the handle to catch use after frees
+    // - Note 2: Actually, do we need to query framebuffer formats in init? Why not lazy-query them here?
     PincObjectHandle currentObject = 1;
     uint32_t currentIndex = 0;
 
@@ -738,15 +736,19 @@ PINC_EXPORT void PINC_CALL pincDeinit(void) {
             PincObjectHandle id = i+1;
             switch (pincGetObjectType(id))
             {
-                case PincObjectType_none: {
-                    break;
-                }
                 case PincObjectType_window: {
                     pincWindowDeinit(id);
                     break;
                 }
-                default:
-                    PErrorAssert(false, "Invalid object type! This is an error in Pinc itself.");
+                case PincObjectType_glContext: {
+                    pincOpenglDeinitContext(id);
+                    break;
+                }
+                // For these pure data types, destroying the object pool will automatically destroy them too
+                case PincObjectType_none:
+                case PincObjectType_framebufferFormat:
+                case PincObjectType_incompleteGlContext:
+                break;
             }
         }
     }
@@ -1720,7 +1722,7 @@ PINC_EXPORT PincOpenglContextHandle PINC_CALL pincOpenglCreateContextIncomplete(
         .stereo = false,
         .debug = false,
         .robustAccess = false,
-        // The reasoning for this default is that OpenGL 1.2 is the absolute most widely supported version - more or less 100% of OpenGL hardware supports it.
+        // The reasoning for this default is that OpenGL 1.2 is basically the absolute most widely supported version - more or less 100% of OpenGL hardware supports it.
         // With that said, 99% of users should override the default.
         .versionMajor = 1,
         .versionMinor = 2,
@@ -1732,73 +1734,65 @@ PINC_EXPORT PincOpenglContextHandle PINC_CALL pincOpenglCreateContextIncomplete(
 
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextAccumulatorBits(PincOpenglContextHandle incomplete_context, uint32_t channel, uint32_t bits) {
     PincValidateForState(PincState_init);
-    P_UNUSED(incomplete_context);
-    P_UNUSED(channel);
-    P_UNUSED(bits);
-    // TODO
-    PPANIC("Not implemented");
-    return PincReturnCode_error;
+    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
+    PErrorUser(channel < 4, "Invalid channel index: must be less than 4");
+    contextObject->accumulatorBits[channel] = bits;
+    return PincReturnCode_pass;
 }
 
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextAlphaBits(PincOpenglContextHandle incomplete_context, uint32_t bits) {
     PincValidateForState(PincState_init);
-    P_UNUSED(incomplete_context);
-    P_UNUSED(bits);
-    // TODO
-    PPANIC("Not implemented");
+    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
+    contextObject->alphaBits = bits;
     return PincReturnCode_error;
 }
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextDepthBits(PincOpenglContextHandle incomplete_context, uint32_t bits) {
     PincValidateForState(PincState_init);
-    P_UNUSED(incomplete_context);
-    P_UNUSED(bits);
-    // TODO
-    PPANIC("Not implemented");
+    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
+    contextObject->depthBits = bits;
     return PincReturnCode_error;
 }
 
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextSamples(PincOpenglContextHandle incomplete_context, uint32_t samples) {
-    PincValidateForState(PincState_init);
-    P_UNUSED(incomplete_context);
-    P_UNUSED(samples);
-    // TODO
-    PPANIC("Not implemented");
+PincValidateForState(PincState_init);
+    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
+    contextObject->samples = samples;
     return PincReturnCode_error;
 }
 
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextStereoBuffer(PincOpenglContextHandle incomplete_context, bool stereo) {
     PincValidateForState(PincState_init);
-    P_UNUSED(incomplete_context);
-    P_UNUSED(stereo);
-    // TODO
-    PPANIC("Not implemented");
+    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
+    contextObject->stereo = stereo;
     return PincReturnCode_error;
 }
 
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextDebug(PincOpenglContextHandle incomplete_context, bool debug) {
     PincValidateForState(PincState_init);
-    P_UNUSED(incomplete_context);
-    P_UNUSED(debug);
-    // TODO
-    PPANIC("Not implemented");
+    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
+    contextObject->debug = debug;
     return PincReturnCode_error;
 }
 
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextRobustAccess(PincOpenglContextHandle incomplete_context, bool robust) {
     PincValidateForState(PincState_init);
-    P_UNUSED(incomplete_context);
-    P_UNUSED(robust);
-    // TODO
-    PPANIC("Not implemented");
+    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
+    contextObject->robustAccess = robust;
     return PincReturnCode_error;
 }
 
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextResetIsolation(PincOpenglContextHandle incomplete_context, bool isolation) {
     PincValidateForState(PincState_init);
-    P_UNUSED(incomplete_context);
-    P_UNUSED(isolation);
-    // TODO
-    PPANIC("Not implemented");
+    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
+    contextObject->resetIsolation = isolation;
     return PincReturnCode_error;
 }
 
@@ -1831,57 +1825,158 @@ PINC_EXPORT PincReturnCode PINC_CALL pincOpenglCompleteContext(PincOpenglContext
 }
 
 PINC_EXPORT void PINC_CALL pincOpenglDeinitContext(PincOpenglContextHandle context) {
-    P_UNUSED(context);
-    // TODO
+    PincValidateForState(PincState_init);
+    switch(PincObject_discriminator(context)) {
+        case PincObjectDiscriminator_incompleteGlContext: {
+            PincObject_free(context);
+            break;
+        }
+        case PincObjectDiscriminator_glContext: {
+            RawOpenglContextObject* object = PincObject_ref_glContext(context);
+            WindowBackend_glDeinitContext(&staticState.windowBackend, *object);
+            PincObject_free(context);
+            break;
+        }
+        default:
+            PErrorUser(false, "Object must be an opengl context");
+    }
 }
 
-PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextAccumulatorBits(PincOpenglContextHandle incomplete_context, uint32_t channel) {
-    P_UNUSED(incomplete_context);
-    P_UNUSED(channel);
-    // TODO
-    PPANIC("Not implemented");
-    return 0;
+PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextAccumulatorBits(PincOpenglContextHandle context, uint32_t channel) {
+    PincValidateForState(PincState_init);
+    PErrorUser(channel < 4, "Invalid channel index: must be less than 4");
+    switch(PincObject_discriminator(context)) {
+        case PincObjectDiscriminator_incompleteGlContext: {
+            IncompleteGlContext* object = PincObject_ref_incompleteGlContext(context);
+            return object->accumulatorBits[channel];
+        }
+        case PincObjectDiscriminator_glContext: {
+            RawOpenglContextObject* object = PincObject_ref_glContext(context);
+            return WindowBackend_glGetContextAccumulatorBits(&staticState.windowBackend, *object, channel);
+        }
+        default:
+            PErrorUser(false, "Object must be an OpenGL context");
+            return 0;
+    }
 }
 
-// TODO
-PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextAlphaBits(PincOpenglContextHandle incomplete_context) {
-    return 0;
+PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextAlphaBits(PincOpenglContextHandle context) {
+    PincValidateForState(PincState_init);
+    switch(PincObject_discriminator(context)) {
+        case PincObjectDiscriminator_incompleteGlContext: {
+            IncompleteGlContext* object = PincObject_ref_incompleteGlContext(context);
+            return object->alphaBits;
+        }
+        case PincObjectDiscriminator_glContext: {
+            RawOpenglContextObject* object = PincObject_ref_glContext(context);
+            return WindowBackend_glGetContextAlphaBits(&staticState.windowBackend, *object);
+        }
+        default:
+            PErrorUser(false, "Object must be an OpenGL context");
+            return 0;
+    }
 }
 
-PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextDepthBits(PincOpenglContextHandle incomplete_context) {
-    return 0;
+PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextDepthBits(PincOpenglContextHandle context) {
+    PincValidateForState(PincState_init);
+    switch(PincObject_discriminator(context)) {
+        case PincObjectDiscriminator_incompleteGlContext: {
+            IncompleteGlContext* object = PincObject_ref_incompleteGlContext(context);
+            return object->depthBits;
+        }
+        case PincObjectDiscriminator_glContext: {
+            RawOpenglContextObject* object = PincObject_ref_glContext(context);
+            return WindowBackend_glGetContextDepthBits(&staticState.windowBackend, *object);
+        }
+        default:
+            PErrorUser(false, "Object must be an OpenGL context");
+            return 0;
+    }
 }
 
-PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextSamples(PincOpenglContextHandle incomplete_context) {
-    return 0;
+PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextSamples(PincOpenglContextHandle context) {
+    PincValidateForState(PincState_init);
+    switch(PincObject_discriminator(context)) {
+        case PincObjectDiscriminator_incompleteGlContext: {
+            IncompleteGlContext* object = PincObject_ref_incompleteGlContext(context);
+            return object->samples;
+        }
+        case PincObjectDiscriminator_glContext: {
+            RawOpenglContextObject* object = PincObject_ref_glContext(context);
+            return WindowBackend_glGetContextSamples(&staticState.windowBackend, *object);
+        }
+        default:
+            PErrorUser(false, "Object must be an OpenGL context");
+            return 0;
+    }
 }
 
-PINC_EXPORT bool PINC_CALL pincOpenglGetContextStereoBuffer(PincOpenglContextHandle incomplete_context) {
-    P_UNUSED(incomplete_context);
-    // TODO
-    PPANIC("Not implemented");
-    return false;
+PINC_EXPORT bool PINC_CALL pincOpenglGetContextStereoBuffer(PincOpenglContextHandle context) {
+    PincValidateForState(PincState_init);
+    switch(PincObject_discriminator(context)) {
+        case PincObjectDiscriminator_incompleteGlContext: {
+            IncompleteGlContext* object = PincObject_ref_incompleteGlContext(context);
+            return object->stereo;
+        }
+        case PincObjectDiscriminator_glContext: {
+            RawOpenglContextObject* object = PincObject_ref_glContext(context);
+            return WindowBackend_glGetContextStereoBuffer(&staticState.windowBackend, *object);
+        }
+        default:
+            PErrorUser(false, "Object must be an OpenGL context");
+            return 0;
+    }
 }
 
-PINC_EXPORT bool PINC_CALL pincOpenglGetContextDebug(PincOpenglContextHandle incomplete_context) {
-    P_UNUSED(incomplete_context);
-    // TODO
-    PPANIC("Not implemented");
-    return false;
+PINC_EXPORT bool PINC_CALL pincOpenglGetContextDebug(PincOpenglContextHandle context) {
+    PincValidateForState(PincState_init);
+    switch(PincObject_discriminator(context)) {
+        case PincObjectDiscriminator_incompleteGlContext: {
+            IncompleteGlContext* object = PincObject_ref_incompleteGlContext(context);
+            return object->debug;
+        }
+        case PincObjectDiscriminator_glContext: {
+            RawOpenglContextObject* object = PincObject_ref_glContext(context);
+            return WindowBackend_glGetContextDebug(&staticState.windowBackend, *object);
+        }
+        default:
+            PErrorUser(false, "Object must be an OpenGL context");
+            return 0;
+    }
 }
 
-PINC_EXPORT bool PINC_CALL pincOpenglGetContextRobustAccess(PincOpenglContextHandle incomplete_context) {
-    P_UNUSED(incomplete_context);
-    // TODO
-    PPANIC("Not implemented");
-    return false;
+PINC_EXPORT bool PINC_CALL pincOpenglGetContextRobustAccess(PincOpenglContextHandle context) {
+    PincValidateForState(PincState_init);
+    switch(PincObject_discriminator(context)) {
+        case PincObjectDiscriminator_incompleteGlContext: {
+            IncompleteGlContext* object = PincObject_ref_incompleteGlContext(context);
+            return object->robustAccess;
+        }
+        case PincObjectDiscriminator_glContext: {
+            RawOpenglContextObject* object = PincObject_ref_glContext(context);
+            return WindowBackend_glGetContextRobustAccess(&staticState.windowBackend, *object);
+        }
+        default:
+            PErrorUser(false, "Object must be an OpenGL context");
+            return 0;
+    }
 }
 
-PINC_EXPORT bool PINC_CALL pincOpenglGetContextResetIsolation(PincOpenglContextHandle incomplete_context) {
-    P_UNUSED(incomplete_context);
-    // TODO
-    PPANIC("Not implemented");
-    return false;
+PINC_EXPORT bool PINC_CALL pincOpenglGetContextResetIsolation(PincOpenglContextHandle context) {
+    PincValidateForState(PincState_init);
+    switch(PincObject_discriminator(context)) {
+        case PincObjectDiscriminator_incompleteGlContext: {
+            IncompleteGlContext* object = PincObject_ref_incompleteGlContext(context);
+            return object->resetIsolation;
+        }
+        case PincObjectDiscriminator_glContext: {
+            RawOpenglContextObject* object = PincObject_ref_glContext(context);
+            return WindowBackend_glGetContextResetIsolation(&staticState.windowBackend, *object);
+        }
+        default:
+            PErrorUser(false, "Object must be an OpenGL context");
+            return 0;
+    }
 }
 
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglMakeCurrent(PincWindowHandle window, PincOpenglContextHandle context) {
@@ -1903,8 +1998,5 @@ PINC_EXPORT PincOpenglContextHandle PINC_CALL pincOpenglGetCurrentContext(void) 
 
 PINC_EXPORT PincPfn PINC_CALL pincOpenglGetProc(char const * procname) {
     PincValidateForState(PincState_init);
-    // TODO validation
-    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pinc_complete_init?");
-
     return WindowBackend_glGetProc(&staticState.windowBackend, procname);
 }

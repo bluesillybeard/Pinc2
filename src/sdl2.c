@@ -917,6 +917,70 @@ RawOpenglContextHandle sdl2glCompleteContext(struct WindowBackend* obj, Incomple
     return sdlGlContext;
 }
 
+void sdl2glDeinitContext(struct WindowBackend* obj, RawOpenglContextObject context) {
+    P_UNUSED(obj);
+    P_UNUSED(context);
+    // TODO
+}
+
+uint32_t sdl2glGetContextAccumulatorBits(struct WindowBackend* obj, RawOpenglContextObject context, uint32_t channel){
+    P_UNUSED(obj);
+    P_UNUSED(context);
+    P_UNUSED(channel);
+    // TODO
+    return 0;
+}
+
+uint32_t sdl2glGetContextAlphaBits(struct WindowBackend* obj, RawOpenglContextObject context) {
+    // TODO
+    P_UNUSED(obj);
+    P_UNUSED(context);
+    return 0;
+}
+
+uint32_t sdl2glGetContextDepthBits(struct WindowBackend* obj, RawOpenglContextObject context) {
+    // TODO
+    P_UNUSED(obj);
+    P_UNUSED(context);
+    return 0;
+}
+
+uint32_t sdl2glGetContextSamples(struct WindowBackend* obj, RawOpenglContextObject context) {
+    // TODO
+    P_UNUSED(obj);
+    P_UNUSED(context);
+    return 0;
+}
+
+bool sdl2glGetContextStereoBuffer(struct WindowBackend* obj, RawOpenglContextObject context) {
+    // TODO
+    P_UNUSED(obj);
+    P_UNUSED(context);
+    return false;
+}
+
+bool sdl2glGetContextDebug(struct WindowBackend* obj, RawOpenglContextObject context) {
+    // TODO
+    P_UNUSED(obj);
+    P_UNUSED(context);
+    return false;
+}
+
+bool sdl2glGetContextRobustAccess(struct WindowBackend* obj, RawOpenglContextObject context) {
+    // TODO
+    P_UNUSED(obj);
+    P_UNUSED(context);
+    return false;
+}
+
+bool sdl2glGetContextResetIsolation(struct WindowBackend* obj, RawOpenglContextObject context) {
+    // TODO
+    P_UNUSED(obj);
+    P_UNUSED(context);
+    return false;
+}
+
+
 PincReturnCode sdl2glMakeCurrent(struct WindowBackend* obj, WindowHandle window, RawOpenglContextHandle context) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     Sdl2Window* windowObj = (Sdl2Window*)window;
