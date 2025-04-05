@@ -138,3 +138,17 @@ target_compile_options(example_opengl PRIVATE ${PINC_COMPILE_OPTIONS})
 target_link_options(example_opengl PRIVATE ${PINC_LINK_OPTIONS})
 
 target_link_libraries(example_opengl PUBLIC pinc)
+
+# Example 3_share_context
+
+add_executable(example_share_context
+    examples/3_share_context.c
+)
+
+target_include_directories(example_share_context PUBLIC include)
+target_include_directories(example_share_context PRIVATE examples)
+
+target_compile_options(example_share_context PRIVATE ${PINC_COMPILE_OPTIONS})
+target_link_options(example_share_context PRIVATE ${PINC_LINK_OPTIONS})
+
+target_link_libraries(example_share_context PUBLIC pinc)

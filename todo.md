@@ -98,8 +98,6 @@
     - Probably wait until more than just OpenGL is supported
 - Change window states to an enum instead of a bunch of sorta-implicitly-exclusive bools
 - add window state change events
-- Split this readme into multiple files, it's getting too long
-- OpenGL share contexts
 - OpenGL stencil bits
 - OpenGL optional double buffering
 - OpenGL Release Behavior

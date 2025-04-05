@@ -896,6 +896,11 @@ RawOpenglContextHandle sdl2glCompleteContext(struct WindowBackend* obj, Incomple
         glFlags |= SDL_GL_CONTEXT_DEBUG_FLAG;
     }
     this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_FLAGS, glFlags);
+    int share = 0;
+    if(incompleteContext.shareWithCurrent) {
+        share = 1;
+    }
+    this->libsdl2.glSetAttribute(SDL_GL_SHARE_WITH_CURRENT_CONTEXT, share);
 
     // TODO: SDL says it needs the attributes set before creating the window,
     // But is that actually true beyond just the framebuffer format?
@@ -912,6 +917,8 @@ RawOpenglContextHandle sdl2glCompleteContext(struct WindowBackend* obj, Incomple
         PString_free(&errorMsg, tempAllocator);
         return 0;
     }
+    // This is to stop users from assuming the context will be current after completion, like what SDL2 does.
+    this->libsdl2.glMakeCurrent(0, 0);
     // Unlike a window, an OpenGl context contains no other information than just the opaque pointer
     // So no need to wrap it in a struct or anything
     return sdlGlContext;
@@ -984,8 +991,15 @@ bool sdl2glGetContextResetIsolation(struct WindowBackend* obj, RawOpenglContextO
 PincReturnCode sdl2glMakeCurrent(struct WindowBackend* obj, WindowHandle window, RawOpenglContextHandle context) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     Sdl2Window* windowObj = (Sdl2Window*)window;
+    // Window may be null to indicate any window.
+    // SDL2 does not state it needs a window, but it also does not state that no window is an option
+    // So, in the event of a null window, get the dummy window
+    if(!windowObj) {
+        windowObj = _dummyWindow(obj);
+    }
     // Unlike a window, an OpenGl context contains no other information than just the opaque pointer
     // So no need to wrap it in a struct or anything
+    // NOTE: context may be null to indicate no context should be current
     SDL_GLContext contextObj = (SDL_GLContext)context;
     int result = this->libsdl2.glMakeCurrent(windowObj->sdlWindow, contextObj);
     // TODO: Only do this when external errors are enabled - when disabled, the string will still be created, just never actually used

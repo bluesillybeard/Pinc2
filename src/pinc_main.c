@@ -1810,6 +1810,13 @@ PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextVersion(PincOpenglConte
     return PincReturnCode_pass;
 }
 
+PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextShareWithCurrent(PincOpenglContextHandle incomplete_context_handle, bool share) {
+    PincValidateForState(PincState_init);
+    IncompleteGlContext* contextObj = PincObject_ref_incompleteGlContext(incomplete_context_handle);
+    contextObj->shareWithCurrent = share;
+    return PincReturnCode_pass;
+}
+
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglCompleteContext(PincOpenglContextHandle incomplete_context) {
     PincValidateForState(PincState_init);
     IncompleteGlContext* contextObj = PincObject_ref_incompleteGlContext(incomplete_context);
@@ -1981,9 +1988,15 @@ PINC_EXPORT bool PINC_CALL pincOpenglGetContextResetIsolation(PincOpenglContextH
 
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglMakeCurrent(PincWindowHandle window, PincOpenglContextHandle context) {
     PincValidateForState(PincState_init);
-    WindowHandle* windowObj = PincObject_ref_window(window);
-    RawOpenglContextObject* contextObj = PincObject_ref_glContext(context);
-    return WindowBackend_glMakeCurrent(&staticState.windowBackend, *windowObj, contextObj->handle);
+    WindowHandle windowObj = 0;
+    if(window != 0) {
+        windowObj = *PincObject_ref_window(window);
+    }
+    RawOpenglContextObject contextObj = { 0 };
+    if(context != 0){
+        contextObj = *PincObject_ref_glContext(context);
+    }
+    return WindowBackend_glMakeCurrent(&staticState.windowBackend, windowObj, contextObj.handle);
 }
 
 PINC_EXPORT PincWindowHandle PINC_CALL pincOpenglGetCurrentWindow(void) {

@@ -88,7 +88,10 @@ PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextStereoBuffer(PincOpengl
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextDebug(PincOpenglContextHandle incomplete_context_handle, bool debug);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextRobustAccess(PincOpenglContextHandle incomplete_context_handle, bool robust);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextResetIsolation(PincOpenglContextHandle incomplete_context_handle, bool isolation);
+// Settings that cannot be queried from Pinc
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextVersion(PincOpenglContextHandle incomplete_context_handle, uint32_t major, uint32_t minor, PincOpenglContextProfile profile);
+// the context to be shared with is determined when this context is complete, not when this function is called.
+PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextShareWithCurrent(PincOpenglContextHandle incomplete_context_handle, bool share);
 
 // Pinc will try its best to apply the given settings for the context, but they may be different from the requested ones.
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglCompleteContext(PincOpenglContextHandle incomplete_context_handle);

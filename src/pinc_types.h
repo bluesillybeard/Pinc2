@@ -45,6 +45,7 @@ typedef struct {
     uint32_t versionMajor;
     uint32_t versionMinor;
     PincOpenglContextProfile profile;
+    bool shareWithCurrent;
 } IncompleteGlContext;
 
 typedef void* RawOpenglContextHandle;
