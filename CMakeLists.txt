@@ -40,6 +40,7 @@ else()
     set(PINC_LINK_OPTIONS ${PINC_ADDITIONAL_LINK_OPTIONS} "" CACHE STRING "linker flags for pinc and examples")
 endif()
 
+# VERSION
 project(pinc
     VERSION 2.0.0
     DESCRIPTION "Windowing / graphics library written in C"

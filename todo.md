@@ -137,6 +137,8 @@
     - autoconf?
 - linking / using ANGLE for better macos+opengl support, among other improvements to OpenGL
 - Add generation info to object handles
+- Skip window interface and directly link when there is only one window interface enabled
+    - This removes not only a layer of wrappers, but also a layer of indirection and a (potentially) decent amount of memory use as well
 
 ## Planned supported platforms
 - Macos X
