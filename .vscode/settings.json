@@ -13,6 +13,7 @@
         "deinitialized",
         "dlopen",
         "Doptimize",
+        "DPINC",
         "emscripten",
         "fsanitize",
         "GLFW",

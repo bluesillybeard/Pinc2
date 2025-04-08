@@ -57,3 +57,15 @@ Of course, all of the options in settings.md work just the same as in cmake.
 Example: `gcc -Ipinc/include -Ipinc/src -Ipinc/ext pinc/src/unitybuild.c -c -o build/libpinc.o`
 
 In case you missed it in the readme, anything that isn't baked into the compiler is either loaded dynamically or baked into Pinc itself. So you do not need any additional libraries and headers to build. You may still need libraries (such as SDL2) based on what window backends you have enabled.
+
+## Zig
+
+For now, the build.zig is not designed to be used directly as a dependency - it only is tested for producing the artifact.
+
+All of the standard zig options work: `-Dtarget` to change the compile target, `-Doptimize` to change the optimize level, etc.
+
+All of the options in settings.md are exposed through options with the PINC_ prefix removed and the case lowered. ex: `PINC_HAVE_WINDOW_SDL2` -> `have_window_sdl2`
+
+Additional options:
+- `-Dshared=[true/false]`: whether to build a shared library, defaults to false
+

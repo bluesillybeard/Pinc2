@@ -128,7 +128,6 @@
 - More build systems
     - scons
     - premake
-    - zig
     - GNU make
     - nix
     - meson?
