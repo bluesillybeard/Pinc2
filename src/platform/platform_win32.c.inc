@@ -122,6 +122,16 @@ void pPrintError(uint8_t const* message, size_t len) {
     WriteConsoleA(console, message, (DWORD)len, &charsWritten, 0);
 }
 
+void pPrintErrorLine(uint8_t const* message, size_t len) {
+    pPrintError(message, len);
+    pPrintError("\n", 1);
+}
+
+void pPrintDebugLine(uint8_t const* message, size_t len) {
+    pPrintDebug(message, len);
+    pPrintDebug("\n", 1);
+}
+
 void pPrintDebug(uint8_t const* message, size_t len) {
     // TODO: utf8
     HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);

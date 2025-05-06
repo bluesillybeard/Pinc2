@@ -2,9 +2,17 @@
 // Pinc's header is so stupidly simple that creating a binding would be extremely trivial - only a single basic source file.
 // Feel free to contribute such a thing to this repository!
 
+// In order to use in your own project...
+// - zig fetch --save url-to-pinc (whether it's a from github or a vendor folder or whatever)
+// Then in your build.zig:
+// const pinc_dep = b.dependency("Pinc2");
+// const pinc_lib = pincDep.artifact("pinc");
+// your_exe.linkLibrary(pinc_lib);
+
 // TODO: have some decent way for the user to @cImport the header at least - right now, this is only able to build the library
 
 const std = @import("std");
+
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -19,7 +27,9 @@ pub fn build(b: *std.Build) !void {
 
     const link_libc = switch (target.result.os.tag) {
         // windows -> does not need libc
-        .windows => false,
+        // However, Zig does not have windows.h - it afaik it relies on mingw's windows.h, which will not be included without linking libc.
+        // TODO: this means we should create our own minimal set of windows ABI headers
+        .windows => true,
         // other -> assume libc is required, the C sources will pick up if it's an unsupported platform
         else => true,
     };
@@ -63,9 +73,9 @@ pub fn build(b: *std.Build) !void {
         .flags = try flags.toOwnedSlice(),
     });
 
-    lib_mod.addIncludePath(b.path("include"));
     lib_mod.addIncludePath(b.path("ext"));
     lib_mod.addIncludePath(b.path("src"));
+    lib_mod.addSystemIncludePath(b.path("include"));
 
     const lib = b.addLibrary(.{
         .linkage = if(shared) .dynamic else .static,
@@ -75,7 +85,9 @@ pub fn build(b: *std.Build) !void {
         .version = std.SemanticVersion{.major = 2, .minor = 0, .patch = 0},
     });
 
-    lib.addIncludePath(b.path("include"));
+    lib.addIncludePath(b.path("ext"));
+    lib.addIncludePath(b.path("src"));
+    lib.addSystemIncludePath(b.path("include"));
 
     b.installArtifact(lib);
 }

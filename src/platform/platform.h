@@ -137,6 +137,10 @@ void pPrintError(uint8_t const* message, size_t len);
 
 void pPrintDebug(uint8_t const* message, size_t len);
 
+void pPrintErrorLine(uint8_t const* message, size_t len);
+
+void pPrintDebugLine(uint8_t const* message, size_t len);
+
 // Returns the number of characters that would have been written given enough space
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v);
 

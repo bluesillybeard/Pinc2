@@ -14,9 +14,14 @@
 
 void pinc_intern_callError(PString message, PincErrorType type) {
     if(rootAllocator.vtable == 0) {
-        // This assert is not part of the Pinc error system... because if it was, we would have an infinite loop!
-        // The temp allocator is set before any errors have the potential to occur, so this should never happen.
-        pAssertFail();
+        char* errString = "Pinc received an error before initialization of the root allocator - Did you forget to call InitComplete()?";
+        size_t errStringLen = pStringLen(errString);
+        if(staticState.userCallError) {
+            staticState.userCallError((uint8_t const*) errString, errStringLen, type);
+        } else {
+            pPrintErrorLine((uint8_t const*) errString, errStringLen);
+        }
+        pTriggerDebugger();
     }
     if(staticState.userCallError) {
         // Let's be nice and let the user have their null terminator
@@ -24,15 +29,20 @@ void pinc_intern_callError(PString message, PincErrorType type) {
         staticState.userCallError(msgNullTerm, message.len, type);
         Allocator_free(tempAllocator, msgNullTerm, message.len+1);
     } else {
-        pPrintError(message.str, message.len);
+        pPrintErrorLine(message.str, message.len);
     }
     pTriggerDebugger();
 }
 
 P_NORETURN void pinc_intern_callFatalError(PString message, PincErrorType type) {
     if(rootAllocator.vtable == 0) {
-        // This assert is not part of the Pinc error system... because if it was, we would have an infinite loop!
-        // The temp allocator is set before any errors have the potential to occur, so this should never happen.
+        char* errString = "Pinc received a fatal error before initialization of the root allocator - Did you forget to call InitComplete()?";
+        size_t errStringLen = pStringLen(errString);
+        if(staticState.userCallError) {
+            staticState.userCallError((uint8_t const*) errString, errStringLen, type);
+        } else {
+            pPrintErrorLine((uint8_t const*) errString, errStringLen);
+        }
         pAssertFail();
     }
     if(staticState.userCallError) {
@@ -41,7 +51,7 @@ P_NORETURN void pinc_intern_callFatalError(PString message, PincErrorType type) 
         staticState.userCallError(msgNullTerm, message.len, type);
         Allocator_free(tempAllocator, msgNullTerm, message.len+1);
     } else {
-        pPrintError(message.str, message.len);
+        pPrintErrorLine(message.str, message.len);
     }
     pAssertFail();
 }
@@ -689,6 +699,7 @@ PINC_EXPORT uint32_t PINC_CALL pincQueryMaxOpenWindows(PincWindowBackend window_
 }
 
 PINC_EXPORT PincReturnCode PINC_CALL pincInitComplete(PincWindowBackend window_backend, PincGraphicsApi graphics_api, PincFramebufferFormatHandle framebuffer_format_id, uint32_t samples, uint32_t depth_buffer_bits) {
+    if(staticState.initState == PincState_preinit) pincInitIncomplete();
     PincValidateForState(PincState_incomplete);
     if(window_backend == PincWindowBackend_any) {
         // TODO: only window backend is SDL2, shortcuts are taken

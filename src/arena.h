@@ -1,4 +1,7 @@
 // Taken from https://github.com/tsoding/arena/blob/master/arena.h and modified for use in Pinc.
+#define ARENA_NOSTDIO
+// TODO: use platform.h assert
+#define ARENA_ASSERT(_expr)
 
 // Copyright 2022 Alexey Kutepov <reximkut@gmail.com>
 

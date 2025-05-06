@@ -162,6 +162,16 @@ void pPrintDebug(uint8_t const* message, size_t len) {
     fwrite(message, sizeof(uint8_t), len, stdout);
 }
 
+void pPrintErrorLine(uint8_t const* message, size_t len) {
+    fwrite(message, sizeof(uint8_t), len, stderr);
+    fputc('\n', stderr);
+}
+
+void pPrintDebugLine(uint8_t const* message, size_t len) {
+    fwrite(message, sizeof(uint8_t), len, stdout);
+    fputc('\n', stdout);
+}
+
 #include <inttypes.h>
 
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {

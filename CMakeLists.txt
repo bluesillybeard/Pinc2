@@ -33,11 +33,12 @@ set(PINC_ADDITIONAL_COMPILE_OPTIONS "" CACHE STRING "Additional compiler options
 set(PINC_ADDITIONAL_LINK_OPTIONS "" CACHE STRING "Additional linker options")
 
 if (MSVC)
-    set(PINC_COMPILE_OPTIONS ${PINC_ADDITIONAL_COMPILE_OPTIONS} "-Werror" "-pedantic-errors" "-Wall" "-Wextra" "-Wconversion" "-Wno-unused-function" CACHE STRING "options used to compile Pinc and the examples")
-    set(PINC_LINK_OPTIONS ${PINC_ADDITIONAL_LINK_OPTIONS} "" CACHE STRING "linker flags for pinc and examples")
-else()
     set(PINC_COMPILE_OPTIONS ${PINC_ADDITIONAL_COMPILE_OPTIONS} CACHE STRING "options used to compile Pinc and the examples")
     set(PINC_LINK_OPTIONS ${PINC_ADDITIONAL_LINK_OPTIONS} "" CACHE STRING "linker flags for pinc and examples")
+else()
+    set(PINC_COMPILE_OPTIONS ${PINC_ADDITIONAL_COMPILE_OPTIONS} "-Werror" "-pedantic-errors" "-Wall" "-Wextra" "-Wconversion" "-Wno-unused-function" CACHE STRING "options used to compile Pinc and the examples")
+    set(PINC_LINK_OPTIONS ${PINC_ADDITIONAL_LINK_OPTIONS} "" CACHE STRING "linker flags for pinc and examples")
+    
 endif()
 
 # VERSION

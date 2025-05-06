@@ -6,7 +6,6 @@
 // This value has no effect on the regular use of arena.h, but it does change what implementation is used.
 #undef ARENA_BACKEND
 #define ARENA_BACKEND ARENA_BACKEND_USER_CUSTOM
-#define ARENA_NOSTDIO 1
 #define ARENA_USER_CUSTOM_MALLOC(_size) Allocator_allocate(rootAllocator, _size)
 #define ARENA_USER_CUSTOM_FREE(_ptr, _size) Allocator_free(rootAllocator, _ptr, _size)
 #define ARENA_IMPLEMENTATION 1
