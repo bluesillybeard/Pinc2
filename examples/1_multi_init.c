@@ -10,7 +10,7 @@ int main(void) {
         pincInitIncomplete();
         // We don't care what we get, so don't set anything.
         // Everything is left default.
-        if(pincInitComplete(PincWindowBackend_any, PincGraphicsApi_any, 0, 1, 0) == PincReturnCode_error) {
+        if(pincInitComplete(PincWindowBackend_any, PincGraphicsApi_any, 0) == PincReturnCode_error) {
             // Something went wrong. The error callback should have been called.
             return 100;
         }

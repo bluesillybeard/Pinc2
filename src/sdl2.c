@@ -315,16 +315,13 @@ uint32_t sdl2queryMaxOpenWindows(struct WindowBackend* obj) {
     return 0;
 }
 
-PincReturnCode sdl2completeInit(struct WindowBackend* obj, PincGraphicsApi graphicsBackend, FramebufferFormat framebuffer, uint32_t samples, uint32_t depthBufferBits) {
+PincReturnCode sdl2completeInit(struct WindowBackend* obj, PincGraphicsApi graphicsBackend, FramebufferFormat framebuffer) {
     P_UNUSED(obj);
     P_UNUSED(framebuffer);
-    P_UNUSED(samples);
-    P_UNUSED(depthBufferBits);
     // Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     switch (graphicsBackend)
     {
         case PincGraphicsApi_opengl:
-            // TODO: probably need to store the samples and depth buffer bits somewhere?
             break;
         
         default:
@@ -793,6 +790,14 @@ PincOpenglSupportStatus sdl2queryGlDepthBits(struct WindowBackend* obj, Framebuf
     return PincOpenglSupportStatus_maybe;
 }
 
+PincOpenglSupportStatus sdl2queryGlStencilBits(struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits) {
+    P_UNUSED(obj);
+    P_UNUSED(framebuffer);
+    P_UNUSED(bits);
+    // SDL2 has no clean way to query OpenGL support before attempting to make a context.
+    return PincOpenglSupportStatus_maybe;
+}
+
 PincOpenglSupportStatus sdl2queryGlSamples(struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t samples) {
     P_UNUSED(obj);
     P_UNUSED(framebuffer);
@@ -853,6 +858,7 @@ RawOpenglContextHandle sdl2glCompleteContext(struct WindowBackend* obj, Incomple
     this->libsdl2.glSetAttribute(SDL_GL_BLUE_SIZE, channel_bits[2]);
     this->libsdl2.glSetAttribute(SDL_GL_ALPHA_SIZE, channel_bits[3]);
     this->libsdl2.glSetAttribute(SDL_GL_DEPTH_SIZE, incompleteContext.depthBits);
+    this->libsdl2.glSetAttribute(SDL_GL_STENCIL_SIZE, incompleteContext.stencilBits);
     this->libsdl2.glSetAttribute(SDL_GL_ACCUM_RED_SIZE, incompleteContext.accumulatorBits[0]);
     this->libsdl2.glSetAttribute(SDL_GL_ACCUM_GREEN_SIZE, incompleteContext.accumulatorBits[1]);
     this->libsdl2.glSetAttribute(SDL_GL_ACCUM_BLUE_SIZE, incompleteContext.accumulatorBits[2]);
@@ -946,6 +952,13 @@ uint32_t sdl2glGetContextAlphaBits(struct WindowBackend* obj, RawOpenglContextOb
 }
 
 uint32_t sdl2glGetContextDepthBits(struct WindowBackend* obj, RawOpenglContextObject context) {
+    // TODO
+    P_UNUSED(obj);
+    P_UNUSED(context);
+    return 0;
+}
+
+uint32_t sdl2glGetContextStencilBits(struct WindowBackend* obj, RawOpenglContextObject context) {
     // TODO
     P_UNUSED(obj);
     P_UNUSED(context);

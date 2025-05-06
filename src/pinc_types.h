@@ -37,6 +37,7 @@ typedef struct {
     uint32_t accumulatorBits[4];
     uint32_t alphaBits;
     uint32_t depthBits;
+    uint32_t stencilBits;
     uint32_t samples;
     bool stereo;
     bool debug;

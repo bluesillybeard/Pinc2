@@ -125,7 +125,7 @@ int main(void) {
     pincInitIncomplete();
 
     // Init pinc with the opengl API.
-    if(pincInitComplete(PincWindowBackend_any, PincGraphicsApi_opengl, 0, 1, 0) == PincReturnCode_error) {
+    if(pincInitComplete(PincWindowBackend_any, PincGraphicsApi_opengl, 0) == PincReturnCode_error) {
         // Something went wrong. The error callback should have been called.
         return 100;
     }

@@ -412,9 +412,7 @@ PINC_EXTERN PincColorSpace PINC_CALL pincQueryFramebufferFormatColorSpace(PincFr
 PINC_EXTERN uint32_t PINC_CALL pincQueryMaxOpenWindows(PincWindowBackend window_backend);
 
 // Null framebuffer format is a shortcut to use the default framebuffer format.
-// samples is for MSAA. 1 is guaranteed to be supported
-// A depth bits of 0 means no depth buffer.
-PINC_EXTERN PincReturnCode PINC_CALL pincInitComplete(PincWindowBackend window_backend, PincGraphicsApi graphics_api, PincFramebufferFormatHandle framebuffer_format_id, uint32_t samples, uint32_t depth_buffer_bits);
+PINC_EXTERN PincReturnCode PINC_CALL pincInitComplete(PincWindowBackend window_backend, PincGraphicsApi graphics_api, PincFramebufferFormatHandle framebuffer_format_id);
 
 /// @subsection post initialization related functions
 

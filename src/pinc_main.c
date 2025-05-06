@@ -698,7 +698,7 @@ PINC_EXPORT uint32_t PINC_CALL pincQueryMaxOpenWindows(PincWindowBackend window_
     return WindowBackend_queryMaxOpenWindows(&staticState.sdl2WindowBackend);
 }
 
-PINC_EXPORT PincReturnCode PINC_CALL pincInitComplete(PincWindowBackend window_backend, PincGraphicsApi graphics_api, PincFramebufferFormatHandle framebuffer_format_id, uint32_t samples, uint32_t depth_buffer_bits) {
+PINC_EXPORT PincReturnCode PINC_CALL pincInitComplete(PincWindowBackend window_backend, PincGraphicsApi graphics_api, PincFramebufferFormatHandle framebuffer_format_id) {
     if(staticState.initState == PincState_preinit) pincInitIncomplete();
     PincValidateForState(PincState_incomplete);
     if(window_backend == PincWindowBackend_any) {
@@ -715,7 +715,7 @@ PINC_EXPORT PincReturnCode PINC_CALL pincInitComplete(PincWindowBackend window_b
     }
     FramebufferFormat* framebuffer = PincObject_ref_framebufferFormat(framebuffer_format_id);
     staticState.framebufferFormat = framebuffer_format_id;
-    PincReturnCode result = WindowBackend_completeInit(&staticState.sdl2WindowBackend, graphics_api, *framebuffer, samples, depth_buffer_bits);
+    PincReturnCode result = WindowBackend_completeInit(&staticState.sdl2WindowBackend, graphics_api, *framebuffer);
     if(result == PincReturnCode_error) {
         return PincReturnCode_error;
     }
@@ -1662,6 +1662,19 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglDepthBits(PincWindo
     return WindowBackend_queryGlDepthBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
 }
 
+PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglStencilBits(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer_format_id, uint32_t bits) {
+    PincValidateForStates(PincState_init, PincState_incomplete);
+    // TODO: Only backend is sdl2, shortcuts are taken
+    if(backend == PincWindowBackend_any) {
+        backend = PincWindowBackend_sdl2;
+    }
+    if(framebuffer_format_id == 0) {
+        framebuffer_format_id = pincQueryFramebufferFormatDefault(backend, PincGraphicsApi_opengl);
+    }
+    FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_id);
+    return WindowBackend_queryGlStencilBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
+}
+
 PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglSamples(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer_format_handle, uint32_t samples) {
     PincValidateForStates(PincState_init, PincState_incomplete);
     // TODO: Only backend is sdl2, shortcuts are taken
@@ -1730,6 +1743,7 @@ PINC_EXPORT PincOpenglContextHandle PINC_CALL pincOpenglCreateContextIncomplete(
         .accumulatorBits = {0, 0, 0, 0},
         .alphaBits = 0,
         .depthBits = 16,
+        .stencilBits = 0,
         .stereo = false,
         .debug = false,
         .robustAccess = false,
@@ -1759,6 +1773,7 @@ PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextAlphaBits(PincOpenglCon
     contextObject->alphaBits = bits;
     return PincReturnCode_error;
 }
+
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextDepthBits(PincOpenglContextHandle incomplete_context, uint32_t bits) {
     PincValidateForState(PincState_init);
     PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
@@ -1767,8 +1782,16 @@ PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextDepthBits(PincOpenglCon
     return PincReturnCode_error;
 }
 
+PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextStencilBits(PincOpenglContextHandle incomplete_context, uint32_t bits) {
+    PincValidateForState(PincState_init);
+    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
+    contextObject->stencilBits = bits;
+    return PincReturnCode_error;
+}
+
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglSetContextSamples(PincOpenglContextHandle incomplete_context, uint32_t samples) {
-PincValidateForState(PincState_init);
+    PincValidateForState(PincState_init);
     PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
     IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
     contextObject->samples = samples;
@@ -1905,6 +1928,23 @@ PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextDepthBits(PincOpenglContextHa
         case PincObjectDiscriminator_glContext: {
             RawOpenglContextObject* object = PincObject_ref_glContext(context);
             return WindowBackend_glGetContextDepthBits(&staticState.windowBackend, *object);
+        }
+        default:
+            PErrorUser(false, "Object must be an OpenGL context");
+            return 0;
+    }
+}
+
+PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextStencilBits(PincOpenglContextHandle context) {
+    PincValidateForState(PincState_init);
+    switch(PincObject_discriminator(context)) {
+        case PincObjectDiscriminator_incompleteGlContext: {
+            IncompleteGlContext* object = PincObject_ref_incompleteGlContext(context);
+            return object->stencilBits;
+        }
+        case PincObjectDiscriminator_glContext: {
+            RawOpenglContextObject* object = PincObject_ref_glContext(context);
+            return WindowBackend_glGetContextStencilBits(&staticState.windowBackend, *object);
         }
         default:
             PErrorUser(false, "Object must be an OpenGL context");

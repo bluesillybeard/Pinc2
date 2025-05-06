@@ -61,6 +61,8 @@ PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglVersionSupported(Pi
 // Unfortunately, due to certain reasons, the opengl backend
 // still has to adhere to Pinc's requirement of only one framebuffer format for all windows (and by proxy all opengl contexts).
 
+// TODO: properly document all of these OpenGL properties and what they do
+
 // The returned value is more or less an educated guess, depending on the window backend, platform, and graphics drivers.
 // For example, the glX extension for the X window system supports querying many of these before creating a context.
 // SDL2, on the other hand, does not provide an API for querying context support before creating one.
@@ -69,11 +71,20 @@ PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglVersionSupported(Pi
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglAccumulatorBits(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer, uint32_t channel, uint32_t bits);
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglAlphaBits(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer, uint32_t bits);
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglDepthBits(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer, uint32_t bits);
+PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglStencilBits(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer, uint32_t bits);
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglSamples(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer, uint32_t samples);
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglStereoBuffer(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer);
+
+// These query if the property can be set to a value other than default, NOT if the value can be set to true
+// There is Pinc's default, and the implementation default - in this case, we are referring to the implementation default
+// TODO: maybe a way to get the implementation default? If such a thing even exists, I'm not familiar with anything other than X11 or SDL2 on this front.
+// (X11 exposes all of these with extensions anyway, so `implementation default` is probably just whatever makes the most sense for standard compliance)
+// (SDL2 doesn't even have a way to query these - just a way to check for them after the fact)
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglContextDebug(PincWindowBackend backend);
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglRobustAccess(PincWindowBackend backend);
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglResetIsolation(PincWindowBackend backend);
+PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglReleaseBehavior(PincWindowBackend backend);
+PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglShareWithCurrent(PincWindowBackend backend);
 
 // Returns 0 on failure, which should never happen.
 PINC_EXTERN PincOpenglContextHandle PINC_CALL pincOpenglCreateContextIncomplete(void);
@@ -83,12 +94,14 @@ PINC_EXTERN PincOpenglContextHandle PINC_CALL pincOpenglCreateContextIncomplete(
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextAccumulatorBits(PincOpenglContextHandle incomplete_context_handle, uint32_t channel, uint32_t bits);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextAlphaBits(PincOpenglContextHandle incomplete_context_handle, uint32_t bits);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextDepthBits(PincOpenglContextHandle incomplete_context_handle, uint32_t bits);
+PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextStencilBits(PincOpenglContextHandle incomplete_context_handle, uint32_t bits);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextSamples(PincOpenglContextHandle incomplete_context_handle, uint32_t samples);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextStereoBuffer(PincOpenglContextHandle incomplete_context_handle, bool stereo);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextDebug(PincOpenglContextHandle incomplete_context_handle, bool debug);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextRobustAccess(PincOpenglContextHandle incomplete_context_handle, bool robust);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextResetIsolation(PincOpenglContextHandle incomplete_context_handle, bool isolation);
-// Settings that cannot be queried from Pinc
+// true -> flush when made unavailable, false -> don't flush when made unavailable
+PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextReleaseBehavior(PincOpenglContextHandle incomplete_context_handle, bool flush_on_release);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextVersion(PincOpenglContextHandle incomplete_context_handle, uint32_t major, uint32_t minor, PincOpenglContextProfile profile);
 // the context to be shared with is determined when this context is complete, not when this function is called.
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextShareWithCurrent(PincOpenglContextHandle incomplete_context_handle, bool share);
@@ -100,11 +113,14 @@ PINC_EXTERN void PINC_CALL pincOpenglDeinitContext(PincOpenglContextHandle conte
 PINC_EXTERN uint32_t PINC_CALL pincOpenglGetContextAccumulatorBits(PincOpenglContextHandle context_handle, uint32_t channel);
 PINC_EXTERN uint32_t PINC_CALL pincOpenglGetContextAlphaBits(PincOpenglContextHandle context_handle);
 PINC_EXTERN uint32_t PINC_CALL pincOpenglGetContextDepthBits(PincOpenglContextHandle context_handle);
+PINC_EXTERN uint32_t PINC_CALL pincOpenglGetContextStencilBits(PincOpenglContextHandle context_handle);
 PINC_EXTERN uint32_t PINC_CALL pincOpenglGetContextSamples(PincOpenglContextHandle context_handle);
 PINC_EXTERN bool PINC_CALL pincOpenglGetContextStereoBuffer(PincOpenglContextHandle context_handle);
 PINC_EXTERN bool PINC_CALL pincOpenglGetContextDebug(PincOpenglContextHandle context_handle);
 PINC_EXTERN bool PINC_CALL pincOpenglGetContextRobustAccess(PincOpenglContextHandle context_handle);
 PINC_EXTERN bool PINC_CALL pincOpenglGetContextResetIsolation(PincOpenglContextHandle context_handle);
+PINC_EXTERN bool PINC_CALL pincOpenglGetContextReleaseBehavior(PincOpenglContextHandle context_handle);
+PINC_EXTERN bool PINC_CALL pincOpenglGetContextShareWithCurrent(PincOpenglContextHandle context_handle);
 
 /// @brief Make pinc's OpenGL context current. Asserts that the current backend is an OpenGL backend.
 /// @param window the window whose framebuffer to bind to the opengl context, or 0 if it doesn't matter.

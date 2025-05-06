@@ -98,11 +98,11 @@
     - Probably wait until more than just OpenGL is supported
 - Change window states to an enum instead of a bunch of sorta-implicitly-exclusive bools
 - add window state change events
-- OpenGL stencil bits
-- OpenGL optional double buffering
 - OpenGL Release Behavior
 - OpenGL reset notification
 - OpenGL floatbuffers
+- OpenGL optional double buffering
+    - I don't know who wants this to be honest, maybe wait for a PR as (afaik) many APIs don't even support this kind of operation anymore
 
 ## TODO for internal library
 - test and get working on different compilers / implementations of libc

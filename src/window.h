@@ -25,7 +25,7 @@ struct WindowBackend;
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, PincGraphicsApi api), queryGraphicsApiSupport, (obj, api)) \
     PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj), queryMaxOpenWindows, (obj)) \
     /* The window backend is in charge of initializing the graphics api at this point */ \
-    PINC_WINDOW_INTERFACE_FUNCTION(PincReturnCode, (struct WindowBackend* obj, PincGraphicsApi graphicsApi, FramebufferFormat framebuffer, uint32_t samples, uint32_t depthBufferBits), completeInit, (obj, graphicsApi, framebuffer, samples, depthBufferBits)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincReturnCode, (struct WindowBackend* obj, PincGraphicsApi graphicsApi, FramebufferFormat framebuffer), completeInit, (obj, graphicsApi, framebuffer)) \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj), deinit, (obj)) \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj), step, (obj)) \
     /* ### Window Property Functions ## */ \
@@ -63,6 +63,7 @@ struct WindowBackend;
     PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t channel, uint32_t bits), queryGlAccumulatorBits, (obj, framebuffer, channel, bits)) \
     PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits), queryGlAlphaBits, (obj, framebuffer, bits)) \
     PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits), queryGlDepthBits, (obj, framebuffer, bits)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t bits), queryGlStencilBits, (obj, framebuffer, bits)) \
     PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj, FramebufferFormat framebuffer, uint32_t samples), queryGlSamples, (obj, framebuffer, samples)) \
     PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj, FramebufferFormat framebuffer), queryGlStereoBuffer, (obj, framebuffer)) \
     PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj), queryGlContextDebug, (obj)) \
@@ -73,6 +74,7 @@ struct WindowBackend;
     PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj, RawOpenglContextObject context, uint32_t channel), glGetContextAccumulatorBits, (obj, context, channel)) \
     PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextAlphaBits, (obj, context)) \
     PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextDepthBits, (obj, context)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextStencilBits, (obj, context)) \
     PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextSamples, (obj, context)) \
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextStereoBuffer, (obj, context)) \
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextDebug, (obj, context)) \
