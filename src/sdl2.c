@@ -853,16 +853,16 @@ RawOpenglContextHandle sdl2glCompleteContext(struct WindowBackend* obj, Incomple
             PPANIC("Invalid number of channels in framebuffer format");
     }
     channel_bits[3] = incompleteContext.alphaBits;
-    this->libsdl2.glSetAttribute(SDL_GL_RED_SIZE, channel_bits[0]);
-    this->libsdl2.glSetAttribute(SDL_GL_GREEN_SIZE, channel_bits[1]);
-    this->libsdl2.glSetAttribute(SDL_GL_BLUE_SIZE, channel_bits[2]);
-    this->libsdl2.glSetAttribute(SDL_GL_ALPHA_SIZE, channel_bits[3]);
-    this->libsdl2.glSetAttribute(SDL_GL_DEPTH_SIZE, incompleteContext.depthBits);
-    this->libsdl2.glSetAttribute(SDL_GL_STENCIL_SIZE, incompleteContext.stencilBits);
-    this->libsdl2.glSetAttribute(SDL_GL_ACCUM_RED_SIZE, incompleteContext.accumulatorBits[0]);
-    this->libsdl2.glSetAttribute(SDL_GL_ACCUM_GREEN_SIZE, incompleteContext.accumulatorBits[1]);
-    this->libsdl2.glSetAttribute(SDL_GL_ACCUM_BLUE_SIZE, incompleteContext.accumulatorBits[2]);
-    this->libsdl2.glSetAttribute(SDL_GL_ACCUM_ALPHA_SIZE, incompleteContext.accumulatorBits[3]);
+    this->libsdl2.glSetAttribute(SDL_GL_RED_SIZE, (int)channel_bits[0]);
+    this->libsdl2.glSetAttribute(SDL_GL_GREEN_SIZE, (int)channel_bits[1]);
+    this->libsdl2.glSetAttribute(SDL_GL_BLUE_SIZE, (int)channel_bits[2]);
+    this->libsdl2.glSetAttribute(SDL_GL_ALPHA_SIZE, (int)channel_bits[3]);
+    this->libsdl2.glSetAttribute(SDL_GL_DEPTH_SIZE, (int)incompleteContext.depthBits);
+    this->libsdl2.glSetAttribute(SDL_GL_STENCIL_SIZE, (int)incompleteContext.stencilBits);
+    this->libsdl2.glSetAttribute(SDL_GL_ACCUM_RED_SIZE, (int)incompleteContext.accumulatorBits[0]);
+    this->libsdl2.glSetAttribute(SDL_GL_ACCUM_GREEN_SIZE, (int)incompleteContext.accumulatorBits[1]);
+    this->libsdl2.glSetAttribute(SDL_GL_ACCUM_BLUE_SIZE, (int)incompleteContext.accumulatorBits[2]);
+    this->libsdl2.glSetAttribute(SDL_GL_ACCUM_ALPHA_SIZE, (int)incompleteContext.accumulatorBits[3]);
     int stereo = 0;
     if(incompleteContext.stereo) {
         stereo = 1;
@@ -876,10 +876,10 @@ RawOpenglContextHandle sdl2glCompleteContext(struct WindowBackend* obj, Incomple
     } else {
         this->libsdl2.glSetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
     }
-    this->libsdl2.glSetAttribute(SDL_GL_MULTISAMPLESAMPLES, incompleteContext.samples);
-    this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, incompleteContext.versionMajor);
-    this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, incompleteContext.versionMinor);
-    int glFlags;
+    this->libsdl2.glSetAttribute(SDL_GL_MULTISAMPLESAMPLES, (int)incompleteContext.samples);
+    this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, (int)incompleteContext.versionMajor);
+    this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, (int)incompleteContext.versionMinor);
+    int glFlags = 0;
     switch (incompleteContext.profile) {
         case PincOpenglContextProfile_legacy:
             PErrorUser(false, "SDL2 does not support creating a legacy context");

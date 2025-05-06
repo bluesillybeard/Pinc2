@@ -124,12 +124,12 @@ void pPrintError(uint8_t const* message, size_t len) {
 
 void pPrintErrorLine(uint8_t const* message, size_t len) {
     pPrintError(message, len);
-    pPrintError("\n", 1);
+    pPrintError((uint8_t const*)"\n", 1);
 }
 
 void pPrintDebugLine(uint8_t const* message, size_t len) {
     pPrintDebug(message, len);
-    pPrintDebug("\n", 1);
+    pPrintDebug((uint8_t const*)"\n", 1);
 }
 
 void pPrintDebug(uint8_t const* message, size_t len) {

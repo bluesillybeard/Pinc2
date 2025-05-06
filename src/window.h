@@ -70,7 +70,7 @@ struct WindowBackend;
     PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj), queryGlRobustAccess, (obj)) \
     PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglSupportStatus, (struct WindowBackend* obj), queryGlResetIsolation, (obj)) \
     PINC_WINDOW_INTERFACE_FUNCTION(RawOpenglContextHandle, (struct WindowBackend* obj, IncompleteGlContext incompleteContext), glCompleteContext, (obj, incompleteContext)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(void, (struct WindowBackend* obj, RawOpenglContextObject context), glDeinitContext, (obj, context)) \
+    PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, RawOpenglContextObject context), glDeinitContext, (obj, context)) \
     PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj, RawOpenglContextObject context, uint32_t channel), glGetContextAccumulatorBits, (obj, context, channel)) \
     PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextAlphaBits, (obj, context)) \
     PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextDepthBits, (obj, context)) \

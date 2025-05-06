@@ -196,7 +196,7 @@ int main(void) {
         }
         // Set up draw state - this IS NOT shared between contexts!
         // Only server state is shared between contexts, not client state.
-        gl2.Viewport(0, 0, pincWindowGetWidth(window), pincWindowGetHeight(window));
+        gl2.Viewport(0, 0, (int)pincWindowGetWidth(window), (int)pincWindowGetHeight(window));
         gl2.BindBuffer(GL_ARRAY_BUFFER, buffer);
         gl2.EnableClientState(GL_VERTEX_ARRAY);
         gl2.EnableClientState(GL_COLOR_ARRAY);
