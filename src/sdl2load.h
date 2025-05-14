@@ -3,6 +3,10 @@
 // This takes the SDL2 functions, and enumerates them so that they can be loaded at runtime.
 // SDL2's headers are open source and free to use and distribute, thus they are located within the local SDL2 directory.
 
+// Avoid references to libc
+#define SDL_DISABLE_IMMINTRIN_H 1
+#define SDL_DISABLE_XMMINTRIN_H 1
+#define SDL_DISABLE_EMMINTRIN_H 1
 #include <SDL2/SDL.h>
 
 // Classic macro trick. This tends to break LSP. Rather annoying, but better than having to repeat every function declaration 5 times.

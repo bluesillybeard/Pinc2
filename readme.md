@@ -36,6 +36,7 @@ Pinc is written entirely in C, making it (theoretically) portable to any system 
 ## Implemented platforms
 - Posix / Unix
 - Windows / Win32
+- see platform support page
 
 ## Implemented window backends
 - SDL2

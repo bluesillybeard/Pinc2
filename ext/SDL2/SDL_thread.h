@@ -36,7 +36,7 @@
 #include "SDL_mutex.h"
 
 #if (defined(__WIN32__) || defined(__GDK__)) && !defined(__WINRT__)
-#include <process.h> /* _beginthreadex() and _endthreadex() */
+#include <WIN32/pinc_win32.h> /* _beginthreadex() and _endthreadex() */
 #endif
 #if defined(__OS2__) /* for _beginthread() and _endthread() */
 #ifndef __EMX__

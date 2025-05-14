@@ -27,9 +27,7 @@ pub fn build(b: *std.Build) !void {
 
     const link_libc = switch (target.result.os.tag) {
         // windows -> does not need libc
-        // However, Zig does not have windows.h - it afaik it relies on mingw's windows.h, which will not be included without linking libc.
-        // TODO: this means we should create our own minimal set of windows ABI headers
-        .windows => true,
+        .windows => false,
         // other -> assume libc is required, the C sources will pick up if it's an unsupported platform
         else => true,
     };

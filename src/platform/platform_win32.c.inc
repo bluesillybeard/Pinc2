@@ -1,17 +1,11 @@
-// TODO: do all cross compilers have win32 headers?
-// Tested compilers:
-// - x86_64-gcc-w64-mingw32
-
-// I love just having a single header with the entire API from heap allocation to writing to the console to opening a window to drawing graphics
-// It's super cool and awesome and totally not weird or outdated or anything
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 #include <stdint.h>
+
+#include <WIN32/pinc_win32.h>
 
 #include "platform.h"
 
 // TODO: does it make any sense to expose this to the user?
-static HANDLE pincHeap = NULL;
+static void* pincHeap = NULL;
 
 void* pAlloc(size_t bytes) {
     if(!pincHeap) {
@@ -49,20 +43,19 @@ void* pLoadLibrary(uint8_t const* nameUtf8, size_t nameSize) {
     pMemCopy(nameUtf8, nameNullTerm, nameSize+1);
     nameNullTerm[nameSize] = 0;
     // TODO: handle utf8?
-    HMODULE lib = LoadLibraryA(nameNullTerm);
-    // TODO: handle when STRICT is defined, as that changes the type definition of HMODULE
-    return (void*) lib;
+    void* lib = LoadLibraryA(nameNullTerm);
+    return lib;
 }
 
 PFN pLibrarySymbol(void* library, uint8_t const* symbolNameUtf8, size_t nameSize) {
     char* nameNullTerm = pAlloc(nameSize);
     pMemCopy(symbolNameUtf8, nameNullTerm, nameSize+1);
     nameNullTerm[nameSize] = 0;
-    return (PFN) GetProcAddress((HMODULE)library, nameNullTerm);
+    return (PFN) GetProcAddress(library, nameNullTerm);
 }
 
 void pUnloadLibrary(void* library) {
-    FreeLibrary((HMODULE)library);
+    FreeLibrary(library);
     // TODO: getLastError and trigger debugger
 }
 
@@ -77,13 +70,23 @@ size_t pStringLen(char const* str) {
 }
 
 void pMemCopy(void const* P_RESTRICT source, void* P_RESTRICT destination, size_t numBytes) {
-    // It seems GCC specifically makes this just a macro to memcpy
-    CopyMemory(destination, source, numBytes);
+    // CopyMemory is a macro to a macro to something that depends on the compiler
+    // TODO: optimization
+    uint8_t const* P_RESTRICT src = (uint8_t*) source;
+    uint8_t* P_RESTRICT dst = (uint8_t*) destination;
+    for(size_t i=0; i<numBytes; ++i) {
+        dst[i] = src[i];
+    }
 }
 
 void pMemMove(void const* source, void* destination, size_t numBytes) {
-    // It seems GCC specifically makes this just a macro to memmove
-    MoveMemory(destination, source, numBytes);
+    // MoveMemory is a macro to a macro to something that depends on the compiler
+    // TODO: optimization
+    uint8_t* src = (uint8_t*) source;
+    uint8_t* dst = (uint8_t*) destination;
+    for(size_t i=0; i<numBytes; ++i) {
+        dst[i] = src[i];
+    }
 }
 
 void pMemSet(uint8_t value, void* destination, size_t numBytes) {
@@ -115,11 +118,10 @@ P_NORETURN void pAssertFail(void) {
 
 void pPrintError(uint8_t const* message, size_t len) {
     // TODO: utf8
-    HANDLE console = GetStdHandle(STD_ERROR_HANDLE);
-    DWORD charsWritten;
-    // Uh oh, what is the max value of DWORD?
-    // TODO: handle the potential integer overflow of casting size_t to DWORD
-    WriteConsoleA(console, message, (DWORD)len, &charsWritten, 0);
+    void* console = GetStdHandle(STD_ERROR_HANDLE);
+    uint32_t charsWritten;
+    // TODO: handle the potential integer overflow of casting size_t to uint32_t
+    WriteConsoleA(console, message, (uint32_t)len, &charsWritten, 0);
 }
 
 void pPrintErrorLine(uint8_t const* message, size_t len) {
@@ -134,11 +136,10 @@ void pPrintDebugLine(uint8_t const* message, size_t len) {
 
 void pPrintDebug(uint8_t const* message, size_t len) {
     // TODO: utf8
-    HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD charsWritten;
-    // Uh oh, what is the max value of DWORD?
-    // TODO: handle the potential integer overflow of casting size_t to DWORD
-    WriteConsoleA(console, message, (DWORD)len, &charsWritten, 0);
+    void* console = GetStdHandle(STD_OUTPUT_HANDLE);
+    uint32_t charsWritten;
+    // TODO: handle the potential integer overflow of casting size_t to uint32_t
+    WriteConsoleA(console, message, (uint32_t)len, &charsWritten, 0);
 }
 
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
@@ -171,7 +172,7 @@ size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
 int64_t pCurrentTimeMillis(void) {
     // This is *probably* good enough, in the accuracy of 10-20 ms
     // TODO: However, it is almost certainly a good idea to get something that is accurate to 1-2 ms
-    ULONGLONG ticks = GetTickCount64();
+    uint64_t ticks = GetTickCount64();
     if(ticks > INT64_MAX) {
         pPrintError((uint8_t*)"Integer Overflow", sizeof("Integer Overflow"));
         pAssertFail();
