@@ -7,6 +7,7 @@
 // Our own mini GL.h with function pointers
 
 // Sorry for this dumb calling convention garbage
+// More or less directly copied from whatever gl.h was in my compiler's include path at the time
 #if defined(_WIN32) && !defined(__WIN32__) && !defined(__CYGWIN__)
 #define __WIN32__
 #endif

@@ -1,10 +1,10 @@
 # Building Pinc
 
-If all you want to do is build Pinc into a library or mess around with the examples, cmake is the best way to do that. Other build systems are supported just so they can be used to (hopefully easily) import Pinc into a project using said build system.
+If all you want to do is build Pinc into a library or mess around with the examples, cmake is the best way to do that. Other build systems are supported just so they can be used to (hopefully easily) import Pinc into a project using said build system. To be absolutely clear: building the examples with any build system other than cmake is not supported. The other build systems are available to import or build Pinc itself.
 
 ## All build systems - Dependencies
 
-The only real build dependency is a decent compiler. Exactly what that actually means depends on the build system - those are listed below.
+The only real build dependency is a decent compiler. Exactly what that actually means depends on the build system and platform.
 
 At runtime, however, Pinc does require some libraries depending on the platform:
 - On Windows: SDL2.dll in the path
@@ -50,11 +50,13 @@ Pinc only strictly requires these things in order to compile:
 - On posix (`#if defined (__unix) || (__linux)`):
     - an implementation of the C standard library, as well as `dlfcn.h` - I have yet to find a posix C compiler without these
 - On windows (`#if defined (_WIN32)`):
-    - `windows.h` from at least windows XP / Server Edition 2003 - Clang, GCC, and cl.exe have this built-in
+    - Linkage to kernel32.dll (which is a guarantee by default for any valid compiler that supports windows)
 
 Of course, all of the options in settings.md work just the same as in cmake.
 
-Example: `gcc -Ipinc/include -Ipinc/src -Ipinc/ext pinc/src/unitybuild.c -c -o build/libpinc.o`
+Example: `gcc -Iinclude -Isrc -Iext src/unitybuild.c -c -o build/libpinc.o`
+
+Example that disables errors: `gcc -DPINC_ENABLE_ERROR_USER=0 -DPINC_ENABLE_ERROR_ASSERT=0 -Iinclude -Isrc -Iext src/unitybuild.c -c -o build/libpinc.o`
 
 In case you missed it in the readme, anything that isn't baked into the compiler is either loaded dynamically or baked into Pinc itself. So you do not need any additional libraries and headers to build. You may still need libraries (such as SDL2) based on what window backends you have enabled.
 
