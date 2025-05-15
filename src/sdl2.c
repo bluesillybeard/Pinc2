@@ -437,6 +437,15 @@ void sdl2step(struct WindowBackend* obj) {
 WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow const * incomplete, PincWindowHandle frontHandle) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     this->libsdl2.resetHints();
+
+    uint32_t realWidth = incomplete->width;
+    uint32_t realHeight = incomplete->height;
+    if(!incomplete->hasWidth) {
+        realWidth = 256;
+    }
+    if(!incomplete->hasHeight) {
+        realHeight = 256;
+    }
     uint32_t windowFlags = 0;
     if(incomplete->resizable) {
         windowFlags |= SDL_WINDOW_RESIZABLE;
@@ -497,12 +506,8 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
         }
 
         this->dummyWindowInUse = true;
-        if(incomplete->hasWidth) {
-            sdl2setWindowWidth(obj, this->dummyWindow, incomplete->width);
-        }
-        if(incomplete->hasHeight) {
-            sdl2setWindowHeight(obj, this->dummyWindow, incomplete->height);
-        }
+        sdl2setWindowWidth(obj, this->dummyWindow, realWidth);
+        sdl2setWindowHeight(obj, this->dummyWindow, realHeight);
 
         char* titleNullTerm = PString_marshalAlloc(incomplete->title, tempAllocator);
         this->libsdl2.setWindowTitle(dummyWindow->sdlWindow, titleNullTerm);
@@ -521,12 +526,18 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
         // (How come nobody ever makes options for those using non null-terminated strings?)
         // Reminder: SDL2 uses UTF8 encoding for pretty much all strings
         char* titleNullTerm = PString_marshalAlloc(incomplete->title, tempAllocator);
-        SDL_Window* win = this->libsdl2.createWindow(titleNullTerm, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 256, 256, windowFlags);
+        SDL_Window* win = this->libsdl2.createWindow(titleNullTerm, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (int)realWidth, (int)realHeight, windowFlags);
         // I'm so paranoid, I actually went through the SDL2 source code to make sure it actually duplicates the window title to avoid a use-after-free
         // Better too worried than not enough I guess
         Allocator_free(tempAllocator, titleNullTerm, incomplete->title.len+1);
 
         Sdl2Window* windowObj = Allocator_allocate(rootAllocator, sizeof(Sdl2Window));
+        *windowObj = (Sdl2Window){
+            .sdlWindow = win,
+            .frontHandle = frontHandle,
+            .width = realWidth,
+            .height = realHeight,
+        };
         
         // They gave us ownership
         // Sooner or later I'm going to change that
@@ -543,7 +554,6 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
             this->dummyWindow = windowObj;
             this->dummyWindowInUse = true;
         }
-        windowObj->frontHandle = frontHandle;
         return (WindowHandle)windowObj;
     }
 }
