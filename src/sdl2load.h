@@ -25,6 +25,7 @@
     SDL_FUNC(void, freeFormat, SDL_FreeFormat, (SDL_PixelFormat* format)) \
     SDL_FUNC(SDL_Window*, createWindow, SDL_CreateWindow, (char const* title, int x, int y, int w, int h, uint32_t flags)) \
     SDL_FUNC(int, glSetSwapInterval, SDL_GL_SetSwapInterval, (int interval)) \
+    SDL_FUNC(int, glGetSwapInterval, SDL_GL_GetSwapInterval, (void)) \
     SDL_FUNC(char const*, getError, SDL_GetError, (void)) \
     SDL_FUNC(void, setWindowTitle, SDL_SetWindowTitle, (SDL_Window* window, char const* title)) \
     SDL_FUNC(int, pollEvent, SDL_PollEvent, (SDL_Event* event)) \
@@ -42,9 +43,11 @@
     /* added in 2.0.1 */ SDL_FUNC(void, glGetDrawableSize, SDL_GL_GetDrawableSize, (SDL_Window* window, int* width, int* height)) \
     /* added in 2.26.0 */ SDL_FUNC(void, getWindowSizeInPixels, SDL_GetWindowSizeInPixels, (SDL_Window* window, int* width, int* height)) \
     SDL_FUNC(void, destroyWindow, SDL_DestroyWindow, (SDL_Window* window)) \
-    SDL_FUNC(uint32_t, getWindowFlags, SDL_GetWindowFlags, (SDL_Window * window)) \
+    SDL_FUNC(uint32_t, getWindowFlags, SDL_GetWindowFlags, (SDL_Window* window)) \
     SDL_FUNC(uint32_t, getTicks, SDL_GetTicks, (void)) \
     SDL_FUNC(uint64_t, getTicks64, SDL_GetTicks64, (void)) \
+    SDL_FUNC(void, resetHints, SDL_ResetHints, (void)) \
+    SDL_FUNC(char const*, getWindowTitle, SDL_GetWindowTitle, (SDL_Window* window)) \
 
 #undef SDL_FUNC
 

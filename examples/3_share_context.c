@@ -89,7 +89,7 @@ typedef struct {
 bool makeContext(bool share_with_current, GlContext* out_ctx) {
     PincOpenglContextHandle gl_context = pincOpenglCreateContextIncomplete();
     // We are going to share a buffer between the contexts - that requires at least version 1.5
-    // Sure, we could use the buffer objects extension, but that is making thins way too complicated for a simple example
+    // Sure, we could use the buffer objects extension, but that is making this way too complicated for a simple example
     pincOpenglSetContextVersion(gl_context, 1, 5, PincOpenglContextProfile_core);
     // This flag tells pinc that it should set up this context to share with the current context
     pincOpenglSetContextShareWithCurrent(gl_context, share_with_current);

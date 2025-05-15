@@ -1,5 +1,7 @@
 #include <SDL2/SDL_video.h>
 #include "SDL2/SDL_stdinc.h"
+#include "libs/dynamic_allocator.h"
+#include "libs/pstring.h"
 #include "pinc.h"
 #include "pinc_error.h"
 #include "pinc_opengl.h"
@@ -15,7 +17,6 @@
 
 typedef struct {
     SDL_Window* sdlWindow;
-    PString title;
     PincWindowHandle frontHandle;
     uint32_t width;
     uint32_t height;
@@ -78,9 +79,7 @@ void sdl2RemoveWindow(Sdl2WindowBackend* this, Sdl2Window* window) {
 }
 
 static void* sdl2LoadLib(void) {
-    // TODO: what are all the library name possibilities?
-    // Note: For now, we only use functionality from the original 2.0.0 release
-    // On my Linux mint system with libsdl2-dev installed, I get:
+    // On my Linux mint system with libsdl2-dev installed, I get these:
     // - libSDL2-2.0.so
     // - libSDL2-2.0.so.0
     // - libSDL2-2.0.so.0.3000.0
@@ -142,10 +141,11 @@ bool psdl2Init(WindowBackend* obj) {
     if(sdlVersion.major < 2) {
         char* msg2 = "SDL version too old, disabling SDL2 backend\n";
         pPrintDebug((uint8_t*)msg2, pStringLen(msg));
-        // TODO: clean up
+        sdl2UnloadLib(lib);
+        this->sdl2Lib = 0;
+        this->libsdl2 = (Sdl2Functions){0};
         return false;
     }
-    // TODO: where do we need to actually initialize SDL? Ideally we would do lazy-loading if possible.
     this->libsdl2.init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
     // Load all of the functions into the vtable
     #define PINC_WINDOW_INTERFACE_FUNCTION(type, arguments, name, argumentsNames) obj->vt.name = sdl2##name;
@@ -158,8 +158,7 @@ bool psdl2Init(WindowBackend* obj) {
     return true;
 }
 
-// Fingers crossed the compiler sees that this obviously counts the number of set bits and uses a more efficient method
-// TODO: actually check this
+// Clang, GCC, and MSVC optimize this into the most efficient form, when optimization flags are passed.
 static uint32_t bitCount32(uint32_t n) {
     uint32_t counter = 0;
     while(n) {
@@ -196,7 +195,6 @@ static Sdl2Window* _dummyWindow(struct WindowBackend* obj) {
     // sdl2completeWindow sets this to true, under the assumption the user called it.
     // We are requesting the dummy window not for the user's direct use, so it's NOT in use.
     this->dummyWindowInUse = false;
-    // TODO: make this possibly recoverable?
     PErrorAssert(this->dummyWindow, "SDL2 Backend: Could not create dummy window");
     return this->dummyWindow;
 }
@@ -339,7 +337,6 @@ void sdl2deinit(struct WindowBackend* obj) {
     PErrorAssert(this->windowsNum == 0, "Internal pinc error: the frontend didn't delete the windows before calling backend deinit");
     
     this->libsdl2.destroyWindow(this->dummyWindow->sdlWindow);
-    PString_free(&this->dummyWindow->title, rootAllocator);
     Allocator_free(rootAllocator, this->dummyWindow, sizeof(Sdl2Window));
 
     this->libsdl2.quit();
@@ -354,10 +351,7 @@ void sdl2step(struct WindowBackend* obj) {
 
     // The offset between SDL2's getTicks() and platform's pCurrentTimeMillis()
     // so that getTicks + timeOffset == pCurrentTimeMillis() (with some margin of error)
-    int64_t timeOffset = pCurrentTimeMillis() - ((int64_t)this->libsdl2.getTicks());
-    // TODO: see if you can do something about the premature rollover with only 32 bits
-    // This might already do that simply by the nature of calculating the offset based on the faulty getTicks,
-    // However I'm not certain enough as of yet.
+    int64_t timeOffset = pCurrentTimeMillis() - ((int64_t)this->libsdl2.getTicks64());
 
     SDL_Event event;
     // NEXTLOOP:
@@ -442,7 +436,7 @@ void sdl2step(struct WindowBackend* obj) {
 
 WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow const * incomplete, PincWindowHandle frontHandle) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
-    // TODO: is ResetHints a good idea?
+    this->libsdl2.resetHints();
     uint32_t windowFlags = 0;
     if(incomplete->resizable) {
         windowFlags |= SDL_WINDOW_RESIZABLE;
@@ -465,7 +459,7 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
     if(incomplete->hidden) {
         windowFlags |= SDL_WINDOW_HIDDEN;
     }
-    // TODO: Only graphics api is OpenGL, shortcuts are taken
+    // Only graphics api is OpenGL, shortcuts are taken
     windowFlags |= SDL_WINDOW_OPENGL;
 
     if(!this->dummyWindowInUse && this->dummyWindow) {
@@ -478,7 +472,6 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
         // SDL does not support changing a window to have opengl after it was created without it.
         if((windowFlags&SDL_WINDOW_OPENGL) && !(realFlags&SDL_WINDOW_OPENGL)) {
             this->libsdl2.destroyWindow(dummyWindow->sdlWindow);
-            PString_free(&this->dummyWindow->title, rootAllocator);
             Allocator_free(rootAllocator, dummyWindow, sizeof(Sdl2Window));
             goto SDL_MAKE_NEW_WINDOW;
         }
@@ -510,12 +503,14 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
         if(incomplete->hasHeight) {
             sdl2setWindowHeight(obj, this->dummyWindow, incomplete->height);
         }
-        // Title's ownership is in the window object itself
-        dummyWindow->title = incomplete->title;
+
         char* titleNullTerm = PString_marshalAlloc(incomplete->title, tempAllocator);
         this->libsdl2.setWindowTitle(dummyWindow->sdlWindow, titleNullTerm);
         Allocator_free(tempAllocator, titleNullTerm, incomplete->title.len+1);
         dummyWindow->frontHandle = frontHandle;
+        // They gave us ownership
+        // Sooner or later I'm going to change that
+        PString_free((PString*)&incomplete->title, rootAllocator);
         return dummyWindow;
     }
     SDL_MAKE_NEW_WINDOW:
@@ -533,9 +528,9 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
 
         Sdl2Window* windowObj = Allocator_allocate(rootAllocator, sizeof(Sdl2Window));
         
-        // Title's ownership is in the window object itself
-        windowObj->sdlWindow = win;
-        windowObj->title = incomplete->title;
+        // They gave us ownership
+        // Sooner or later I'm going to change that
+        PString_free((PString*)&incomplete->title, rootAllocator);
 
         // So we can easily get one of our windows out of the SDL2 window handle
         this->libsdl2.setWindowData(win, "pincSdl2Window", windowObj);
@@ -565,29 +560,27 @@ void sdl2deinitWindow(struct WindowBackend* obj, WindowHandle windowHandle) {
         return;
     }
     this->libsdl2.destroyWindow(window->sdlWindow);
-    PString_free(&window->title, rootAllocator);
     Allocator_free(rootAllocator, window, sizeof(Sdl2Window));
 }
 
 void sdl2setWindowTitle(struct WindowBackend* obj, WindowHandle windowHandle, uint8_t* title, size_t titleLen) {
-    // We take ownership of the title
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     Sdl2Window* window = (Sdl2Window*)windowHandle;
-    PString_free(&window->title, rootAllocator);
-    window->title = (PString){.str = title, .len = titleLen};
-    // Let SDL2 know that the title was changed
+    
     // It needs to be null terminated because reasons
-    // TODO: let SDL2 have the window title and not keep our own copy of it?
     char* titleNullTerm = PString_marshalAlloc((PString){.str = title, .len = titleLen}, tempAllocator);
     this->libsdl2.setWindowTitle(window->sdlWindow, titleNullTerm);
     Allocator_free(tempAllocator, titleNullTerm, titleLen+1);
+    // We take ownership of the title
+    Allocator_free(rootAllocator, title, titleLen);
 }
 
 uint8_t const * sdl2getWindowTitle(struct WindowBackend* obj, WindowHandle windowHandle, size_t* outTitleLen) {
-    P_UNUSED(obj);
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     Sdl2Window* window = (Sdl2Window*)windowHandle;
-    *outTitleLen = window->title.len;
-    return window->title.str;
+    char const* title = this->libsdl2.getWindowTitle(window->sdlWindow);
+    *outTitleLen = pStringLen(title);
+    return (uint8_t const*)title;
 }
 
 void sdl2setWindowWidth(struct WindowBackend* obj, WindowHandle window, uint32_t width) {
@@ -605,7 +598,7 @@ uint32_t sdl2getWindowWidth(struct WindowBackend* obj, WindowHandle window) {
     if(this->libsdl2.getWindowSizeInPixels) {
         this->libsdl2.getWindowSizeInPixels(windowObj->sdlWindow, &width, NULL);
     } else if(this->libsdl2.glGetDrawableSize) {
-        // TODO: only graphics api is OpenGl, shortcuts are made
+        // Only graphics api is OpenGl, shortcuts are made
         this->libsdl2.glGetDrawableSize(windowObj->sdlWindow, &width, NULL);
     } else {
         // If the previously tried functions don't work, then it means this is a version of SDL from before it became hidpi aware.
@@ -738,21 +731,34 @@ bool sdl2getWindowHidden(struct WindowBackend* obj, WindowHandle window) {
 }
 
 PincReturnCode sdl2setVsync(struct WindowBackend* obj, bool vsync) {
-    P_UNUSED(obj);
-    P_UNUSED(vsync);
-    // TODO
-    return PincReturnCode_error;
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    // TODO: only graphics backend is OpenGL, shortcuts are taken
+    if(vsync) {
+        if(this->libsdl2.glSetSwapInterval(-1) == -1) {
+            // Try again with non-adaptive vsync
+            if(this->libsdl2.glSetSwapInterval(1) == -1) {
+                // big sad
+                return PincReturnCode_error;
+            }
+        }
+    } else {
+        if(this->libsdl2.glSetSwapInterval(0) == -1) {
+            return PincReturnCode_error;
+        }
+    }
+    return PincReturnCode_pass;
 }
 
 bool sdl2getVsync(struct WindowBackend* obj) {
-    P_UNUSED(obj);
-    // TODO
-    return false;
+    // TODO: only graphics backend is OpenGL, shortcuts are taken
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    return this->libsdl2.glGetSwapInterval() != 0;
 }
 
 void sdl2windowPresentFramebuffer(struct WindowBackend* obj, WindowHandle window) {
     Sdl2Window* windowObj = (Sdl2Window*)window;
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    // TODO: only graphics backend is OpenGL, shortcuts are taken
     this->libsdl2.glSwapWindow(windowObj->sdlWindow);
 }
 
@@ -1065,9 +1071,6 @@ PincOpenglContextHandle sdl2glGetCurrentContext(struct WindowBackend* obj) {
 
 PincPfn sdl2glGetProc(struct WindowBackend* obj, char const* procname) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
-    // make sure the context is current.
-    // If there is no current context, that is a user error that should be reported.
-    // TODO: is it a good idea to print out what SDL_GetError() returns as well?
     PErrorUser(this->libsdl2.glGetCurrentContext(), "Cannot get proc address of an OpenGL function without a current context");
     return this->libsdl2.glGetProcAddress(procname);
 }
