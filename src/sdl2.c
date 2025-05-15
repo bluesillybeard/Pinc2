@@ -110,7 +110,7 @@ PINC_WINDOW_INTERFACE
 bool psdl2Init(WindowBackend* obj) {
     obj->obj = Allocator_allocate(rootAllocator, sizeof(Sdl2WindowBackend));
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
-    pMemSet(0, this, sizeof(Sdl2WindowBackend));
+    *this = (Sdl2WindowBackend){0};
     // The only thing required for SDL2 support is for the SDL2 library to be present
     void* lib = sdl2LoadLib();
     if(!lib) {

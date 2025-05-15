@@ -895,7 +895,7 @@ PINC_EXPORT PincWindowHandle PINC_CALL pincWindowCreateIncomplete(void) {
 }
 
 PINC_EXPORT PincReturnCode PINC_CALL pincWindowComplete(PincWindowHandle window) {\
-PincValidateForState(PincState_init);
+    PincValidateForState(PincState_init);
     IncompleteWindow* object = PincObject_ref_incompleteWindow(window);
     WindowHandle handle = WindowBackend_completeWindow(&staticState.windowBackend, object, window);
     if(!handle) {

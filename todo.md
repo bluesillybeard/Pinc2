@@ -110,7 +110,6 @@
 - Add options / code / auto detection for where libraries come from
     - This is a requirement for supporting platforms without dynamic linking (such as the web)
 - set up clang-tidy or another linter
-- set up testing with valgrind or other runtime analysis tools
 - allocation tracking
 - More build systems
     - scons
@@ -123,4 +122,12 @@
 - Add generation info to object handles
 - Option to window interface and directly link when there is only one window interface enabled
     - This removes not only a layer of wrappers, but also a layer of indirection and a (potentially) decent amount of memory use as well
-
+- Set up proper automated pass/fail testing
+    - Automated pass/fail tests
+    - All events
+    - memory safety (fsanitize + valgrind)
+    - Every function
+    - fuzzers
+    - error propagation
+    - mock window backend
+    - validation window backend
