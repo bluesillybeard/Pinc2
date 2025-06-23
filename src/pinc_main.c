@@ -1,6 +1,7 @@
 #include <pinc.h>
 #include <stdint.h>
 #include "libs/dynamic_allocator.h"
+#include "libs/pstring.h"
 #include "pinc_error.h"
 #include "pinc_opengl.h"
 #include "pinc_types.h"
@@ -871,15 +872,13 @@ PINC_EXPORT PincWindowHandle PINC_CALL pincWindowCreateIncomplete(void) {
     PincWindowHandle handle = PincObject_allocate(PincObjectDiscriminator_incompleteWindow);
     IncompleteWindow* window = PincObject_ref_incompleteWindow(handle);
     // TODO: Add integer formatting to PString, or get a decent libc-free formatting library
-    char namebuf[24];
-    size_t nameLen = 0;
-    pMemCopy("Pinc window ", namebuf, 12);
-    nameLen += 12;
-    nameLen += pBufPrintUint32(namebuf+12, 12, handle);
-    char* name = Allocator_allocate(rootAllocator, nameLen);
-    pMemCopy(namebuf, name, nameLen);
+    PString strings[] = {
+        PString_makeDirect("Pinc Window "),
+        PString_allocFormatUint32(handle, tempAllocator),
+    };
+    PString name = PString_concat(sizeof(strings) / sizeof(PString), strings, rootAllocator);
     *window = (IncompleteWindow){
-        .title = (PString){ .str = (uint8_t*)name, .len = nameLen},
+        .title = name,
         .hasWidth = false,
         .width = 0,
         .hasHeight = false,

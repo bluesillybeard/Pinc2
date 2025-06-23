@@ -177,19 +177,56 @@ void pPrintDebugLine(uint8_t const* message, size_t len) {
 #include <inttypes.h>
 
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
-    int res = snprintf(buf, capacity, "%" PRIu32, v);
-    if(res < 0) pAssertFail();
-    return (size_t)res+1;
+    if(capacity == 1 && buf) buf[0] = 0;
+    if(v == 0) {
+        if(capacity >= 2) {
+            if(buf) (buf[0] = '0');
+            if(buf) (buf[1] = 0);
+        }
+        return 1;
+    }
+    // uint32_t can be at most 10 decimal digits
+    // One more for null terminator
+    char realbuf[11] = { 0 };
+    // Assuming ASCII or something similar
+    size_t i = 0;
+    while(v > 0) {
+        uint32_t d = v % 10;
+        v = v / 10;
+        char c = (char)(d+0x30);
+        i += 1;
+        realbuf[10-i] = c;
+    }
+    // Bro why are there so many edge cases like wth
+    if(buf){
+        size_t num = i+1;
+        if(num > capacity) {
+            num = capacity;
+        }
+        pMemCopy(&realbuf[10-i], buf, num);
+        if(num > 0){
+            buf[num-1] = 0;
+        }
+    }
+    return i;
 }
 
 size_t pBufPrintUint64(char* buf, size_t capacity, uint64_t v) {
+    if(capacity == 1 && buf) buf[0] = 0;
+    if(v == 0) {
+        if(capacity >= 2) {
+            if(buf) (buf[0] = '0');
+            if(buf) (buf[1] = 0);
+        }
+        return 1;
+    }
     // uint64_t can be at most 20 decimal digits
     // One more for null terminator
     char realbuf[21] = { 0 };
     // Assuming ASCII or something similar
     size_t i = 0;
     while(v > 0) {
-        uint64_t d = v % 10;
+        uint32_t d = v % 10;
         v = v / 10;
         char c = (char)(d+0x30);
         i += 1;
@@ -206,7 +243,7 @@ size_t pBufPrintUint64(char* buf, size_t capacity, uint64_t v) {
             buf[num-1] = 0;
         }
     }
-    return i+1;
+    return i;
 }
 
 #include <time.h>

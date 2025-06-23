@@ -142,10 +142,10 @@ void pPrintErrorLine(uint8_t const* message, size_t len);
 
 void pPrintDebugLine(uint8_t const* message, size_t len);
 
-// Returns the number of characters that would have been written given enough space
+/// Returns the number of characters that would have been written given enough space, not including the null terminator
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v);
 
-// Returns the number of characters that would have been written given enough space
+/// Returns the number of characters that would have been written given enough space, not including the null terminator
 size_t pBufPrintUint64(char* buf, size_t capacity, uint64_t v);
 
 // A monotonic time counter in milliseconds.

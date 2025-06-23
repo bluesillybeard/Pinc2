@@ -105,6 +105,8 @@
     - I don't know who wants this to be honest, maybe wait for a PR as (afaik) many APIs don't even support this kind of operation anymore
 
 ## TODO for internal library
+- Add unit tests for certain functions
+    - *cough cough* bufPrint\* *cough cough*
 - add debug print system with proper formatting (that isn't just a copy of libc's formatting)
     - Partially done, but it should be more ergonomic and have the ability to call into a user function
 - expose (most of) platform.h so users can write code that is just as portable as Pinc itself while not giving up features that libc doesn't have

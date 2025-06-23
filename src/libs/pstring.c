@@ -89,7 +89,7 @@ PString PString_allocFormatUint32(uint32_t item, Allocator alloc) {
     new.str = Allocator_allocate(alloc, len);
     pMemCopy(buffer, new.str, len);
     PErrorAssert(len, "Zero length string");
-    new.len = len-1;
+    new.len = len;
     return new;
 }
 

@@ -15,6 +15,7 @@
 #include <processenv.h>
 #include <wincon.h>
 #include <winbase.h>
+#include <winnt.h>
 
 #include "platform.h"
 
@@ -163,6 +164,14 @@ void pPrintDebug(uint8_t const* message, size_t len) {
 }
 
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
+    if(capacity == 1 && buf) buf[0] = 0;
+    if(v == 0) {
+        if(capacity >= 2) {
+            if(buf) (buf[0] = '0');
+            if(buf) (buf[1] = 0);
+        }
+        return 1;
+    }
     // uint32_t can be at most 10 decimal digits
     // One more for null terminator
     char realbuf[11] = { 0 };
@@ -186,17 +195,25 @@ size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
             buf[num-1] = 0;
         }
     }
-    return i+1;
+    return i;
 }
 
 size_t pBufPrintUint64(char* buf, size_t capacity, uint64_t v) {
+    if(capacity == 1 && buf) buf[0] = 0;
+    if(v == 0) {
+        if(capacity >= 2) {
+            if(buf) (buf[0] = '0');
+            if(buf) (buf[1] = 0);
+        }
+        return 1;
+    }
     // uint64_t can be at most 20 decimal digits
     // One more for null terminator
     char realbuf[21] = { 0 };
     // Assuming ASCII or something similar
     size_t i = 0;
     while(v > 0) {
-        uint64_t d = v % 10;
+        uint32_t d = v % 10;
         v = v / 10;
         char c = (char)(d+0x30);
         i += 1;
@@ -213,7 +230,7 @@ size_t pBufPrintUint64(char* buf, size_t capacity, uint64_t v) {
             buf[num-1] = 0;
         }
     }
-    return i+1;
+    return i;
 }
 
 int64_t pCurrentTimeMillis(void) {
