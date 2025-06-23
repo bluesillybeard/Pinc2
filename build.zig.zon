@@ -17,13 +17,20 @@
     },
 
     .paths = .{
+        "build.md",
         "build.zig",
         "build.zig.zon",
+        "contributing.md",
         "license",
+        "readme.md",
         "security.md",
+        "settings.md",
+        "support.md",
+        "todo.md",
         "examples",
         "ext",
         "include",
+        "MinGW",
         "src",
     }
 }
