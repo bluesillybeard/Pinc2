@@ -179,7 +179,7 @@ void pPrintDebugLine(uint8_t const* message, size_t len) {
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
     int res = snprintf(buf, capacity, "%" PRIu32, v);
     if(res < 0) pAssertFail();
-    return (size_t)res;
+    return (size_t)res+1;
 }
 
 size_t pBufPrintUint64(char* buf, size_t capacity, uint64_t v) {
