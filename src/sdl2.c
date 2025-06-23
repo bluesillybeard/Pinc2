@@ -122,25 +122,19 @@ bool psdl2Init(WindowBackend* obj) {
     this->sdl2Lib = lib;
 
     loadSdl2Functions(this->sdl2Lib, &this->libsdl2);
-    // TODO: warn for any functions that were not loaded
     SDL_version sdlVersion;
     this->libsdl2.getVersion(&sdlVersion);
-    // TODO: we seriously need a decent libc-free formatting library, this is getting ridiculous
-    char* msg = "Loaded SDL2 version: ";
-    pPrintDebug((uint8_t*)msg, pStringLen(msg));
-    char printbuf[11] = { 0 };
-    pBufPrintUint32(printbuf, 11, sdlVersion.major);
-    pPrintDebug((uint8_t*)printbuf, pStringLen(printbuf));
-    pPrintDebug((uint8_t*)".", 1);
-    pBufPrintUint32(printbuf, 11, sdlVersion.minor);
-    pPrintDebug((uint8_t*)printbuf, pStringLen(printbuf));
-    pPrintDebug((uint8_t*)".", 1);
-    pBufPrintUint32(printbuf, 11, sdlVersion.patch);
-    pPrintDebug((uint8_t*)printbuf, pStringLen(printbuf));
-    pPrintDebug((uint8_t*)"\n", 1);
+    PString strings[] = {
+        PString_makeDirect("Loaded SDL2 version: "),
+        PString_allocFormatUint32(sdlVersion.major, tempAllocator),
+        PString_allocFormatUint32(sdlVersion.minor, tempAllocator),
+        PString_allocFormatUint32(sdlVersion.patch, tempAllocator),
+    };
+    PString msg = PString_concat(sizeof(strings) / sizeof(PString), strings, tempAllocator);
+    pPrintDebugLine(msg.str, msg.len);
     if(sdlVersion.major < 2) {
         char* msg2 = "SDL version too old, disabling SDL2 backend\n";
-        pPrintDebug((uint8_t*)msg2, pStringLen(msg));
+        pPrintDebug((uint8_t*)msg2, pStringLen(msg2));
         sdl2UnloadLib(lib);
         this->sdl2Lib = 0;
         this->libsdl2 = (Sdl2Functions){0};

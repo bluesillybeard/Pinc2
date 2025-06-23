@@ -3,6 +3,21 @@
  * This file is part of the mingw-w64 runtime package.
  * No warranty is given; refer to the file DISCLAIMER.PD within this package.
  */
+
+/**
+ * PINC EDIT: Added guard around this header so this includes the next header if this ends up included in the wrong platform
+ */
+
+/* PINC EDIT: begin platform guard */
+
+#if !defined(_WIN32) && !defined(__CYGWIN__)
+
+#include_next <string.h>
+
+#else
+
+/* PINC EDIT: end platform guard */
+
 #ifndef _INC_STRING
 #define _INC_STRING
 
@@ -318,3 +333,5 @@ wchar_t * wcscat(wchar_t * __restrict__ __dst, const wchar_t * __restrict__ __sr
 #endif /* __MINGW_FORTIFY_LEVEL > 0 */
 
 #endif
+
+#endif /* PINC EDIT: platform guard */

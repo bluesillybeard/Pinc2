@@ -90,7 +90,7 @@ pub fn build(b: *std.Build) !void {
         try flags.append(if(enable) "-DPINC_ENABLE_ERROR_VALIDATE=ON" else "-DPINC_ENABLE_ERROR_VALIDATE=OFF");
     }
     if(use_custom_platform_implementation) |enable| {
-        try flags.append(if(enable) "-PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=ON" else "-PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=OFF");
+        try flags.append(if(enable) "-DPINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=ON" else "-PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=OFF");
     }
 
     lib_mod.addCSourceFiles(.{
@@ -100,6 +100,7 @@ pub fn build(b: *std.Build) !void {
             "src/platform/platform.c",
             "src/sdl2.c",
             "src/arena.c",
+            "src/libs/pstring.c"
         },
         .flags = try flags.toOwnedSlice(),
     });

@@ -3,6 +3,21 @@
  * This file is part of the mingw-w64 runtime package.
  * No warranty is given; refer to the file DISCLAIMER.PD within this package.
  */
+
+/**
+ * PINC EDIT: Added guard around this header so this includes the next header if this ends up included in the wrong platform
+ */
+
+/* PINC EDIT: begin platform guard */
+
+#if !defined(_WIN32) && !defined(__CYGWIN__)
+
+#include_next <stdlib.h>
+
+#else
+
+/* PINC EDIT: end platform guard */
+
 #ifndef _INC_STDLIB
 #define _INC_STDLIB
 
@@ -717,3 +732,5 @@ unsigned long __cdecl _lrotr(unsigned long,int);
 #include <malloc.h>
 
 #endif
+
+#endif /* PINC EDIT: platform guard */

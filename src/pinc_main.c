@@ -17,7 +17,7 @@ void pinc_intern_callError(PString message, PincErrorType type) {
         char* errString = "Pinc received an error before initialization of the root allocator - Did you forget to call InitComplete()?";
         size_t errStringLen = pStringLen(errString);
         if(staticState.userCallError) {
-            staticState.userCallError((uint8_t const*) errString, errStringLen, type);
+            staticState.userCallError((uint8_t const*) errString, errStringLen, PincErrorType_user);
         } else {
             pPrintErrorLine((uint8_t const*) errString, errStringLen);
         }

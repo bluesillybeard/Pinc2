@@ -1,6 +1,9 @@
+#ifndef PINC_H
+#define PINC_H
+
 // pinc.h - Pinc's entire API
 
-// This header has no includes.
+// This header has ZERO includes, and is fully self-sufficient assuming a valid C compiler.
 
 // In general, here is what you can expect from the API:
 // - we assume floats are in the single precision IEE754 32 bit format.
@@ -9,7 +12,7 @@
 
 // Error Policy:
 // Pinc has 5 types of errors, all of which can be enabled, disabled, and configured to call user callbacks.
-// Ordered from lowest to biggest performance impact:
+// Ordered from least to most performance impact:
 // - External error: an error that occurred from an external library. This either indicates an issue with the system running the program, or within Pinc.
 // - Assert error: an internal assert failed, this is an issue within Pinc.
 // - User error: an error in the program's usage of Pinc.
@@ -50,9 +53,6 @@
 //     - get user inputs and other events
 //     - draw stuff
 //     - present window framebuffers
-
-#ifndef PINC_H
-#define PINC_H
 
 #include <stdint.h>
 #include <stdbool.h>

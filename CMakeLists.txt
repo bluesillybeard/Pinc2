@@ -55,6 +55,7 @@ add_library(pinc
     src/platform/platform.c
     src/sdl2.c
     src/arena.c
+    src/libs/pstring.c
     # Internal headers - these are so the LSP works correctly, and have nothing to do with the build itself
     # there are a lot of these because implementations of functions tend to get grouped together more than macros and types
     src/pinc_error.h

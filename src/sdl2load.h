@@ -1,4 +1,5 @@
 #include "platform/platform.h"
+#include "pinc_error.h"
 
 // This takes the SDL2 functions, and enumerates them so that they can be loaded at runtime.
 // SDL2's headers are open source and free to use and distribute, thus they are located within the local SDL2 directory.
@@ -14,6 +15,7 @@
 // Even clangd gets confused from this mega death macro, if you have a better way that isn't just writing every function 3 times, send it in.
 
 #define SDL_FUNC(type, name, realName, args)
+#define SDL_FUNC_OPTIONAL(type, name, realName, args)
 #define SDL_FUNCTIONS \
     SDL_FUNC(int, init, SDL_Init, (uint32_t flags)) \
     SDL_FUNC(void, quit, SDL_Quit, (void)) \
@@ -40,8 +42,8 @@
     SDL_FUNC(SDL_Window*, glGetCurrentWindow, SDL_GL_GetCurrentWindow, (void)) \
     SDL_FUNC(int, glSetAttribute, SDL_GL_SetAttribute, (SDL_GLattr attr, int value)) \
     SDL_FUNC(void, getWindowSize, SDL_GetWindowSize, (SDL_Window* window, int* width, int* height)) \
-    /* added in 2.0.1 */ SDL_FUNC(void, glGetDrawableSize, SDL_GL_GetDrawableSize, (SDL_Window* window, int* width, int* height)) \
-    /* added in 2.26.0 */ SDL_FUNC(void, getWindowSizeInPixels, SDL_GetWindowSizeInPixels, (SDL_Window* window, int* width, int* height)) \
+    /* added in 2.0.1 */ SDL_FUNC_OPTIONAL(void, glGetDrawableSize, SDL_GL_GetDrawableSize, (SDL_Window* window, int* width, int* height)) \
+    /* added in 2.26.0 */ SDL_FUNC_OPTIONAL(void, getWindowSizeInPixels, SDL_GetWindowSizeInPixels, (SDL_Window* window, int* width, int* height)) \
     SDL_FUNC(void, destroyWindow, SDL_DestroyWindow, (SDL_Window* window)) \
     SDL_FUNC(uint32_t, getWindowFlags, SDL_GetWindowFlags, (SDL_Window* window)) \
     SDL_FUNC(uint32_t, getTicks, SDL_GetTicks, (void)) \
@@ -50,22 +52,36 @@
     SDL_FUNC(char const*, getWindowTitle, SDL_GetWindowTitle, (SDL_Window* window)) \
 
 #undef SDL_FUNC
+#undef SDL_FUNC_OPTIONAL
 
 #define SDL_FUNC(_type, _name, _realName, _args) typedef _type (SDLCALL * PFN_##_realName) _args;
+#define SDL_FUNC_OPTIONAL(_type, _name, _realName, _args) typedef _type (SDLCALL * PFN_##_realName) _args;
 
 SDL_FUNCTIONS
+
 #undef SDL_FUNC
+#undef SDL_FUNC_OPTIONAL
 
 #define SDL_FUNC(type, name, realName, args) PFN_##realName name;
+#define SDL_FUNC_OPTIONAL(type, name, realName, args) PFN_##realName name;
 
 typedef struct {
     SDL_FUNCTIONS
 } Sdl2Functions;
-#undef SDL_FUNC
 
-#define SDL_FUNC(type, name, realName, args) functions->name = (PFN_##realName) pLibrarySymbol(lib, (uint8_t*)#realName, pStringLen(#realName));
+#undef SDL_FUNC
+#undef SDL_FUNC_OPTIONAL
+
+#define SDL_FUNC(type, name, realName, args)\
+    functions->name = (PFN_##realName) pLibrarySymbol(lib, (uint8_t*)#realName, pStringLen(#realName));\
+    PErrorExternal(functions->name, "Unable to load SDL2 function " #realName);
+
+#define SDL_FUNC_OPTIONAL(type, name, realName, args)\
+    functions->name = (PFN_##realName) pLibrarySymbol(lib, (uint8_t*)#realName, pStringLen(#realName));\
 
 void loadSdl2Functions(void* lib, Sdl2Functions* functions) {
     SDL_FUNCTIONS
 }
+
 #undef SDL_FUNC
+#undef SDL_FUNC_OPTIONAL

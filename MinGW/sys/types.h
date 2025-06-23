@@ -3,6 +3,21 @@
  * This file is part of the mingw-w64 runtime package.
  * No warranty is given; refer to the file DISCLAIMER.PD within this package.
  */
+
+/**
+ * PINC EDIT: Added guard around this header so this includes the next header if this ends up included in the wrong platform
+ */
+
+/* PINC EDIT: begin platform guard */
+
+#if !defined(_WIN32) && !defined(__CYGWIN__)
+
+#include_next <sys/types.h>
+
+#else
+
+/* PINC EDIT: end platform guard */
+
 #ifndef _INC_TYPES
 #define _INC_TYPES
 
@@ -113,3 +128,4 @@ typedef _sigset_t	sigset_t;
 
 #endif	/* _INC_TYPES */
 
+#endif /* PINC EDIT: platform guard */
