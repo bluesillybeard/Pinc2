@@ -1,6 +1,12 @@
 // Platform implementation detection thingy
 
-#if defined (__unix) || (__linux)
+#include "../pinc_options.h"
+
+#if PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION
+
+// Nothing here, we expect the user to implement platform.h somewhere
+
+#elif defined (__unix) || (__linux)
 
 #include "platform_posix.c.inc"
 

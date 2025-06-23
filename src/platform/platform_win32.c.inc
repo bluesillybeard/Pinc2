@@ -1,6 +1,20 @@
+#include "pinc_error.h"
 #include <stdint.h>
 
-#include <WIN32/pinc_win32.h>
+// If you are here because you encountered include errors, either:
+// 1. Set up Pinc's include directories properly within the build system
+// 2. Use a compiler toolchain with the windows headers (We recommend MinGW + Clang or MinGW + GCC, but MSVC should work too)
+
+#include <minwindef.h>
+#include <windef.h>
+#include <wingdi.h>
+#include <heapapi.h>
+#include <libloaderapi.h>
+#include <debugapi.h>
+#include <processthreadsapi.h>
+#include <processenv.h>
+#include <wincon.h>
+#include <winbase.h>
 
 #include "platform.h"
 
@@ -116,12 +130,22 @@ P_NORETURN void pAssertFail(void) {
     ExitProcess(255);
 }
 
-void pPrintError(uint8_t const* message, size_t len) {
+void pWin32Print(uint8_t const* message, size_t len, DWORD handle) {
     // TODO: utf8
-    void* console = GetStdHandle(STD_ERROR_HANDLE);
-    uint32_t charsWritten;
-    // TODO: handle the potential integer overflow of casting size_t to uint32_t
+    void* console = GetStdHandle(handle);
+    DWORD charsWritten;
+    if(len > UINT32_MAX) {
+        PPANIC("Integer Overflow");
+    }
+    // What if I told you WriteConsoleA indirectly requries wingdi.h?
+    // We aren't doing any window or graphics stuff here, in theory this is just an IPC channel to another process,
+    // But here we are anyway. Isn't the windows SDK absolutely great and completely organized?
+    // Not that Pinc has anything to say here, our entire windowing API is stuffed into a single header file.
     WriteConsoleA(console, message, (uint32_t)len, &charsWritten, 0);
+}
+
+void pPrintError(uint8_t const* message, size_t len) {
+    pWin32Print(message, len, STD_ERROR_HANDLE);
 }
 
 void pPrintErrorLine(uint8_t const* message, size_t len) {
@@ -135,11 +159,7 @@ void pPrintDebugLine(uint8_t const* message, size_t len) {
 }
 
 void pPrintDebug(uint8_t const* message, size_t len) {
-    // TODO: utf8
-    void* console = GetStdHandle(STD_OUTPUT_HANDLE);
-    uint32_t charsWritten;
-    // TODO: handle the potential integer overflow of casting size_t to uint32_t
-    WriteConsoleA(console, message, (uint32_t)len, &charsWritten, 0);
+    pWin32Print(message, len, STD_OUTPUT_HANDLE);
 }
 
 size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {

@@ -19,12 +19,13 @@ set(PINC_PROC_CALL "" CACHE STRING "calling convention for user-defined function
 
 # private options - these only apply to the library build and do not need to be defined in your code
 
-option(PINC_ENABLE_ERROR_EXTERNAL "Enable external error checking" ON)
-option(PINC_ENABLE_ERROR_ASSERT "Enable assert error checking" ON)
-option(PINC_ENABLE_ERROR_USER "Enable user error checking" ON)
-option(PINC_ENABLE_ERROR_SANITIZE "Enable sanitize error checking" OFF)
-option(PINC_ENABLE_ERROR_VALIDATE "Enable validate error checking" OFF)
-option(PINC_HAVE_WINDOW_SDL2 "compile with SDL2 window backend" ON)
+option(PINC_ENABLE_ERROR_EXTERNAL "see settings.md" ON)
+option(PINC_ENABLE_ERROR_ASSERT "see settings.md" ON)
+option(PINC_ENABLE_ERROR_USER "see settings.md" ON)
+option(PINC_ENABLE_ERROR_SANITIZE "see settings.md" OFF)
+option(PINC_ENABLE_ERROR_VALIDATE "see settings.md" OFF)
+option(PINC_HAVE_WINDOW_SDL2 "see settings.md" ON)
+option(PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION "see settings.md" OFF)
 
 # Options specific to cmake build
 
@@ -84,6 +85,7 @@ target_compile_definitions(pinc
     PRIVATE PINC_ENABLE_ERROR_SANITIZE=${PINC_ENABLE_ERROR_SANITIZE}
     PRIVATE PINC_ENABLE_ERROR_VALIDATE=${PINC_ENABLE_ERROR_VALIDATE}
     PRIVATE PINC_HAVE_WINDOW_SDL2=${PINC_HAVE_WINDOW_SDL2}
+    PRIVATE PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=${PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION}
 )
 
 target_compile_options(pinc PRIVATE ${PINC_COMPILE_OPTIONS})

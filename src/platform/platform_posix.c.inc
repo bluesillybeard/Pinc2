@@ -2,6 +2,8 @@
 
 #include "platform.h"
 
+// If you are here because you encountered include errors, use a compiler toolchain with the libc and posix headers
+
 #include <unistd.h>
 #include <dlfcn.h>
 #include <stdlib.h>

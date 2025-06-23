@@ -44,7 +44,6 @@ Others:
 
 TODO: Questions that need to be answered:
 - Did windows 9x ever support ARM?
-- What architectures does Haiku support?
 - Do we need to split BSD into flavors?
 - What about non-GNU Linux?
 - Do we need to split MacOS into flavors?
@@ -95,7 +94,7 @@ TODO: Questions that need to be answered:
 - Emscripten: See operating systems
 - Tcc: F0
 
-- mingw: This is a windows SDK, not a C compiler, but D4
+- mingw: This is a windows SDK, not a C compiler, but C4
 - cygwin: This is an implementation of libc + extras, not a C compiler, but D4
 - musl: This is an implementation of libc, not a C compiler, but F-1
     - Unsupported because Pinc (currently) requires dynamic loading

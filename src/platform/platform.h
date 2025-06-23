@@ -17,13 +17,14 @@
 # elif _MSC_VER
 #   define P_UNUSED(var) (void) var
 #   define P_NORETURN
-// Gotta love MSVC being a non-compliant compiler!
 #   define P_INLINE __inline
 #   define P_RESTRICT __restrict
 # else
-// Assume other compilers are not supported
+// Assume other compilers do not support these at all
 #   define P_UNUSED(var)
 #   define P_NORETURN
+#   define P_INLINE
+#   define P_RESTRICT
 #endif
 
 typedef void (*PFN)(void);

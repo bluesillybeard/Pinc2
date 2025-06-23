@@ -2,13 +2,15 @@
 
 If all you want to do is build Pinc into a library or mess around with the examples, cmake is the best way to do that. Other build systems are supported just so they can be used to (hopefully easily) import Pinc into a project using said build system. To be absolutely clear: building the examples with any build system other than cmake is not supported. The other build systems are available to import or build Pinc itself.
 
+Super Quick Disclaimer: this documentation is frequently out of date, read the actual build system scripts for more up to date and detailed information
+
 ## All build systems - Dependencies
 
 The only real build dependency is a decent compiler. Exactly what that actually means depends on the build system and platform.
 
 At runtime, however, Pinc does require some libraries depending on the platform:
-- On Windows: SDL2.dll in the path
-- On Posix (Linux, unix, bsd, whatever): libSDL2.so or libSDL2-2.0.so in the path
+- On Windows: SDL2.dll in the path or next to the executable
+- On Posix (Linux, unix, bsd, whatever): libSDL2.so or libSDL2-2.0.so in the path or in LD_PRELOAD
 
 ## Cmake
 
@@ -48,7 +50,7 @@ Pinc only strictly requires these things in order to compile:
 - access to Pinc headers (`-I[pinc_dir]/include`)
 - access to internal pinc headers (`-I[pinc_dir]/src` and `-I[pinc_dir]/ext`)
 - On posix (`#if defined (__unix) || (__linux)`):
-    - an implementation of the C standard library, as well as `dlfcn.h` - I have yet to find a posix C compiler without these
+    - an implementation of the C standard library, as well as `dlfcn.h` - I have yet to find a decent posix C compiler without these
 - On windows (`#if defined (_WIN32)`):
     - Linkage to kernel32.dll (which is a guarantee by default for any valid compiler that supports windows)
 
@@ -61,8 +63,6 @@ Example that disables errors: `gcc -DPINC_ENABLE_ERROR_USER=0 -DPINC_ENABLE_ERRO
 In case you missed it in the readme, anything that isn't baked into the compiler is either loaded dynamically or baked into Pinc itself. So you do not need any additional libraries and headers to build. You may still need libraries (such as SDL2) based on what window backends you have enabled.
 
 ## Zig
-
-For now, the build.zig is not designed to be used directly as a dependency - it only is tested for producing the artifact.
 
 All of the standard zig options work: `-Dtarget` to change the compile target, `-Doptimize` to change the optimize level, etc.
 

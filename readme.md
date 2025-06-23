@@ -68,6 +68,10 @@ Pinc is a very new library, and is MASSIVELY out of scope for a single developer
 
 Pinc's current API is fundamentally incompatible with multithreading. It is suggested that a single thread is selected to interact with Pinc, if such multithreaded operation is desired. In the future, Pinc may support threaded operation.
 
+Pinc includes headers from other projects, see the following files in this repository:
+- ext/readme.md
+- MinGW/README_IMPORTANT.md
+
 ## How to get started
 - Get familiar with cmake a bit
     - Follow a tutorial if you do not know C or cmake

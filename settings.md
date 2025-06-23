@@ -38,3 +38,6 @@ Boolean options can use "1", and "ON" for enable. Nearly any other value is trea
 - `PINC_ENABLE_ERROR_VALIDATE`
     - Compile with validate error checking. Defaults to 0.
     - See pinc.h for error policy
+- `PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION`
+    - Disables Pinc's internal platform implementation and expects the user to define it. Defaults to 0.
+    - See src/platform/platform.h and src/platform/platform.c for what functions need to be implemented and how we implemented them.
