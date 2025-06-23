@@ -325,6 +325,7 @@ FramebufferFormat* sdl2queryFramebufferFormats(struct WindowBackend* obj, Alloca
                 bufferFormat.channels = 4;
                 bufferFormat.channel_bits[3] = bitCount32(amask);
             }
+            _framebufferFormatAdd(&formats, &formatsNum, &formatsCapacity, &bufferFormat);
         }
     }
     // Allocate the final returned value
