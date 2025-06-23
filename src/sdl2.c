@@ -1,3 +1,7 @@
+// To make the build system as simple as possible, backend source files must remove themselves rather than rely on the build system
+#include "pinc_options.h"
+#if PINC_HAVE_WINDOW_SDL2
+
 #include <SDL2/SDL_video.h>
 #include "SDL2/SDL_stdinc.h"
 #include "libs/dynamic_allocator.h"
@@ -5,10 +9,7 @@
 #include "pinc.h"
 #include "pinc_error.h"
 #include "pinc_opengl.h"
-#include "pinc_options.h"
 #include "pinc_types.h"
-// To make the build system as simple as possible, backend source files must remove themselves rather than rely on the build system
-#if PINC_HAVE_WINDOW_SDL2==1
 
 #include "platform/platform.h"
 #include "pinc_main.h"
@@ -499,7 +500,10 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
         windowFlags |= SDL_WINDOW_MAXIMIZED;
     }
     if(incomplete->fullscreen) {
-        // TODO: do we want to use fullscreen or fullscreen_desktop? the difference between them does not seem to be properly documented.
+        // TODO: do we want to use fullscreen or fullscreen_desktop?
+        // Currently, we use "real" fullscreen,
+        // But it may be a good option to "fake" fullscreen via fullscreen_desktop.
+        // Really, we should add an option so the user gets to decide.
         windowFlags |= SDL_WINDOW_FULLSCREEN;
     }
     if(incomplete->focused) {
@@ -603,8 +607,18 @@ WindowHandle sdl2completeWindow(struct WindowBackend* obj, IncompleteWindow cons
 void sdl2deinitWindow(struct WindowBackend* obj, WindowHandle windowHandle) {
     Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
     Sdl2Window* window = (Sdl2Window*)windowHandle;
-    // TODO: add validation that the dummy window in use variable is synchronized with the list of windows
-    // if the dummy window is in use, it should be in the list. If not, it should not be in the list.
+    #if PINC_ENABLE_ERROR_VALIDATE
+    if(1) {
+        bool dummyWindowActuallyInUse = false;
+        for(size_t i=0; i<this->windowsNum; ++i) {
+            Sdl2Window* windowToCheck = this->windows[i];
+            if(windowToCheck == this->dummyWindow) {
+                dummyWindowActuallyInUse = true;
+            }
+        }
+        PErrorValidate(dummyWindowActuallyInUse == this->dummyWindowInUse, "Dummy window in use does not match reality");
+    }
+    #endif
     sdl2RemoveWindow(this, window);
     if(window == this->dummyWindow) {
         // Don't want to accidentally delete the dummy window
@@ -635,11 +649,18 @@ uint8_t const * sdl2getWindowTitle(struct WindowBackend* obj, WindowHandle windo
     return (uint8_t const*)title;
 }
 
-void sdl2setWindowWidth(struct WindowBackend* obj, WindowHandle window, uint32_t width) {
-    P_UNUSED(obj);
-    P_UNUSED(window);
-    P_UNUSED(width);
-    // TODO
+void sdl2setWindowWidth(struct WindowBackend* obj, WindowHandle windowHandle, uint32_t width) {
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    Sdl2Window* window = (Sdl2Window*)windowHandle;
+    window->width = width;
+    PErrorAssert(window->width < INT32_MAX, "Integer Overflow");
+    PErrorAssert(window->height < INT32_MAX, "Integer Overflow");
+    // TODO: what about the hacky HiDPI / scaling support in SDL2?
+    // This function's documentation somehow manages to make the situation more confusing.
+    // Really, I think we'll just have to abandon the idea of supporting scaling for the SDL2 backend
+    // and work on implementing 'native' backends that deal with it properly.
+    this->libsdl2.setWindowSize(window->sdlWindow, (int)window->width, (int)window->height);
+    
 }
 
 uint32_t sdl2getWindowWidth(struct WindowBackend* obj, WindowHandle window) {
@@ -659,15 +680,22 @@ uint32_t sdl2getWindowWidth(struct WindowBackend* obj, WindowHandle window) {
         // Just assume the window size is equal to pixels. It's unlikely anyone is using an SDL2 version this old anyway.
         this->libsdl2.getWindowSize(windowObj->sdlWindow, &width, NULL);
     }
-    PErrorSanitize(width <= UINT32_MAX && width > 0, "Integer overflow");
+    PErrorSanitize(width <= INT32_MAX && width > 0, "Integer overflow");
+    PErrorAssert((uint32_t)width == windowObj->width, "Window width and \"real\" width do not match!");
     return (uint32_t)width;
 }
 
-void sdl2setWindowHeight(struct WindowBackend* obj, WindowHandle window, uint32_t height) {
-    P_UNUSED(obj);
-    P_UNUSED(window);
-    P_UNUSED(height);
-    // TODO
+void sdl2setWindowHeight(struct WindowBackend* obj, WindowHandle windowHandle, uint32_t height) {
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    Sdl2Window* window = (Sdl2Window*)windowHandle;
+    window->height = height;
+    PErrorAssert(window->width < INT32_MAX, "Integer Overflow");
+    PErrorAssert(window->height < INT32_MAX, "Integer Overflow");
+    // TODO: what about the hacky HiDPI / scaling support in SDL2?
+    // This function's documentation somehow manages to make the situation more confusing.
+    // Really, I think we'll just have to abandon the idea of supporting scaling for the SDL2 backend
+    // and work on implementing 'native' backends that deal with it properly.
+    this->libsdl2.setWindowSize(window->sdlWindow, (int)window->width, (int)window->height);
 }
 
 uint32_t sdl2getWindowHeight(struct WindowBackend* obj, WindowHandle window) {
@@ -687,7 +715,7 @@ uint32_t sdl2getWindowHeight(struct WindowBackend* obj, WindowHandle window) {
         // Just assume the window size is equal to pixels. It's unlikely anyone is using an SDL2 version this old anyway.
         this->libsdl2.getWindowSize(windowObj->sdlWindow, NULL, &height);
     }
-    PErrorSanitize(height <= UINT32_MAX && height > 0, "Integer overflow");
+    PErrorSanitize(height <= INT32_MAX && height > 0, "Integer overflow");
     return (uint32_t)height;
 }
 
@@ -971,7 +999,7 @@ RawOpenglContextHandle sdl2glCompleteContext(struct WindowBackend* obj, Incomple
     Sdl2Window* dummyWindow = _dummyWindow(obj);
     SDL_GLContext sdlGlContext = this->libsdl2.glCreateContext(dummyWindow->sdlWindow);
     if(!sdlGlContext) {
-        // TODO: don't do this when external errors are disable - PErrorExternal will do nothing, but this string is still created
+        #if PINC_ENABLE_ERROR_EXTERNAL
         PString errorMsg = PString_concat(2, (PString[]){
             PString_makeDirect((char*)"SDL2 backend: Could not create OpenGl context: "),
             // const is not an issue, this string will not be modified
@@ -979,6 +1007,7 @@ RawOpenglContextHandle sdl2glCompleteContext(struct WindowBackend* obj, Incomple
         },tempAllocator);
         PErrorExternalStr(false, errorMsg);
         PString_free(&errorMsg, tempAllocator);
+        #endif
         return 0;
     }
     // This is to stop users from assuming the context will be current after completion, like what SDL2 does.
@@ -989,9 +1018,9 @@ RawOpenglContextHandle sdl2glCompleteContext(struct WindowBackend* obj, Incomple
 }
 
 void sdl2glDeinitContext(struct WindowBackend* obj, RawOpenglContextObject context) {
-    P_UNUSED(obj);
-    P_UNUSED(context);
-    // TODO
+    Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
+    SDL_GLContext sdlGlContext = (SDL_GLContext)context.handle;
+    this->libsdl2.glDeleteContext(sdlGlContext);
 }
 
 uint32_t sdl2glGetContextAccumulatorBits(struct WindowBackend* obj, RawOpenglContextObject context, uint32_t channel){
@@ -1073,14 +1102,15 @@ PincReturnCode sdl2glMakeCurrent(struct WindowBackend* obj, WindowHandle window,
     // NOTE: context may be null to indicate no context should be current
     SDL_GLContext contextObj = (SDL_GLContext)context;
     int result = this->libsdl2.glMakeCurrent(windowObj->sdlWindow, contextObj);
-    // TODO: Only do this when external errors are enabled - when disabled, the string will still be created, just never actually used
     if(result != 0) {
+        #if PINC_ENABLE_ERROR_EXTERNAL
         PString errorMsg = PString_concat(2, (PString[]){
             PString_makeDirect((char*)"SDL2 backend: Could not make context current: "),
             PString_makeDirect((char*)this->libsdl2.getError()),
         },tempAllocator);
         PErrorExternalStr(false, errorMsg);
         PString_free(&errorMsg, tempAllocator);
+        #endif
         return PincReturnCode_error;
     }
     return PincReturnCode_pass;

@@ -36,6 +36,7 @@
     SDL_FUNC(SDL_Window*, getWindowFromId, SDL_GetWindowFromID, (uint32_t id)) \
     SDL_FUNC(void, glSwapWindow, SDL_GL_SwapWindow, (SDL_Window* window)) \
     SDL_FUNC(SDL_GLContext, glCreateContext, SDL_GL_CreateContext, (SDL_Window* window)) \
+    SDL_FUNC(void, glDeleteContext, SDL_GL_DeleteContext, (SDL_GLContext context)) \
     SDL_FUNC(int, glMakeCurrent, SDL_GL_MakeCurrent, (SDL_Window* window, SDL_GLContext context)) \
     SDL_FUNC(PFN, glGetProcAddress, SDL_GL_GetProcAddress, (const char* proc)) \
     SDL_FUNC(SDL_GLContext, glGetCurrentContext, SDL_GL_GetCurrentContext, (void)) \
@@ -44,6 +45,7 @@
     SDL_FUNC(void, getWindowSize, SDL_GetWindowSize, (SDL_Window* window, int* width, int* height)) \
     /* added in 2.0.1 */ SDL_FUNC_OPTIONAL(void, glGetDrawableSize, SDL_GL_GetDrawableSize, (SDL_Window* window, int* width, int* height)) \
     /* added in 2.26.0 */ SDL_FUNC_OPTIONAL(void, getWindowSizeInPixels, SDL_GetWindowSizeInPixels, (SDL_Window* window, int* width, int* height)) \
+    SDL_FUNC(void, setWindowSize, SDL_SetWindowSize, (SDL_Window* window, int width, int height)) \
     SDL_FUNC(void, destroyWindow, SDL_DestroyWindow, (SDL_Window* window)) \
     SDL_FUNC(uint32_t, getWindowFlags, SDL_GetWindowFlags, (SDL_Window* window)) \
     SDL_FUNC(uint32_t, getTicks, SDL_GetTicks, (void)) \
