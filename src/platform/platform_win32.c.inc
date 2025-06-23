@@ -213,7 +213,7 @@ size_t pBufPrintUint64(char* buf, size_t capacity, uint64_t v) {
     // Assuming ASCII or something similar
     size_t i = 0;
     while(v > 0) {
-        uint32_t d = v % 10;
+        uint64_t d = v % 10;
         v = v / 10;
         char c = (char)(d+0x30);
         i += 1;
