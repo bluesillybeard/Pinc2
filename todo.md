@@ -103,6 +103,7 @@
 - OpenGL floatbuffers
 - OpenGL optional double buffering
     - I don't know who wants this to be honest, maybe wait for a PR as (afaik) many APIs don't even support this kind of operation anymore
+- option for an amalgamated "build" (so pack the entirety of Pinc into a single .c and .h file)
 
 ## TODO for internal library
 - replace tscoding/areana with custom implementation

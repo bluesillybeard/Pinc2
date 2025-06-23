@@ -14,3 +14,6 @@ Modifications from base SDL2 headers:
 
 ADHERENCE TO SDL2 LICENSE: SDL2 is licensed the same way Pinc is, which means it is fully compatible with the Pinc project. This is not legal advice, but it's probably safe to treat SDL2 headers here as part of Pinc itself.
 
+## MinGW
+
+See the MinGW directory in this repository for information.

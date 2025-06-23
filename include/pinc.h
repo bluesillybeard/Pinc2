@@ -3,10 +3,8 @@
 
 // pinc.h - Pinc's entire API
 
-// This header has ZERO includes, and is fully self-sufficient assuming a valid C compiler.
-
 // In general, here is what you can expect from the API:
-// - we assume floats are in the single precision IEE754 32 bit format.
+// - assume floats are in the single precision IEE754 32 bit format.
 // - no structs, at least for now. Structs can cause ABI issues, and can be harder to deal with when making bindings.
 // - typedefs for ID handles
 
@@ -95,11 +93,8 @@ typedef enum {
     PincWindowBackend_sdl2,
 } PincWindowBackendEnum;
 
-// This may seem stupid, but remember that C is a volatile language
-// where 'enum' means anything from 8 bits to 64 bits depending on all kings of things.
-// It isn't even necessarily consistent across different versions or configurations of the same compiler on the same platform.
-// Considering one of Pinc's primary goals is to have a predicable ABI for bindings to other languages,
-// making all enums a predictable size is paramount.
+/// @brief Window backend value type, as opposed to where the enum is defined.
+/// C has a bad history of enum ABI compatibility, and this wholly avoids that type of issue.
 typedef uint32_t PincWindowBackend;
 
 typedef enum {
@@ -129,33 +124,32 @@ typedef uint32_t PincObjectType;
 
 // TODO: this needs better docs and clarification on semantics and exactly when these events are triggered.
 typedef enum {
-    // A window was signalled to close.
+    /// A window was signalled to close.
     PincEventType_closeSignal,
-    // Mouse button state changed.
+    /// Mouse button state changed.
     PincEventType_mouseButton,
-    // A window was resized.
+    /// A window was resized.
     PincEventType_resize,
-    // The current window with focus changed. For now, only one window can be focused at a time. This event carries the new focused window as wel las the old one.
+    /// The current window with focus changed. For now, only one window can be focused at a time. This event carries the new focused window as wel las the old one.
     PincEventType_focus,
-    // The WM / Compositor is explicitly requesting a screen refresh. DO NOT rely on this for all screen refreshes.
+    /// The WM / Compositor is explicitly requesting a screen refresh. DO NOT rely on this for all screen refreshes.
     PincEventType_exposure,
-    // Keyboard button state change or repeat.
+    /// Keyboard button state change or repeat.
     PincEventType_keyboardButton,
-    // Mouse cursor moved.
+    /// Mouse cursor moved.
     PincEventType_cursorMove,
-    // Mouse cursor moved from one window to another
+    /// Mouse cursor moved from one window to another
     PincEventType_cursorTransition,
-    // Text was typed
+    /// Text was typed
     PincEventType_textInput,
-    // Scroll wheel / pad
+    /// Scroll wheel / pad
     PincEventType_scroll,
-} pinc_event_type_enum;
+} pincEventTypeEnum;
 
 typedef uint32_t PincEventType;
 
 /// @brief enumeration of pinc keyboard codes
 ///     These are not physical, but logical - when the user presses the button labeled 'q' on their keyboard, that's the key reported here.
-///     In order words, this ignores the idea of a keyboard layout, and reports based on what the user is typing, not what actual buttons are being pressed.
 typedef enum {
     PincKeyboardKey_unknown = -1,
     PincKeyboardKey_space = 0,
@@ -286,13 +280,13 @@ typedef enum {
 typedef uint32_t PincKeyboardKey;
 
 typedef enum {
-    // A basic color space with generally vague semantics. In general, bugger number = brighter output.
+    /// A basic color space with generally vague semantics. In general, bigger number = brighter output.
     PincColorSpace_basic,
-    // Linear color space where the output magnitude is directly correlated with pixel values 
+    /// Linear color space where the output magnitude is directly correlated with pixel values 
     PincColorSpace_linear,
-    // Some kind of perceptual color space, usually with a gamma value of 2.2 but it often may not be.
+    /// Some kind of perceptual color space, usually with a gamma value of 2.2 but it often may not be.
     PincColorSpace_perceptual,
-    // srgb color space, or a grayscale equivalent. This is similar to perceptual with a gamma value of 2.2
+    /// srgb color space, or a grayscale equivalent. This is similar to perceptual with a gamma value of 2.2
     PincColorSpace_srgb
 } PincColorSpaceEnum;
 
@@ -300,8 +294,7 @@ typedef uint32_t PincColorSpace;
 
 /// @section IDs
 
-
-// objects are non-transferrable between runs.
+/// objects are non-transferrable between runs.
 typedef uint32_t PincObjectHandle;
 
 typedef PincObjectHandle PincFramebufferFormatHandle;
@@ -411,7 +404,7 @@ PINC_EXTERN PincColorSpace PINC_CALL pincQueryFramebufferFormatColorSpace(PincFr
 // Returns 0 if there is no reasonable limit (the limit is not a specific number, and you'll probably never encounter related issues in this case)
 PINC_EXTERN uint32_t PINC_CALL pincQueryMaxOpenWindows(PincWindowBackend window_backend);
 
-// Null framebuffer format is a shortcut to use the default framebuffer format.
+/// Null framebuffer format is a shortcut to use the default framebuffer format.
 PINC_EXTERN PincReturnCode PINC_CALL pincInitComplete(PincWindowBackend window_backend, PincGraphicsApi graphics_api, PincFramebufferFormatHandle framebuffer_format_id);
 
 /// @subsection post initialization related functions
@@ -438,7 +431,7 @@ PINC_EXTERN PincWindowHandle PINC_CALL pincWindowCreateIncomplete(void);
 
 PINC_EXTERN PincReturnCode PINC_CALL pincWindowComplete(PincWindowHandle incomplete_window_handle);
 
-// Deinit / close / destroy a window object.
+/// Deinit / close / destroy a window object.
 PINC_EXTERN void PINC_CALL pincWindowDeinit(PincWindowHandle window_handle);
 
 // window properties:
@@ -576,13 +569,13 @@ PINC_EXTERN void PINC_CALL pincWindowSetHidden(PincWindowHandle window_handle, b
 /// @return true if the window is hidden, false if not
 PINC_EXTERN bool PINC_CALL pincWindowGetHidden(PincWindowHandle window_handle);
 
-// vsync is true by default on systems that support it.
-// Technically, vsync is generally either bound to a window or a graphics context.
-// Any half-decently modern graphics API supports setting vsync arbitrary at any time,
-// However some of them (*cough cough* OpenGL *cough cough*) are a bit more picky in how vsync is handled.
-// In general, call this function right after pinc_complete_init to be safe,
-// and call it again before present_framebuffer in hopes that the underlying API supports modifying vsync at runtime.
-// An error from this function just means vsync couldn't be changed, and is otherwise harmless.
+/// vsync is true by default on systems that support it.
+/// Technically, vsync is generally either bound to a window or a graphics context.
+/// Any half-decently modern graphics API supports setting vsync arbitrary at any time,
+/// However some of them (*cough cough* OpenGL *cough cough*) are a bit more picky in how vsync is handled.
+/// In general, call this function right after pinc_complete_init to be safe,
+/// and call it again before present_framebuffer in hopes that the underlying API supports modifying vsync at runtime.
+/// An error from this function just means vsync couldn't be changed, and is otherwise harmless.
 PINC_EXTERN PincReturnCode PINC_CALL pincSetVsync(bool sync);
 
 PINC_EXTERN bool PINC_CALL pincGetVsync(void);
@@ -592,7 +585,7 @@ PINC_EXTERN bool PINC_CALL pincGetVsync(void);
 /// @param complete_window_handle the window whose framebuffer to present.
 PINC_EXTERN void PINC_CALL pincWindowPresentFramebuffer(PincWindowHandle complete_window_handle);
 
-/// @section user IO, TODO: [IMPORTANT] this needs to be redone entirely!
+/// @section user IO
 
 // Clipboard, the general results of events (cursor position, current window, keyboard state, etc), other window / application IO
 
@@ -622,9 +615,10 @@ PINC_EXTERN uint32_t PINC_CALL pincEventMouseButtonOldState(uint32_t event_index
 /// @return The state of the mouse buttons in a bitfield. The 5 bits, from least to most significant, are left, right, middle, back, and forward respectively.
 PINC_EXTERN uint32_t PINC_CALL pincEventMouseButtonState(uint32_t event_index);
 
-// The size of the window before it was resized
+/// The size of the window before it was resized
 PINC_EXTERN uint32_t PINC_CALL pincEventResizeOldWidth(uint32_t event_index);
 
+/// The size of the window before it was resized
 PINC_EXTERN uint32_t PINC_CALL pincEventResizeOldHeight(uint32_t event_index);
 
 PINC_EXTERN uint32_t PINC_CALL pincEventResizeWidth(uint32_t event_index);
@@ -633,14 +627,15 @@ PINC_EXTERN uint32_t PINC_CALL pincEventResizeHeight(uint32_t event_index);
 
 PINC_EXTERN PincWindowHandle PINC_CALL pincEventResizeWindow(uint32_t event_index);
 
-// The window that was focused before the event - will always return the same thing as pinc_event_get_window, assuming a valid focus event.
+/// The window that was focused before the event - will always return the same thing as pinc_event_get_window, assuming a valid focus event.
 PINC_EXTERN PincWindowHandle PINC_CALL pincEventFocusOldWindow(uint32_t event_index);
 
-// The window that gained focus
+/// The window that gained focus
 PINC_EXTERN PincWindowHandle PINC_CALL pincEventFocusWindow(uint32_t event_index);
 
-// The top left of the exposed area
+/// The top left pixel of the exposed area
 PINC_EXTERN uint32_t PINC_CALL pincEventExposureX(uint32_t event_index);
+/// The top left pixel of the exposed area
 PINC_EXTERN uint32_t PINC_CALL pincEventExposureY(uint32_t event_index);
 
 PINC_EXTERN uint32_t PINC_CALL pincEventExposureWidth(uint32_t event_index);
@@ -648,45 +643,53 @@ PINC_EXTERN uint32_t PINC_CALL pincEventExposureHeight(uint32_t event_index);
 
 PINC_EXTERN uint32_t PINC_CALL pincEventExposureWindow(uint32_t event_index);
 
-// The button whose state changed
+/// The button whose state changed
 PINC_EXTERN PincKeyboardKey PINC_CALL pincEventKeyboardButtonKey(uint32_t event_index);
 
-// The state of the button after the event
+/// The state of the button after the event
 PINC_EXTERN bool PINC_CALL pincEventKeyboardButtonState(uint32_t event_index);
 
-// Whether this keyboard button event is a repeat or not
+/// Whether this keyboard button event is a repeat or not
 PINC_EXTERN bool PINC_CALL pincEventKeyboardButtonRepeat(uint32_t event_index);
 
-// Where the cursor was before it moved in the window
+/// Where the cursor was before it moved in the window
 PINC_EXTERN uint32_t PINC_CALL pincEventCursorMoveOldX(uint32_t event_index);
+/// Where the cursor was before it moved in the window
 PINC_EXTERN uint32_t PINC_CALL pincEventCursorMoveOldY(uint32_t event_index);
 
-// Where the cursor moved to within the window
+/// Where the cursor moved to within the window
 PINC_EXTERN uint32_t PINC_CALL pincEventCursorMoveX(uint32_t event_index);
+/// Where the cursor moved to within the window
 PINC_EXTERN uint32_t PINC_CALL pincEventCursorMoveY(uint32_t event_index);
 
-// The window that the cursor moved within
+/// The window that the cursor moved within
 PINC_EXTERN PincWindowHandle PINC_CALL pincEventCursorMoveWindow(uint32_t event_index);
 
-// Where the cursor was before it moved from the previous window, relative to the previous window. Will return 0 if there is no source window / if the source window is foreign.
+/// Where the cursor was before it moved from the previous window, relative to the previous window. Will return 0 if there is no source window / if the source window is foreign.
 PINC_EXTERN uint32_t PINC_CALL pincEventCursorTransitionOldX(uint32_t event_index);
+
+/// Where the cursor was before it moved from the previous window, relative to the previous window. Will return 0 if there is no source window / if the source window is foreign.
 PINC_EXTERN uint32_t PINC_CALL pincEventCursorTransitionOldY(uint32_t event_index);
-// Will return 0 if there is no source window / if the source window is foreign.
+
+/// Will return 0 if there is no source window / if the source window is foreign.
 PINC_EXTERN PincWindowHandle PINC_CALL pincEventCursorTransitionOldWindow(uint32_t event_index);
 
-// Where the cursor moved to within the new window
+/// Where the cursor moved to within the new window
 PINC_EXTERN uint32_t PINC_CALL pincEventCursorTransitionX(uint32_t event_index);
+
+/// Where the cursor moved to within the new window
 PINC_EXTERN uint32_t PINC_CALL pincEventCursorTransitionY(uint32_t event_index);
 
-// Will not necessarily return the same thing as pinc_event_get_window
+/// Will not necessarily return the same thing as pinc_event_get_window
 PINC_EXTERN PincWindowHandle PINC_CALL pincEventCursorTransitionWindow(uint32_t event_index);
 
-// The unicode codepoint that was typed
+/// The unicode codepoint that was typed
 PINC_EXTERN uint32_t PINC_CALL pincEventTextInputCodepoint(uint32_t event_index);
 
-// The amount of vertical scroll
+/// The amount of vertical scroll
 PINC_EXTERN float PINC_CALL pincEventScrollVertical(uint32_t event_index);
 
+/// The amount of horizontal scroll
 PINC_EXTERN float PINC_CALL pincEventScrollHorizontal(uint32_t event_index);
 
 #endif

@@ -6,45 +6,43 @@
 /// @section init
 /// @brief Functions to be called after pinc_incomplete_init
 
-// Function pointer because ISO C99 does not like casting regular pointers to function pointers.
+/// "void" function pointer
 typedef void(*PincPfn)(void);
 
 typedef enum {
-    // definitely not supported
+    /// definitely not supported
     PincOpenglSupportStatus_none,
-    // may or may not be supported - unsure. Opengl is famous for being difficult and platform-dependent to query before attempting to initialize state.
+    /// may or may not be supported - unsure. Opengl is famous for being difficult and platform-dependent to query before attempting to initialize state.
     PincOpenglSupportStatus_maybe,
-    // definitely supported
+    /// definitely supported
     PincOpenglSupportStatus_definitely,
 } PincOpenglSupportStatusEnum;
 
 typedef uint32_t PincOpenglSupportStatus;
 
-// Oh goodness me, what on earth were the crazy lads at ARB thinking when they created this mess?
-
-// An enum of OpenGL profiles
-// Although the API defines forward compatible compatibility context to be possible, it does nothing at the cost of an extra possible setup. So that possibility is not present in Pinc.
-// The OpenGL deprecation model is a borderline actual disaster, at least as far as how many arguments are sparked from it.
-// We've tried to make sense of it in the comments here, but in short: you should generally use a core context, unless you have a specific reason to use any other profile.
-// Which, there are a lot of specific reasons to use other profiles.
-// Also, do not trust that the driver will stop you from using a removed feature. Drivers are known to just not care - they do whatever they want as long as applications still work.
+/// An enum of OpenGL profiles
+/// Although the API defines forward compatible compatibility context to be possible, it does nothing at the cost of an extra possible setup. So that possibility is not present in Pinc.
+/// The OpenGL deprecation model is a borderline actual disaster, at least as far as how many arguments are sparked from it.
+/// We've tried to make sense of it in the comments here, but in short: you should generally use a core context, unless you have a specific reason to use any other profile.
+/// Which, there are a lot of specific reasons to use other profiles.
+/// Also, do not trust that the driver will stop you from using a removed feature. Drivers are known to just not care - they do whatever they want as long as applications still work.
 typedef enum {
-    // Create a legacy context. This uses the (probably deprecated) "give me the opengl" method that was used until ARB created the concept of context profiles.
-    // This may fail if the underlying window backend does not have the option to use the old method, such as when using SDL or EGL.
-    // Only really valid for 3.0 and older, but it is technically possible to ask for a newer version.
+    /// Create a legacy context. This uses the (probably deprecated) "give me the opengl" method that was used until ARB created the concept of context profiles.
+    /// This may fail if the underlying window backend does not have the option to use the old method, such as when using SDL or EGL.
+    /// Only really valid for 3.0 and older, but it is technically possible to ask for a newer version.
     PincOpenglContextProfile_legacy,
-    // Create a compatibility desktop context. Only valid for versions 3.1 and newer.
-    // Make note that under the hood, the way this is implemented is actually a bit messy, due to OpenGL's history.
-    // On OpenGL 3.1, it makes a core context then checks for the ARB_compatibility extension. So, if you want 3.1 but this fails, try to make a 3.2 compatibility context instead.
-    // On 3.2 and newer, this actually does what it says on the tin: create an OpenGL context with deprecated features enabled.
-    // Note that Macos wholly does not support compatibility contexts, and in general compatibility contexts should be avoided where possible.
+    /// Create a compatibility desktop context. Only valid for versions 3.1 and newer.
+    /// Make note that under the hood, the way this is implemented is actually a bit messy, due to OpenGL's history.
+    /// On OpenGL 3.1, it makes a core context then checks for the ARB_compatibility extension. So, if you want 3.1 but this fails, try to make a 3.2 compatibility context instead.
+    /// On 3.2 and newer, this actually does what it says on the tin: create an OpenGL context with deprecated features enabled.
+    /// Note that Macos wholly does not support compatibility contexts, and in general compatibility contexts should be avoided where possible.
     PincOpenglContextProfile_compatibility,
-    // Create a core desktop context. Effectively, this says "give me something compatible with the version I asked for - nothing more or less"
-    // It's worth mentioning that this does not work on MacOS at all.
+    /// Create a core desktop context. Effectively, this says "give me something compatible with the version I asked for - nothing more or less".
+    /// It's worth mentioning that this does not work on MacOS at all.
     PincOpenglContextProfile_core,
-    // Creates a forward compatible desktop context. What this means depends on the version:
-    // For OpenGl 3.0, this removes all of the same functionality that was removed in 3.1
-    // For OpenGL 3.1 and newer, this removes all of the deprecated functionality left in core.
+    /// Creates a forward compatible desktop context. What this means depends on the version:
+    /// For OpenGl 3.0, this removes all of the same functionality that was removed in 3.1
+    /// For OpenGL 3.1 and newer, this removes all of the deprecated functionality left in core.
     PincOpenglContextProfile_forward,
 } PincOpenglContextProfileEnum;
 
@@ -53,8 +51,8 @@ typedef uint32_t PincOpenglContextProfile;
 /// @brief OpenGL context handle.
 typedef PincObjectHandle PincOpenglContextHandle;
 
-// If this returns PincOpenglSupportStatus_maybe, then you will have to fall back to the tried and true method of just trying to create a context to see if it works.
-// It's meant to be a faster but less accurate way to check if a version is supported, compared to attempting to create a context.
+/// If this returns PincOpenglSupportStatus_maybe, then you will have to fall back to the tried and true method of just trying to create a context to see if it works.
+/// It's meant to be a faster but less accurate way to check if a version is supported, compared to attempting to create a context.
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglVersionSupported(PincWindowBackend backend, uint32_t major, uint32_t minor, PincOpenglContextProfile profile);
 
 // srgb is already handled by base Pinc framebuffer format.
@@ -63,11 +61,12 @@ PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglVersionSupported(Pi
 
 // TODO: properly document all of these OpenGL properties and what they do
 
-// The returned value is more or less an educated guess, depending on the window backend, platform, and graphics drivers.
-// For example, the glX extension for the X window system supports querying many of these before creating a context.
-// SDL2, on the other hand, does not provide an API for querying context support before creating one.
-// For now, these are all treated as exact. That is, a context with the exact value queried / set must be created.
-// In the future, there may be a flag to specify if the value is an exact requirement or a minimum requirement.
+/// The returned value for pincQUeryOpengl* is more or less an educated guess, depending on the window backend, platform, and graphics drivers.
+/// For example, the glX extension for the X window system supports querying many of these before creating a context.
+/// SDL2, on the other hand, does not provide an API for querying context support before creating one.
+/// For now, these are all treated as exact. That is, a context with the exact value queried / set must be created.
+/// In the future, there may be a flag to specify if the value is an exact requirement or a minimum requirement.
+
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglAccumulatorBits(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer, uint32_t channel, uint32_t bits);
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglAlphaBits(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer, uint32_t bits);
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglDepthBits(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer, uint32_t bits);
@@ -75,22 +74,23 @@ PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglStencilBits(PincWin
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglSamples(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer, uint32_t samples);
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglStereoBuffer(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer);
 
-// These query if the property can be set to a value other than default, NOT if the value can be set to true
-// There is Pinc's default, and the implementation default - in this case, we are referring to the implementation default
-// TODO: maybe a way to get the implementation default? If such a thing even exists, I'm not familiar with anything other than X11 or SDL2 on this front.
-// (X11 exposes all of these with extensions anyway, so `implementation default` is probably just whatever makes the most sense for standard compliance)
-// (SDL2 doesn't even have a way to query these - just a way to check for them after the fact)
+/// These query if the property can be set to a value other than default, NOT if the value can be set to true
+/// There is Pinc's default, and the implementation default - in this case, we are referring to the implementation default
+/// TODO: maybe a way to get the implementation default? If such a thing even exists, I'm not familiar with anything other than X11 or SDL2 on this front.
+/// (X11 exposes all of these with extensions anyway, so `implementation default` is probably just whatever makes the most sense for standard compliance)
+/// (SDL2 doesn't even have a way to query these - just a way to check for them after the fact)
+
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglContextDebug(PincWindowBackend backend);
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglRobustAccess(PincWindowBackend backend);
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglResetIsolation(PincWindowBackend backend);
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglReleaseBehavior(PincWindowBackend backend);
 PINC_EXTERN PincOpenglSupportStatus PINC_CALL pincQueryOpenglShareWithCurrent(PincWindowBackend backend);
 
-// Returns 0 on failure, which should never happen.
+/// Returns 0 on failure, which should never happen.
 PINC_EXTERN PincOpenglContextHandle PINC_CALL pincOpenglCreateContextIncomplete(void);
 
-// These fail when the exact configuration is definitely not supported. When it fails, the property is not set, and an error is not triggered.
-// If it does not fail, then 
+/// These fail when the exact configuration is definitely not supported. When it fails, the property is not set, and an error is not triggered.
+/// If it does not fail, then it means Pinc could not determine that the feature is not supported.
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextAccumulatorBits(PincOpenglContextHandle incomplete_context_handle, uint32_t channel, uint32_t bits);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextAlphaBits(PincOpenglContextHandle incomplete_context_handle, uint32_t bits);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextDepthBits(PincOpenglContextHandle incomplete_context_handle, uint32_t bits);
@@ -100,13 +100,13 @@ PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextStereoBuffer(PincOpengl
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextDebug(PincOpenglContextHandle incomplete_context_handle, bool debug);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextRobustAccess(PincOpenglContextHandle incomplete_context_handle, bool robust);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextResetIsolation(PincOpenglContextHandle incomplete_context_handle, bool isolation);
-// true -> flush when made unavailable, false -> don't flush when made unavailable
+/// true -> flush when made unavailable, false -> don't flush when made unavailable
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextReleaseBehavior(PincOpenglContextHandle incomplete_context_handle, bool flush_on_release);
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextVersion(PincOpenglContextHandle incomplete_context_handle, uint32_t major, uint32_t minor, PincOpenglContextProfile profile);
-// the context to be shared with is determined when this context is complete, not when this function is called.
+/// the context to be shared with is determined when this context is complete, not when this function is called.
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextShareWithCurrent(PincOpenglContextHandle incomplete_context_handle, bool share);
 
-// Pinc will try its best to apply the given settings for the context, but they may be different from the requested ones.
+/// Pinc will try its best to apply the given settings for the context, but they may be different from the requested ones.
 PINC_EXTERN PincReturnCode PINC_CALL pincOpenglCompleteContext(PincOpenglContextHandle incomplete_context_handle);
 PINC_EXTERN void PINC_CALL pincOpenglDeinitContext(PincOpenglContextHandle context_handle);
 
@@ -138,8 +138,5 @@ PINC_EXTERN PincOpenglContextHandle PINC_CALL pincOpenglGetCurrentContext(void);
 /// @param procname A null terminated string with the name of an OpenGL function.
 /// @return the function pointer, or null if it could not be found.
 PINC_EXTERN PincPfn PINC_CALL pincOpenglGetProc(char const * procname);
-
-// TODO: query extensions
-// TODO: get current window and context
 
 #endif

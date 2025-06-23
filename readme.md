@@ -47,6 +47,7 @@ Pinc is written entirely in C, making it (theoretically) portable to any system 
 ## Implemented build systems
 - cmake
 - a single raw compiler command (if you can even call that a build system...)
+- zig
 
 ## Implemented IDE setups:
 - Visual Studio Code
