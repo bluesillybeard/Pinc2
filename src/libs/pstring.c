@@ -3,6 +3,7 @@
 #include <pinc_error.h>
 
 PString PString_makeDirect(char* str) {
+    if(!str) return (PString) {.str = 0, .len = 0};
     return (PString) {
         .str = (uint8_t*)str,
         .len = pStringLen(str),
@@ -74,6 +75,7 @@ PString PString_concat(size_t numStrings, PString strings[], Allocator alloc) {
     for(size_t index = 0; index < numStrings; ++index) {
         PString str1 = strings[index];
         if(str1.len == 0) continue;
+        if(str1.str == 0) continue;
         pMemCopy(str1.str, writePtr, str1.len);
         writePtr += str1.len;
     }
@@ -86,6 +88,18 @@ PString PString_allocFormatUint32(uint32_t item, Allocator alloc) {
     PString new;
     new.str = Allocator_allocate(alloc, len);
     pMemCopy(buffer, new.str, len);
-    new.len = len;
+    PErrorAssert(len, "Zero length string");
+    new.len = len-1;
+    return new;
+}
+
+PString PString_allocFormatUint64(uint64_t item, Allocator alloc) {
+    char buffer[21];
+    size_t len = pBufPrintUint64(buffer, 21, item);
+    PString new;
+    new.str = Allocator_allocate(alloc, len);
+    pMemCopy(buffer, new.str, len);
+    PErrorAssert(len, "Zero length string");
+    new.len = len-1;
     return new;
 }

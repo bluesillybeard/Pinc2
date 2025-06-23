@@ -50,6 +50,7 @@
     SDL_FUNC(uint64_t, getTicks64, SDL_GetTicks64, (void)) \
     SDL_FUNC(void, resetHints, SDL_ResetHints, (void)) \
     SDL_FUNC(char const*, getWindowTitle, SDL_GetWindowTitle, (SDL_Window* window)) \
+    SDL_FUNC(SDL_bool, pixelFormatEnumToMasks, SDL_PixelFormatEnumToMasks, (uint32_t format, int* bpp, uint32_t* Rmask, uint32_t* Gmask, uint32_t* Bmask, uint32_t* Amask)) \
 
 #undef SDL_FUNC
 #undef SDL_FUNC_OPTIONAL

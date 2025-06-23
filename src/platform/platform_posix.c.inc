@@ -182,6 +182,33 @@ size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
     return (size_t)res;
 }
 
+size_t pBufPrintUint64(char* buf, size_t capacity, uint64_t v) {
+    // uint64_t can be at most 20 decimal digits
+    // One more for null terminator
+    char realbuf[21] = { 0 };
+    // Assuming ASCII or something similar
+    size_t i = 0;
+    while(v > 0) {
+        uint64_t d = v % 10;
+        v = v / 10;
+        char c = (char)(d+0x30);
+        i += 1;
+        realbuf[20-i] = c;
+    }
+    // Bro why are there so many edge cases like wth
+    if(buf){
+        size_t num = i+1;
+        if(num > capacity) {
+            num = capacity;
+        }
+        pMemCopy(&realbuf[20-i], buf, num);
+        if(num > 0){
+            buf[num-1] = 0;
+        }
+    }
+    return i+1;
+}
+
 #include <time.h>
 
 int64_t pCurrentTimeMillis(void) {

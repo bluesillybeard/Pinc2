@@ -43,4 +43,6 @@ PString PString_concat(size_t numStrings, PString strings[], Allocator alloc);
 
 PString PString_allocFormatUint32(uint32_t item, Allocator alloc);
 
+PString PString_allocFormatUint64(uint64_t item, Allocator alloc);
+
 #endif

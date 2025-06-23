@@ -106,6 +106,7 @@
 
 ## TODO for internal library
 - add debug print system with proper formatting (that isn't just a copy of libc's formatting)
+    - Partially done, but it should be more ergonomic and have the ability to call into a user function
 - expose (most of) platform.h so users can write code that is just as portable as Pinc itself while not giving up features that libc doesn't have
 - Add options / code / auto detection for where libraries come from
     - This is a requirement for supporting platforms without dynamic linking (such as the web)

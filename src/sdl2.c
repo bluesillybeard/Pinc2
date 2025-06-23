@@ -127,7 +127,9 @@ bool psdl2Init(WindowBackend* obj) {
     PString strings[] = {
         PString_makeDirect("Loaded SDL2 version: "),
         PString_allocFormatUint32(sdlVersion.major, tempAllocator),
+        PString_makeDirect("."),
         PString_allocFormatUint32(sdlVersion.minor, tempAllocator),
+        PString_makeDirect("."),
         PString_allocFormatUint32(sdlVersion.patch, tempAllocator),
     };
     PString msg = PString_concat(sizeof(strings) / sizeof(PString), strings, tempAllocator);
@@ -196,7 +198,7 @@ static Sdl2Window* _dummyWindow(struct WindowBackend* obj) {
 // Quick function for convenience
 static void _framebufferFormatAdd(FramebufferFormat** formats, size_t* formatsNum, size_t* formatsCapacity, FramebufferFormat const* fmt) {
     for(size_t formatid=0; formatid<(*formatsNum); formatid++) {
-        FramebufferFormat ft = *formats[formatid];
+        FramebufferFormat ft = (*formats)[formatid];
         if(ft.color_space != fmt->color_space) {
             continue;
         }
@@ -224,7 +226,10 @@ static void _framebufferFormatAdd(FramebufferFormat** formats, size_t* formatsNu
         *formats = Allocator_reallocate(tempAllocator, *formats, sizeof(FramebufferFormat) * (*formatsCapacity), sizeof(FramebufferFormat) * newFormatsCapacity);
         *formatsCapacity = newFormatsCapacity;
     }
-    *formats[*formatsNum] = *fmt;
+    // I somehow managed to lose several hours on forgetting to surround "*formats" with parentheses.
+    // In all fairness, it only started showing causing problems when compiling for windows via GCC and running it through WINE.
+    // Isn't C just the most absolutely amazing programming language ever?
+    (*formats)[*formatsNum] = *fmt;
     (*formatsNum)++;
 }
 
@@ -243,41 +248,83 @@ FramebufferFormat* sdl2queryFramebufferFormats(struct WindowBackend* obj, Alloca
     size_t formatsCapacity = 8;
 
     int numDisplays = this->libsdl2.getNumVideoDisplays();
+    if(numDisplays < 0) {
+        PString strings[] = {
+            PString_makeDirect("Pinc encountered fatal SDL2 error: "),
+            PString_makeDirect((char*)this->libsdl2.getError()),
+        };
+        PString err = PString_concat(sizeof(strings) / sizeof(PString), strings, tempAllocator);
+        PErrorExternalStr(numDisplays > 0, err);
+        *outNumFormats = 0;
+        return NULL;
+    }
     for(int displayIndex=0; displayIndex<numDisplays; ++displayIndex) {
         int numDisplayModes = this->libsdl2.getNumDisplayModes(displayIndex);
+        if(numDisplayModes < 0) {
+            PString strings[] = {
+                PString_makeDirect("Pinc encountered fatal SDL2 error: "),
+                PString_makeDirect((char*)this->libsdl2.getError()),
+            };
+            PString err = PString_concat(sizeof(strings) / sizeof(PString), strings, tempAllocator);
+            PErrorExternalStr(numDisplays > 0, err);
+            *outNumFormats = 0;
+            return NULL;
+        }
         for(int displayModeIndex=0; displayModeIndex<numDisplayModes; ++displayModeIndex) {
             SDL_DisplayMode displayMode;
             this->libsdl2.getDisplayMode(displayIndex, displayModeIndex, &displayMode);
+            // Strangeness is going on and I don't like it!
+            if(!displayMode.format || !displayMode.w || !displayMode.h) {
+                PString strings[] = {
+                    PString_makeDirect("Pinc encountered non-fatal SDL2 error: Invalid display mode "),
+                    PString_allocFormatUint64((uint64_t)displayModeIndex, tempAllocator),
+                    PString_makeDirect(" For display "),
+                    PString_allocFormatUint64((uint64_t)displayIndex, tempAllocator),
+                };
+                PString err = PString_concat(sizeof(strings) / sizeof(PString), strings, tempAllocator);
+                pPrintErrorLine(err.str, err.len);
+                PString_free(&err, tempAllocator);
+                continue;
+            }
+
+            int bpp = 0;
+            uint32_t rmask = 0;
+            uint32_t gmask = 0;
+            uint32_t bmask = 0;
+            uint32_t amask = 0;
+            if(this->libsdl2.pixelFormatEnumToMasks(displayMode.format, &bpp, &rmask, &gmask, &bmask, &amask) == SDL_FALSE){
+                PString strings[] = {
+                    PString_makeDirect("Pinc encountered non-fatal SDL2 error: "),
+                    PString_makeDirect((char*)this->libsdl2.getError()),
+                };
+                PString err = PString_concat(sizeof(strings) / sizeof(PString), strings, tempAllocator);
+                pPrintErrorLine(err.str, err.len);
+                PString_free(&err, tempAllocator);
+                continue;
+            }
+
             // the pixel format is a bitfield, like so (in little endian order):
             // bytes*8, bits*8, layout*4, order*4, type*4, 1, 0*remaining
             // SDL2 has us covered though, with a nice function that decodes all of it
-            SDL_PixelFormat* format = this->libsdl2.allocFormat(displayMode.format);
             FramebufferFormat bufferFormat;
             // TODO: properly figure out transparent window support
-            if(format->palette) {
-                // This is a palette / index based format, which Pinc does not yet support
-                // It is actually a planned feature, but for now we'll just ignore these
+            // There is absolutely no reason for assuming sRGB, other than SDL doesn't let us get what the real color space is.
+            // sRGB is a fairly safe bet, and even if it's wrong, 99% of the time if it's not Srgb it's another similar perceptual color space.
+            // There is a rare chance that it's a linear color space, but given SDL2's supported platforms, I find that incredibly unlikely.
+            bufferFormat.color_space = PincColorSpace_srgb;
+            // TODO: is this right? I think so
+            bufferFormat.channel_bits[0] = bitCount32(rmask);
+            bufferFormat.channel_bits[1] = bitCount32(gmask);
+            bufferFormat.channel_bits[2] = bitCount32(bmask);
+            if(amask == 0) {
+                // RGB
+                bufferFormat.channels = 3;
+                bufferFormat.channel_bits[3] = 0;
             } else {
-                // There is absolutely no reason for assuming sRGB, other than SDL doesn't let us get what the real color space is.
-                // sRGB is a fairly safe bet, and even if it's wrong, 99% of the time if it's not Srgb it's another similar perceptual color space.
-                // There is a rare chance that it's a linear color space, but given SDL2's supported platforms, I find that incredibly unlikely.
-                bufferFormat.color_space = PincColorSpace_srgb;
-                // TODO: is this right? I think so
-                bufferFormat.channel_bits[0] = bitCount32(format->Rmask);
-                bufferFormat.channel_bits[1] = bitCount32(format->Gmask);
-                bufferFormat.channel_bits[2] = bitCount32(format->Bmask);
-                if(format->Amask == 0) {
-                    // RGB
-                    bufferFormat.channels = 3;
-                    bufferFormat.channel_bits[3] = 0;
-                } else {
-                    // RGBA?
-                    bufferFormat.channels = 4;
-                    bufferFormat.channel_bits[3] = bitCount32(format-> Amask);
-                }
-                _framebufferFormatAdd(&formats, &formatsNum, &formatsCapacity, &bufferFormat);
+                // RGBA?
+                bufferFormat.channels = 4;
+                bufferFormat.channel_bits[3] = bitCount32(amask);
             }
-            this->libsdl2.freeFormat(format);
         }
     }
     // Allocate the final returned value

@@ -137,7 +137,7 @@ void pWin32Print(uint8_t const* message, size_t len, DWORD handle) {
     if(len > UINT32_MAX) {
         PPANIC("Integer Overflow");
     }
-    // What if I told you WriteConsoleA indirectly requries wingdi.h?
+    // What if I told you WriteConsoleA indirectly requires wingdi.h?
     // We aren't doing any window or graphics stuff here, in theory this is just an IPC channel to another process,
     // But here we are anyway. Isn't the windows SDK absolutely great and completely organized?
     // Not that Pinc has anything to say here, our entire windowing API is stuffed into a single header file.
@@ -182,6 +182,33 @@ size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
             num = capacity;
         }
         pMemCopy(&realbuf[10-i], buf, num);
+        if(num > 0){
+            buf[num-1] = 0;
+        }
+    }
+    return i+1;
+}
+
+size_t pBufPrintUint64(char* buf, size_t capacity, uint64_t v) {
+    // uint64_t can be at most 20 decimal digits
+    // One more for null terminator
+    char realbuf[21] = { 0 };
+    // Assuming ASCII or something similar
+    size_t i = 0;
+    while(v > 0) {
+        uint64_t d = v % 10;
+        v = v / 10;
+        char c = (char)(d+0x30);
+        i += 1;
+        realbuf[20-i] = c;
+    }
+    // Bro why are there so many edge cases like wth
+    if(buf){
+        size_t num = i+1;
+        if(num > capacity) {
+            num = capacity;
+        }
+        pMemCopy(&realbuf[20-i], buf, num);
         if(num > 0){
             buf[num-1] = 0;
         }
