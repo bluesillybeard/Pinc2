@@ -105,8 +105,7 @@
     - I don't know who wants this to be honest, maybe wait for a PR as (afaik) many APIs don't even support this kind of operation anymore
 
 ## TODO for internal library
-- Add pinc* prefix to everything that is part of Pinc itself.
-    - running objdump -tT on the output binary should not show any pinc symbols that don't have pinc in the name.
+- replace tscoding/areana with custom implementation
 - Add unit tests for certain functions
     - *cough cough* bufPrint\* *cough cough*
 - add debug print system with proper formatting (that isn't just a copy of libc's formatting)

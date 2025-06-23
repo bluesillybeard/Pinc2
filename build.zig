@@ -97,10 +97,10 @@ pub fn build(b: *std.Build) !void {
         .files = &[_][]const u8 {
             // Actual source files
             "src/pinc_main.c",
-            "src/platform/platform.c",
-            "src/sdl2.c",
-            "src/arena.c",
-            "src/libs/pstring.c"
+            "src/platform/pinc_platform.c",
+            "src/pinc_sdl2.c",
+            "src/pinc_arena.c",
+            "src/libs/pinc_string.c"
         },
         .flags = try flags.toOwnedSlice(),
     });

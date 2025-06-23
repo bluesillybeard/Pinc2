@@ -1,4 +1,4 @@
-#include "platform/platform.h"
+#include "platform/pinc_platform.h"
 #include "pinc_error.h"
 
 // This takes the SDL2 functions, and enumerates them so that they can be loaded at runtime.
@@ -38,7 +38,7 @@
     SDL_FUNC(SDL_GLContext, glCreateContext, SDL_GL_CreateContext, (SDL_Window* window)) \
     SDL_FUNC(void, glDeleteContext, SDL_GL_DeleteContext, (SDL_GLContext context)) \
     SDL_FUNC(int, glMakeCurrent, SDL_GL_MakeCurrent, (SDL_Window* window, SDL_GLContext context)) \
-    SDL_FUNC(PFN, glGetProcAddress, SDL_GL_GetProcAddress, (const char* proc)) \
+    SDL_FUNC(pincPFN, glGetProcAddress, SDL_GL_GetProcAddress, (const char* proc)) \
     SDL_FUNC(SDL_GLContext, glGetCurrentContext, SDL_GL_GetCurrentContext, (void)) \
     SDL_FUNC(SDL_Window*, glGetCurrentWindow, SDL_GL_GetCurrentWindow, (void)) \
     SDL_FUNC(int, glSetAttribute, SDL_GL_SetAttribute, (SDL_GLattr attr, int value)) \
@@ -76,13 +76,13 @@ typedef struct {
 #undef SDL_FUNC_OPTIONAL
 
 #define SDL_FUNC(type, name, realName, args)\
-    functions->name = (PFN_##realName) pLibrarySymbol(lib, (uint8_t*)#realName, pStringLen(#realName));\
+    functions->name = (PFN_##realName) pincLibrarySymbol(lib, (uint8_t*)#realName, pincStringLen(#realName));\
     PErrorExternal(functions->name, "Unable to load SDL2 function " #realName);
 
 #define SDL_FUNC_OPTIONAL(type, name, realName, args)\
-    functions->name = (PFN_##realName) pLibrarySymbol(lib, (uint8_t*)#realName, pStringLen(#realName));\
+    functions->name = (PFN_##realName) pincLibrarySymbol(lib, (uint8_t*)#realName, pincStringLen(#realName));\
 
-void loadSdl2Functions(void* lib, Sdl2Functions* functions) {
+void pincLoadSdl2Functions(void* lib, Sdl2Functions* functions) {
     SDL_FUNCTIONS
 }
 

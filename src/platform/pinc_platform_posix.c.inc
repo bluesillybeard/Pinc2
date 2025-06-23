@@ -1,6 +1,6 @@
 // Implementation of platform.h for posix systems.
 
-#include "platform.h"
+#include "pinc_platform.h"
 
 // If you are here because you encountered include errors, use a compiler toolchain with the libc and posix headers
 
@@ -11,11 +11,11 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-void* pAlloc(size_t bytes) {
+void* pincAlloc(size_t bytes) {
     return malloc(bytes);
 }
 
-void* pAllocAligned(size_t bytes, size_t alignment) {
+void* pincAllocAligned(size_t bytes, size_t alignment) {
     // aligned_alloc is C11 or newer. We want to be compatible with C99 if doable.
     // Note: Pinc is purely compiled with C99, so this will never be true (for now)
     #if(__STDC_VERSION__ >= 201112L)
@@ -25,94 +25,94 @@ void* pAllocAligned(size_t bytes, size_t alignment) {
     P_UNUSED(alignment);
     // Aligned alloc is not implemented for older than C11....
     // Oh well. Pinc is unlikely to use this. In other words: only bother fixing this if an error occurs.
-    pAssertFail();
+    pincAssertFail();
     return 0;
     #endif
 }
 
-void* pRealloc(void* pointer, size_t oldSize, size_t newSize) {
+void* pincRealloc(void* pointer, size_t oldSize, size_t newSize) {
     P_UNUSED(oldSize);
     return realloc(pointer, newSize);
 }
 
-void pFree(void* pointer, size_t bytes) {
+void pincFree(void* pointer, size_t bytes) {
     P_UNUSED(bytes);
     free(pointer);
 }
 
-void* pLoadLibrary(uint8_t const* nameUtf8, size_t nameSize) {
+void* pincLoadLibrary(uint8_t const* nameUtf8, size_t nameSize) {
     // Cannot assume name is null terminated, which is what dlopen needs
     // The input name also does not contain the file ending or lib prefix - only the name of the library (ex: "sdl2")
-    uint8_t* nameUtf8NullTerm = pAlloc(nameSize+7);
-    pMemCopy("lib", nameUtf8NullTerm, 3);
-    pMemCopy(nameUtf8, nameUtf8NullTerm+3, nameSize);
-    pMemCopy(".so\0", nameUtf8NullTerm+3+nameSize, 4);
+    uint8_t* nameUtf8NullTerm = pincAlloc(nameSize+7);
+    pincMemCopy("lib", nameUtf8NullTerm, 3);
+    pincMemCopy(nameUtf8, nameUtf8NullTerm+3, nameSize);
+    pincMemCopy(".so\0", nameUtf8NullTerm+3+nameSize, 4);
     // TODO: does dlOpen accept utf8?
     void* lib = dlopen((char*)nameUtf8NullTerm, RTLD_LAZY);
-    pFree(nameUtf8NullTerm, nameSize+1);
+    pincFree(nameUtf8NullTerm, nameSize+1);
     return lib;
     // TODO: Since this is on unix, there may be other things (ex: libsdl.so.2)
     // Probably best to change the function signature to specify a version of the library to load.
     // TODO: there will eventually be options to have Pinc link with libraries statically or with the normal OS linker instead of at runtime
 }
 
-PFN pLibrarySymbol(void* library, uint8_t const* symbolNameUtf8, size_t nameSize) {
+pincPFN pincLibrarySymbol(void* library, uint8_t const* symbolNameUtf8, size_t nameSize) {
     // Cannot assume name is null terminated, which is what dlsym needs
-    uint8_t* nameUtf8NullTerm = pAlloc(nameSize+1);
-    pMemCopy(symbolNameUtf8, nameUtf8NullTerm, nameSize);
+    uint8_t* nameUtf8NullTerm = pincAlloc(nameSize+1);
+    pincMemCopy(symbolNameUtf8, nameUtf8NullTerm, nameSize);
     nameUtf8NullTerm[nameSize] = 0;
 
     void* sym = dlsym(library, (char*)nameUtf8NullTerm);
-    pFree(nameUtf8NullTerm, nameSize+1);
+    pincFree(nameUtf8NullTerm, nameSize+1);
     // GCC's -Wpedantic is extra strict and does not allow a void* to be cast into a function pointer.
     // This is an artifact of the ancient world back when a function pointer wasn't necessarily the same size as a pointer to memory.
     // (side not about wasm or function pointer sanitization or whatever)
     // It appears POSIX guarantees that fact, seeing as dlsym returns void* instead of a void function pointer.
     // Anyway, they gave us a nice way to disable that warning using __extension__.
     #ifdef __GNUC__
-    return __extension__ (PFN)sym;
+    return __extension__ (pincPFN)sym;
     #else
     return (PFN)sym;
     #endif
 }
 
-void pUnloadLibrary(void* library) {
+void pincUnloadLibrary(void* library) {
     dlclose(library);
 }
 
-size_t pStringLen(char const* str) {
+size_t pincStringLen(char const* str) {
     return strlen(str);
 }
 
-void pMemCopy(void const* restrict source, void* restrict destination, size_t numBytes) {
+void pincMemCopy(void const* restrict source, void* restrict destination, size_t numBytes) {
     memcpy(destination, source, numBytes);
 }
 
-void pMemMove(void const* source, void* destination, size_t numBytes) {
+void pincMemMove(void const* source, void* destination, size_t numBytes) {
     memmove(destination, source, numBytes);
 }
 
-void pMemSet(uint8_t value, void* destination, size_t numBytes) {
+void pincMemSet(uint8_t value, void* destination, size_t numBytes) {
     memset(destination, value, numBytes);
 }
 
 // TODO
-uint32_t pUtf8Unicode(uint8_t const* restrict str, size_t strLen, size_t* restrict outLen);
+uint32_t pincUtf8Unicode(uint8_t const* restrict str, size_t strLen, size_t* restrict outLen);
 
 // TODO
-size_t pUnicodeUtf8(uint32_t codepoint, char* destStr);
+size_t pincUnicodeUtf8(uint32_t codepoint, char* destStr);
 
 // TODO
-size_t pUtf8UnicodeString(uint8_t const* restrict str, size_t strLen, uint32_t* restrict outUnicode);
+size_t pincUtf8UnicodeString(uint8_t const* restrict str, size_t strLen, uint32_t* restrict outUnicode);
 
 // TODO
-size_t pUnicodeUtf8String(uint32_t const* restrict codepoints, size_t numCodepoints, uint8_t* restrict outUtf8);
+size_t pincUnicodeUtf8String(uint32_t const* restrict codepoints, size_t numCodepoints, uint8_t* restrict outUtf8);
 
 // Source: https://github.com/scottt/debugbreak/blob/master/debugbreak.h
 // Not a copy, but this has the parts needed from it
 // We don't need any of the windows stuff, or the C++ stuff... Or most of it, actually.
 
-void pTriggerDebugger(void) {
+void pincTriggerDebugger(void) {
     // TODO: does it make sense to make this a Pinc option? I don't think so.
     #if !defined(DEBUG) && !defined(NDEBUG)
     #if defined(__i386__) || defined(__x86_64__)
@@ -139,7 +139,7 @@ void pTriggerDebugger(void) {
     __asm__ volatile(".4byte 0x00100073");
     #else
     // Oops, we don't know what this is. Assert instead.
-    pAssertFail();
+    pincAssertFail();
     #endif
     #endif
 }
@@ -152,31 +152,31 @@ extern void __assert_fail (const char *__assertion, const char *__file,
 			   unsigned int __line, const char *__function)
      __THROW __attribute__ ((__noreturn__));
 
-P_NORETURN void pAssertFail(void) {
+P_NORETURN void pincAssertFail(void) {
     __assert_fail("Pinc platform assert", __FILE__, __LINE__, __func__);
 }
 
-void pPrintError(uint8_t const* message, size_t len) {
+void pincPrintError(uint8_t const* message, size_t len) {
     fwrite(message, sizeof(uint8_t), len, stderr);
 }
 
-void pPrintDebug(uint8_t const* message, size_t len) {
+void pincPrintDebug(uint8_t const* message, size_t len) {
     fwrite(message, sizeof(uint8_t), len, stdout);
 }
 
-void pPrintErrorLine(uint8_t const* message, size_t len) {
+void pincPrintErrorLine(uint8_t const* message, size_t len) {
     fwrite(message, sizeof(uint8_t), len, stderr);
     fputc('\n', stderr);
 }
 
-void pPrintDebugLine(uint8_t const* message, size_t len) {
+void pincPrintDebugLine(uint8_t const* message, size_t len) {
     fwrite(message, sizeof(uint8_t), len, stdout);
     fputc('\n', stdout);
 }
 
 #include <inttypes.h>
 
-size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
+size_t pincBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
     if(capacity == 1 && buf) buf[0] = 0;
     if(v == 0) {
         if(capacity >= 2) {
@@ -203,7 +203,7 @@ size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
         if(num > capacity) {
             num = capacity;
         }
-        pMemCopy(&realbuf[10-i], buf, num);
+        pincMemCopy(&realbuf[10-i], buf, num);
         if(num > 0){
             buf[num-1] = 0;
         }
@@ -211,7 +211,7 @@ size_t pBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
     return i;
 }
 
-size_t pBufPrintUint64(char* buf, size_t capacity, uint64_t v) {
+size_t pincBufPrintUint64(char* buf, size_t capacity, uint64_t v) {
     if(capacity == 1 && buf) buf[0] = 0;
     if(v == 0) {
         if(capacity >= 2) {
@@ -238,7 +238,7 @@ size_t pBufPrintUint64(char* buf, size_t capacity, uint64_t v) {
         if(num > capacity) {
             num = capacity;
         }
-        pMemCopy(&realbuf[20-i], buf, num);
+        pincMemCopy(&realbuf[20-i], buf, num);
         if(num > 0){
             buf[num-1] = 0;
         }
@@ -248,7 +248,7 @@ size_t pBufPrintUint64(char* buf, size_t capacity, uint64_t v) {
 
 #include <time.h>
 
-int64_t pCurrentTimeMillis(void) {
+int64_t pincCurrentTimeMillis(void) {
     // This is in the posix standard, so it should be extremely well supported
     struct timespec theTime;
     clock_gettime(CLOCK_MONOTONIC, &theTime);

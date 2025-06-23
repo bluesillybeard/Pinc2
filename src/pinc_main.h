@@ -2,12 +2,12 @@
 #define PINC_MAIN_H
 
 #include <pinc.h>
-#include "libs/dynamic_allocator.h"
+#include "libs/pinc_allocator.h"
 #include "pinc_options.h"
 #include "pinc_error.h"
-#include "window.h"
+#include "pinc_window.h"
 #include "pinc_types.h"
-#include "arena.h"
+#include "pinc_arena.h"
 
 // pinc objects are a user-facing map from what the user sees, and the actual internal objects / handles.
 // The real internal objects are usually done with opaque pointers managed by the backend itself.
@@ -146,11 +146,11 @@ typedef struct {
     // Keep track of what stage of initialization we're in
     PincState initState;
     // See doc for rootAllocator macro. Live for incomplete and init
-    Allocator alloc;
+    pincAllocator alloc;
     // Memory for tempAlloc object
     Arena arenaAllocatorObject;
     // See doc for tempAllocator macro. Live for incomplete and init.
-    Allocator tempAlloc;
+    pincAllocator tempAlloc;
     // Nullable, Lifetime separate from initState
     PincErrorCallback userCallError;
     // Live for incomplete and init

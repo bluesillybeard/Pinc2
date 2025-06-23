@@ -1,60 +1,60 @@
 #include <pinc.h>
 #include <stdint.h>
-#include "libs/dynamic_allocator.h"
-#include "libs/pstring.h"
+#include "libs/pinc_allocator.h"
+#include "libs/pinc_string.h"
 #include "pinc_error.h"
 #include "pinc_opengl.h"
 #include "pinc_types.h"
-#include "platform/platform.h"
+#include "platform/pinc_platform.h"
 #include "pinc_main.h"
 
-#include "sdl2.h"
-#include "window.h"
+#include "pinc_sdl2.h"
+#include "pinc_window.h"
 
 // Implementations of things in pinc_main.h
 
-void pinc_intern_callError(PString message, PincErrorType type) {
+void pinc_intern_callError(pincString message, PincErrorType type) {
     if(rootAllocator.vtable == 0) {
         char* errString = "Pinc received an error before initialization of the root allocator - Did you forget to call InitComplete()?";
-        size_t errStringLen = pStringLen(errString);
+        size_t errStringLen = pincStringLen(errString);
         if(staticState.userCallError) {
             staticState.userCallError((uint8_t const*) errString, errStringLen, PincErrorType_user);
         } else {
-            pPrintErrorLine((uint8_t const*) errString, errStringLen);
+            pincPrintErrorLine((uint8_t const*) errString, errStringLen);
         }
-        pTriggerDebugger();
+        pincTriggerDebugger();
     }
     if(staticState.userCallError) {
         // Let's be nice and let the user have their null terminator
-        uint8_t* msgNullTerm = (uint8_t*)PString_marshalAlloc(message, tempAllocator);
+        uint8_t* msgNullTerm = (uint8_t*)pincString_marshalAlloc(message, tempAllocator);
         staticState.userCallError(msgNullTerm, message.len, type);
-        Allocator_free(tempAllocator, msgNullTerm, message.len+1);
+        pincAllocator_free(tempAllocator, msgNullTerm, message.len+1);
     } else {
-        pPrintErrorLine(message.str, message.len);
+        pincPrintErrorLine(message.str, message.len);
     }
-    pTriggerDebugger();
+    pincTriggerDebugger();
 }
 
-P_NORETURN void pinc_intern_callFatalError(PString message, PincErrorType type) {
+P_NORETURN void pinc_intern_callFatalError(pincString message, PincErrorType type) {
     if(rootAllocator.vtable == 0) {
         char* errString = "Pinc received a fatal error before initialization of the root allocator - Did you forget to call InitComplete()?";
-        size_t errStringLen = pStringLen(errString);
+        size_t errStringLen = pincStringLen(errString);
         if(staticState.userCallError) {
             staticState.userCallError((uint8_t const*) errString, errStringLen, type);
         } else {
-            pPrintErrorLine((uint8_t const*) errString, errStringLen);
+            pincPrintErrorLine((uint8_t const*) errString, errStringLen);
         }
-        pAssertFail();
+        pincAssertFail();
     }
     if(staticState.userCallError) {
         // Let's be nice and let the user have their null terminator
-        uint8_t* msgNullTerm = (uint8_t*)PString_marshalAlloc(message, tempAllocator);
+        uint8_t* msgNullTerm = (uint8_t*)pincString_marshalAlloc(message, tempAllocator);
         staticState.userCallError(msgNullTerm, message.len, type);
-        Allocator_free(tempAllocator, msgNullTerm, message.len+1);
+        pincAllocator_free(tempAllocator, msgNullTerm, message.len+1);
     } else {
-        pPrintErrorLine(message.str, message.len);
+        pincPrintErrorLine(message.str, message.len);
     }
-    pAssertFail();
+    pincAssertFail();
 }
 
 PincStaticState pinc_intern_staticState = PINC_PREINIT_STATE;
@@ -62,25 +62,25 @@ PincStaticState pinc_intern_staticState = PINC_PREINIT_STATE;
 // Implementation of pinc's root allocator on top of platform.h
 static void* pinc_root_platform_allocate(void* obj, size_t size) {
     P_UNUSED(obj);
-    return pAlloc(size);
+    return pincAlloc(size);
 }
 
 static void* pinc_root_platform_allocateAligned(void* obj, size_t size, size_t alignment) {
     P_UNUSED(obj);
-    return pAllocAligned(size, alignment);
+    return pincAllocAligned(size, alignment);
 }
 
 static void* pinc_root_platform_reallocate(void* obj, void* ptr, size_t oldSize, size_t newSize) {
     P_UNUSED(obj);
-    return pRealloc(ptr, oldSize, newSize);
+    return pincRealloc(ptr, oldSize, newSize);
 }
 
 static void pinc_root_platform_free(void* obj, void* ptr, size_t size) {
     P_UNUSED(obj);
-    pFree(ptr, size);
+    pincFree(ptr, size);
 }
 
-static const AllocatorVtable platform_alloc_vtable = {
+static const pincAllocatorVtable pinc_platform_alloc_vtable = {
     .allocate = &pinc_root_platform_allocate,
     .allocateAligned = &pinc_root_platform_allocateAligned,
     .reallocate = &pinc_root_platform_reallocate,
@@ -106,7 +106,7 @@ static void pinc_root_user_free(void* obj, void* ptr, size_t size) {
     staticState.userFreeFn(obj, ptr, size);
 }
 
-static const AllocatorVtable user_alloc_vtable = {
+static const pincAllocatorVtable pinc_user_alloc_vtable = {
     .allocate = &pinc_root_user_allocate,
     .allocateAligned = &pinc_root_user_allocateAligned,
     .reallocate = &pinc_root_user_reallocate,
@@ -140,7 +140,7 @@ static void pinc_temp_free(void* obj, void* ptr, size_t size) {
     // TODO: implement this - if this allocation happens to be the last one, then rewind the arena by size.
 }
 
-static const AllocatorVtable PincTempAllocatorVtable = {
+static const pincAllocatorVtable PincTempAllocatorVtable = {
     .allocate = &pinc_temp_allocate,
     .allocateAligned = &pinc_temp_allocateAligned,
     .reallocate = &pinc_temp_reallocate,
@@ -150,11 +150,11 @@ static const AllocatorVtable PincTempAllocatorVtable = {
 uint32_t PincPool_alloc(PincPool* pool, size_t elementSize) {
     if(pool->objectsCapacity == pool->objectsNum) {
         if(!pool->objectsArray) {
-            pool->objectsArray = Allocator_allocate(rootAllocator, elementSize * 8);
+            pool->objectsArray = pincAllocator_allocate(rootAllocator, elementSize * 8);
             pool->objectsCapacity = 8;
         } else {
             uint32_t newObjectsCapacity = pool->objectsCapacity * 2;
-            pool->objectsArray = Allocator_reallocate(rootAllocator, pool->objectsArray, elementSize * pool->objectsCapacity, elementSize * newObjectsCapacity);
+            pool->objectsArray = pincAllocator_reallocate(rootAllocator, pool->objectsArray, elementSize * pool->objectsCapacity, elementSize * newObjectsCapacity);
             pool->objectsCapacity = newObjectsCapacity;
         }
     }
@@ -173,11 +173,11 @@ void PincPool_free(PincPool* pool, uint32_t index, size_t elementSize) {
     } else {
         if(pool->freeArrayCapacity == pool->freeArrayNum) {
             if(!pool->freeArray) {
-                pool->freeArray = Allocator_allocate(rootAllocator, elementSize * 8);
+                pool->freeArray = pincAllocator_allocate(rootAllocator, elementSize * 8);
                 pool->freeArrayCapacity = 8;
             } else {
                 uint32_t newObjectsCapacity = pool->freeArrayCapacity * 2;
-                pool->freeArray = Allocator_reallocate(rootAllocator, pool->freeArray, elementSize * pool->freeArrayCapacity, elementSize * newObjectsCapacity);
+                pool->freeArray = pincAllocator_reallocate(rootAllocator, pool->freeArray, elementSize * pool->freeArrayCapacity, elementSize * newObjectsCapacity);
                 pool->freeArrayCapacity = newObjectsCapacity;
             }
         }
@@ -188,10 +188,10 @@ void PincPool_free(PincPool* pool, uint32_t index, size_t elementSize) {
 
 void PincPool_deinit(PincPool* pool, size_t elementSize) {
     if(pool->objectsArray) {
-        Allocator_free(rootAllocator, pool->objectsArray, elementSize * pool->objectsCapacity);
+        pincAllocator_free(rootAllocator, pool->objectsArray, elementSize * pool->objectsCapacity);
     }
     if(pool->freeArray) {
-        Allocator_free(rootAllocator, pool->freeArray, sizeof(uint32_t) * pool->freeArrayCapacity);
+        pincAllocator_free(rootAllocator, pool->freeArray, sizeof(uint32_t) * pool->freeArrayCapacity);
     }
     *pool = (PincPool){0};
 }
@@ -288,12 +288,12 @@ void PincObject_free(PincObjectHandle id) {
 static void PincEventBackEnsureCapacity(uint32_t capacity) {
     if(staticState.eventsBufferBackCapacity >= capacity) return;
     if(!staticState.eventsBufferBack) {
-        staticState.eventsBufferBack = Allocator_allocate(rootAllocator, 8 * sizeof(PincEvent));
+        staticState.eventsBufferBack = pincAllocator_allocate(rootAllocator, 8 * sizeof(PincEvent));
         staticState.eventsBufferBackCapacity = 8;
         staticState.eventsBufferBackNum = 0;
     } else {
         uint32_t newCapacity = staticState.eventsBufferBackCapacity * 2;
-        staticState.eventsBufferBack = Allocator_reallocate(rootAllocator, staticState.eventsBufferBack, staticState.eventsBufferBackCapacity * sizeof(PincEvent), newCapacity * sizeof(PincEvent));
+        staticState.eventsBufferBack = pincAllocator_reallocate(rootAllocator, staticState.eventsBufferBack, staticState.eventsBufferBackCapacity * sizeof(PincEvent), newCapacity * sizeof(PincEvent));
         staticState.eventsBufferBackCapacity = newCapacity;
     }
 }
@@ -447,7 +447,7 @@ void PincEventScroll(int64_t timeUnixMillis, float vertical, float horizontal) {
 }
 
 // StateValidMacroForConvenience
-#define SttVld(_expr, _message) if(!(_expr)) {pPrintErrorEZ(_message); return false;}
+#define SttVld(_expr, _message) if(!(_expr)) {pincPrintErrorEZ(_message); return false;}
 static bool PincStateValidForIncomplete(void) {
     #if PINC_ENABLE_ERROR_ASSERT
     // Easy validation with little cost
@@ -473,7 +473,7 @@ static bool PincStateValidForComplete(void) {
     // TODO: More difficult validation that costs significant performance
     return true;
 }
-#undef StateValidMacroForConvenience
+#undef SttVld
 
 // asserts (regular assert) if the state is invalid
 static void PincValidateForState(PincState state) {
@@ -534,21 +534,21 @@ PINC_EXPORT PincReturnCode PINC_CALL pincInitIncomplete(void) {
     
     if(staticState.userAllocFn) {
         // User callbacks are set
-        rootAllocator = (Allocator) {
+        rootAllocator = (pincAllocator) {
             .allocatorObjectPtr = staticState.userAllocObj,
-            .vtable = &user_alloc_vtable,
+            .vtable = &pinc_user_alloc_vtable,
         };
     } else {
         // user callbacks are not set
-        rootAllocator = (Allocator){
+        rootAllocator = (pincAllocator){
             .allocatorObjectPtr = 0,
-            .vtable = &platform_alloc_vtable,
+            .vtable = &pinc_platform_alloc_vtable,
         };
     }
 
     staticState.arenaAllocatorObject = (Arena){0};
 
-    tempAllocator = (Allocator) {
+    tempAllocator = (pincAllocator) {
         .allocatorObjectPtr = 0,
         .vtable = &PincTempAllocatorVtable,
     };
@@ -556,7 +556,7 @@ PINC_EXPORT PincReturnCode PINC_CALL pincInitIncomplete(void) {
     // Begin initialization of window backends
     // TODO: SDL2 is the only one that actually exists so yeah
 
-    bool sdl2InitRes = psdl2Init(&staticState.sdl2WindowBackend);
+    bool sdl2InitRes = pincSdl2Init(&staticState.sdl2WindowBackend);
 
     if(!sdl2InitRes) {
         PErrorExternal(false, "No supported window backends available!");
@@ -566,14 +566,14 @@ PINC_EXPORT PincReturnCode PINC_CALL pincInitIncomplete(void) {
     // Query collective information from window backends
     // Again, SDL2 is the only window backend, so some shortcuts can be taken
     size_t numFramebufferFormats;
-    FramebufferFormat* framebufferFormats = WindowBackend_queryFramebufferFormats(&staticState.sdl2WindowBackend, tempAllocator, &numFramebufferFormats);
+    FramebufferFormat* framebufferFormats = pincWindowBackend_queryFramebufferFormats(&staticState.sdl2WindowBackend, tempAllocator, &numFramebufferFormats);
     for(size_t i=0; i<numFramebufferFormats; ++i) {
         PincFramebufferFormatHandle handle = PincObject_allocate(PincObjectDiscriminator_framebufferFormat);
         FramebufferFormat* reference = PincObject_ref_framebufferFormat(handle);
         *reference = framebufferFormats[i];
     }
 
-    Allocator_free(tempAllocator, framebufferFormats, numFramebufferFormats*sizeof(FramebufferFormat));
+    pincAllocator_free(tempAllocator, framebufferFormats, numFramebufferFormats*sizeof(FramebufferFormat));
     staticState.initState = PincState_incomplete;
     PincValidateForState(PincState_incomplete);
     return PincReturnCode_pass;
@@ -603,7 +603,7 @@ PINC_EXPORT bool PINC_CALL pincQueryGraphicsApiSupport(PincWindowBackend window_
         graphics_api = pincQueryGraphicsApiDefault(window_backend);
     }
     // TODO: only window backend is SDL2, shortcuts are taken
-    return WindowBackend_queryGraphicsApiSupport(&staticState.sdl2WindowBackend, graphics_api);
+    return pincWindowBackend_queryGraphicsApiSupport(&staticState.sdl2WindowBackend, graphics_api);
 }
 
 PINC_EXPORT PincGraphicsApi PINC_CALL pincQueryGraphicsApiDefault(PincWindowBackend window_backend) {
@@ -621,7 +621,7 @@ PINC_EXPORT PincFramebufferFormatHandle pincQueryFramebufferFormatDefault(PincWi
     // Use the front-end API to do what a user would effectively do
     uint32_t numFramebufferFormats = pincQueryFramebufferFormats(window_backend, graphics_api, 0, 0);
     PErrorExternal(numFramebufferFormats, "No framebuffer formats available");
-    uint32_t* ids = Allocator_allocate(tempAllocator, numFramebufferFormats * sizeof(uint32_t));
+    uint32_t* ids = pincAllocator_allocate(tempAllocator, numFramebufferFormats * sizeof(uint32_t));
     pincQueryFramebufferFormats(window_backend, graphics_api, ids, numFramebufferFormats);
     
     // framebuffer format default can be tuned here
@@ -696,7 +696,7 @@ PINC_EXPORT uint32_t PINC_CALL pincQueryMaxOpenWindows(PincWindowBackend window_
     PincValidateForStates(PincState_init, PincState_incomplete);
     P_UNUSED(window_backend);
     // TODO: only window backend is SDL2, shortcuts are taken
-    return WindowBackend_queryMaxOpenWindows(&staticState.sdl2WindowBackend);
+    return pincWindowBackend_queryMaxOpenWindows(&staticState.sdl2WindowBackend);
 }
 
 PINC_EXPORT PincReturnCode PINC_CALL pincInitComplete(PincWindowBackend window_backend, PincGraphicsApi graphics_api, PincFramebufferFormatHandle framebuffer_format_id) {
@@ -716,7 +716,7 @@ PINC_EXPORT PincReturnCode PINC_CALL pincInitComplete(PincWindowBackend window_b
     }
     FramebufferFormat* framebuffer = PincObject_ref_framebufferFormat(framebuffer_format_id);
     staticState.framebufferFormat = framebuffer_format_id;
-    PincReturnCode result = WindowBackend_completeInit(&staticState.sdl2WindowBackend, graphics_api, *framebuffer);
+    PincReturnCode result = pincWindowBackend_completeInit(&staticState.sdl2WindowBackend, graphics_api, *framebuffer);
     if(result == PincReturnCode_error) {
         return PincReturnCode_error;
     }
@@ -768,7 +768,7 @@ PINC_EXPORT void PINC_CALL pincDeinit(void) {
     // deinit backends
     // TODO: only window backend is sdl2, shortcuts are taken
     if(staticState.windowBackendSet) {
-        WindowBackend_deinit(&staticState.windowBackend);
+        pincWindowBackend_deinit(&staticState.windowBackend);
         staticState.windowBackendSet = false;
         staticState.windowBackend.obj = 0;
         staticState.sdl2WindowBackend.obj = 0;
@@ -783,8 +783,8 @@ PINC_EXPORT void PINC_CALL pincDeinit(void) {
     PincPool_deinit(&staticState.rawOpenglContextHandleObjects, sizeof(RawOpenglContextObject));
     PincPool_deinit(&staticState.framebufferFormatObjects, sizeof(FramebufferFormat));
 
-    Allocator_free(rootAllocator, staticState.eventsBuffer, staticState.eventsBufferNum * sizeof(PincEvent));
-    Allocator_free(rootAllocator, staticState.eventsBufferBack, staticState.eventsBufferBackNum * sizeof(PincEvent));
+    pincAllocator_free(rootAllocator, staticState.eventsBuffer, staticState.eventsBufferNum * sizeof(PincEvent));
+    pincAllocator_free(rootAllocator, staticState.eventsBufferBack, staticState.eventsBufferBackNum * sizeof(PincEvent));
 
     if(staticState.tempAlloc.vtable){
         arena_free(&staticState.arenaAllocatorObject);
@@ -872,11 +872,11 @@ PINC_EXPORT PincWindowHandle PINC_CALL pincWindowCreateIncomplete(void) {
     PincWindowHandle handle = PincObject_allocate(PincObjectDiscriminator_incompleteWindow);
     IncompleteWindow* window = PincObject_ref_incompleteWindow(handle);
     // TODO: Add integer formatting to PString, or get a decent libc-free formatting library
-    PString strings[] = {
-        PString_makeDirect("Pinc Window "),
-        PString_allocFormatUint32(handle, tempAllocator),
+    pincString strings[] = {
+        pincString_makeDirect("Pinc Window "),
+        pincString_allocFormatUint32(handle, tempAllocator),
     };
-    PString name = PString_concat(sizeof(strings) / sizeof(PString), strings, rootAllocator);
+    pincString name = pincString_concat(sizeof(strings) / sizeof(pincString), strings, rootAllocator);
     *window = (IncompleteWindow){
         .title = name,
         .hasWidth = false,
@@ -896,7 +896,7 @@ PINC_EXPORT PincWindowHandle PINC_CALL pincWindowCreateIncomplete(void) {
 PINC_EXPORT PincReturnCode PINC_CALL pincWindowComplete(PincWindowHandle window) {\
     PincValidateForState(PincState_init);
     IncompleteWindow* object = PincObject_ref_incompleteWindow(window);
-    WindowHandle handle = WindowBackend_completeWindow(&staticState.windowBackend, object, window);
+    WindowHandle handle = pincWindowBackend_completeWindow(&staticState.windowBackend, object, window);
     if(!handle) {
         return PincReturnCode_error;
     }
@@ -916,7 +916,7 @@ PINC_EXPORT void PINC_CALL pincWindowDeinit(PincWindowHandle window) {
         }
         case PincObjectDiscriminator_window:{
             WindowHandle* object = PincObject_ref_window(window);
-            WindowBackend_deinitWindow(&staticState.windowBackend, *object);
+            pincWindowBackend_deinitWindow(&staticState.windowBackend, *object);
             PincObject_free(window);
             break;
         }
@@ -930,7 +930,7 @@ PINC_EXPORT void PINC_CALL pincWindowDeinit(PincWindowHandle window) {
 PINC_EXPORT void PINC_CALL pincWindowSetTitle(PincWindowHandle window, const char* title_buf, uint32_t title_len) {
     PincValidateForState(PincState_init);
     if(title_len == 0) {
-        size_t realTitleLen = pStringLen(title_buf);
+        size_t realTitleLen = pincStringLen(title_buf);
         PErrorSanitize(realTitleLen <= UINT32_MAX, "Integer overflow");
         title_len = (uint32_t)realTitleLen;
     }
@@ -939,19 +939,19 @@ PINC_EXPORT void PINC_CALL pincWindowSetTitle(PincWindowHandle window, const cha
         case PincObjectDiscriminator_incompleteWindow:{
             IncompleteWindow* object = PincObject_ref_incompleteWindow(window);
             if(title_len == object->title.len) {
-                pMemCopy(title_buf, object->title.str, title_len);
+                pincMemCopy(title_buf, object->title.str, title_len);
             } else {
-                PString_free(&object->title, rootAllocator);
-                object->title = PString_copy((PString){.str = (uint8_t*)title_buf, .len = title_len}, rootAllocator);
+                pincString_free(&object->title, rootAllocator);
+                object->title = pincString_copy((pincString){.str = (uint8_t*)title_buf, .len = title_len}, rootAllocator);
             }
             break;
         }
         case PincObjectDiscriminator_window:{
             WindowHandle* object = PincObject_ref_window(window);
             // Window takes ownership of the pointer, but we don't have ownership of title_buf
-            uint8_t* titlePtr = (uint8_t*)Allocator_allocate(rootAllocator, title_len);
-            pMemCopy(title_buf, titlePtr, title_len);
-            WindowBackend_setWindowTitle(&staticState.windowBackend, *object, titlePtr, title_len);
+            uint8_t* titlePtr = (uint8_t*)pincAllocator_allocate(rootAllocator, title_len);
+            pincMemCopy(title_buf, titlePtr, title_len);
+            pincWindowBackend_setWindowTitle(&staticState.windowBackend, *object, titlePtr, title_len);
             break;
         }
         default:
@@ -964,14 +964,14 @@ PINC_EXPORT uint32_t PINC_CALL pincWindowGetTitle(PincWindowHandle window, char*
     PincValidateForState(PincState_init);
     WindowHandle* win = PincObject_ref_window(window);
     size_t len;
-    uint8_t const* title = WindowBackend_getWindowTitle(&staticState.windowBackend, *win, &len);
+    uint8_t const* title = pincWindowBackend_getWindowTitle(&staticState.windowBackend, *win, &len);
     PErrorAssert(len > UINT32_MAX, "Integer Overflow");
     if(title_buf) {
         uint32_t amountToWrite = title_capacity;
         if(title_capacity > len) {
             amountToWrite = (uint32_t)len;
         }
-        pMemCopy(title, title_buf, amountToWrite);
+        pincMemCopy(title, title_buf, amountToWrite);
     }
     return (uint32_t) len;
 }
@@ -987,7 +987,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetWidth(PincWindowHandle window, uint32_t 
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            WindowBackend_setWindowWidth(&staticState.windowBackend, *ob, width);
+            pincWindowBackend_setWindowWidth(&staticState.windowBackend, *ob, width);
             break;
         }
         default: {
@@ -1006,7 +1006,7 @@ PINC_EXPORT uint32_t PINC_CALL pincWindowGetWidth(PincWindowHandle window) {
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            return WindowBackend_getWindowWidth(&staticState.windowBackend, *ob);
+            return pincWindowBackend_getWindowWidth(&staticState.windowBackend, *ob);
         }
         default: {
             PErrorUser(false, "Not a window object");
@@ -1043,7 +1043,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetHeight(PincWindowHandle window, uint32_t
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            WindowBackend_setWindowHeight(&staticState.windowBackend, *ob, height);
+            pincWindowBackend_setWindowHeight(&staticState.windowBackend, *ob, height);
             break;
         }
         default: {
@@ -1062,7 +1062,7 @@ PINC_EXPORT uint32_t PINC_CALL pincWindowGetHeight(PincWindowHandle window) {
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            return WindowBackend_getWindowHeight(&staticState.windowBackend, *ob);
+            return pincWindowBackend_getWindowHeight(&staticState.windowBackend, *ob);
         }
         default: {
             PErrorUser(false, "Not a window object");
@@ -1112,7 +1112,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetResizable(PincWindowHandle window, bool 
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            WindowBackend_setWindowResizable(&staticState.windowBackend, *ob, resizable);
+            pincWindowBackend_setWindowResizable(&staticState.windowBackend, *ob, resizable);
             break;
         }
         default:{
@@ -1130,7 +1130,7 @@ PINC_EXPORT bool PINC_CALL pincWindowGetResizable(PincWindowHandle window) {
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            return WindowBackend_getWindowResizable(&staticState.windowBackend, *ob);
+            return pincWindowBackend_getWindowResizable(&staticState.windowBackend, *ob);
         }
         default:{
             PErrorUser(false, "Not a window object");
@@ -1149,7 +1149,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetMinimized(PincWindowHandle window, bool 
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            WindowBackend_setWindowMinimized(&staticState.windowBackend, *ob, minimized);
+            pincWindowBackend_setWindowMinimized(&staticState.windowBackend, *ob, minimized);
             break;
         }
         default:{
@@ -1167,7 +1167,7 @@ PINC_EXPORT bool PINC_CALL pincWindowGetMinimized(PincWindowHandle window) {
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            return WindowBackend_getWindowMinimized(&staticState.windowBackend, *ob);
+            return pincWindowBackend_getWindowMinimized(&staticState.windowBackend, *ob);
         }
         default:{
             PErrorUser(false, "Not a window object");
@@ -1186,7 +1186,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetMaximized(PincWindowHandle window, bool 
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            WindowBackend_setWindowMaximized(&staticState.windowBackend, *ob, maximized);
+            pincWindowBackend_setWindowMaximized(&staticState.windowBackend, *ob, maximized);
             break;
         }
         default:{
@@ -1204,7 +1204,7 @@ PINC_EXPORT bool PINC_CALL pincWindowGetMaximized(PincWindowHandle window) {
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            return WindowBackend_getWindowMaximized(&staticState.windowBackend, *ob);
+            return pincWindowBackend_getWindowMaximized(&staticState.windowBackend, *ob);
         }
         default:{
             PErrorUser(false, "Not a window object");
@@ -1223,7 +1223,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetFullscreen(PincWindowHandle window, bool
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            WindowBackend_setWindowFullscreen(&staticState.windowBackend, *ob, fullscreen);
+            pincWindowBackend_setWindowFullscreen(&staticState.windowBackend, *ob, fullscreen);
             break;
         }
         default:{
@@ -1241,7 +1241,7 @@ PINC_EXPORT bool PINC_CALL pincWindowGetFullscreen(PincWindowHandle window) {
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            return WindowBackend_getWindowFullscreen(&staticState.windowBackend, *ob);
+            return pincWindowBackend_getWindowFullscreen(&staticState.windowBackend, *ob);
         }
         default:{
             PErrorUser(false, "Not a window object");
@@ -1262,7 +1262,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetFocused(PincWindowHandle window, bool fo
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            WindowBackend_setWindowFocused(&staticState.windowBackend, *ob, focused);
+            pincWindowBackend_setWindowFocused(&staticState.windowBackend, *ob, focused);
             break;
         }
         default:{
@@ -1280,7 +1280,7 @@ PINC_EXPORT bool PINC_CALL pincWindowGetFocused(PincWindowHandle window) {
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            return WindowBackend_getWindowResizable(&staticState.windowBackend, *ob);
+            return pincWindowBackend_getWindowResizable(&staticState.windowBackend, *ob);
         }
         default:{
             PErrorUser(false, "Not a window object");
@@ -1299,7 +1299,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetHidden(PincWindowHandle window, bool hid
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            WindowBackend_setWindowHidden(&staticState.windowBackend, *ob, hidden);
+            pincWindowBackend_setWindowHidden(&staticState.windowBackend, *ob, hidden);
             break;
         }
         default:{
@@ -1317,7 +1317,7 @@ PINC_EXPORT bool PINC_CALL pincWindowGetHidden(PincWindowHandle window) {
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* ob = PincObject_ref_window(window);
-            return WindowBackend_getWindowHidden(&staticState.windowBackend, *ob);
+            return pincWindowBackend_getWindowHidden(&staticState.windowBackend, *ob);
         }
         default:{
             PErrorUser(false, "Not a window object");
@@ -1328,24 +1328,24 @@ PINC_EXPORT bool PINC_CALL pincWindowGetHidden(PincWindowHandle window) {
 
 PINC_EXPORT PincReturnCode PINC_CALL pincSetVsync(bool sync) {
     PincValidateForState(PincState_init);
-    return WindowBackend_setVsync(&staticState.windowBackend, sync);
+    return pincWindowBackend_setVsync(&staticState.windowBackend, sync);
 }
 
 PINC_EXPORT bool PINC_CALL pincGetVsync(void) {
     PincValidateForState(PincState_init);
-    return WindowBackend_getVsync(&staticState.windowBackend);
+    return pincWindowBackend_getVsync(&staticState.windowBackend);
 }
 
 PINC_EXPORT void PINC_CALL pincWindowPresentFramebuffer(PincWindowHandle window) {
     PincValidateForState(PincState_init);
     WindowHandle* object = PincObject_ref_window(window);
-    WindowBackend_windowPresentFramebuffer(&staticState.windowBackend, *object);
+    pincWindowBackend_windowPresentFramebuffer(&staticState.windowBackend, *object);
 }
 
 PINC_EXPORT void PINC_CALL pincStep(void) {
     PincValidateForState(PincState_init);
     PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pincInitComplete?");
-    WindowBackend_step(&staticState.windowBackend);
+    pincWindowBackend_step(&staticState.windowBackend);
     arena_reset(&staticState.arenaAllocatorObject);
     // Event buffer swap
     PincEvent* te = staticState.eventsBuffer;
@@ -1619,7 +1619,7 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglVersionSupported(Pi
     PErrorUser(backend == PincWindowBackend_sdl2, "Unsupported window backend");
     PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
 
-    return WindowBackend_queryGlVersionSupported(&staticState.sdl2WindowBackend, major, minor, profile);
+    return pincWindowBackend_queryGlVersionSupported(&staticState.sdl2WindowBackend, major, minor, profile);
 }
 
 PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglAccumulatorBits(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer_format_id, uint32_t channel, uint32_t bits){
@@ -1632,7 +1632,7 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglAccumulatorBits(Pin
         framebuffer_format_id = pincQueryFramebufferFormatDefault(backend, PincGraphicsApi_opengl);
     }
     FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_id);
-    return WindowBackend_queryGlAccumulatorBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, channel, bits);
+    return pincWindowBackend_queryGlAccumulatorBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, channel, bits);
 }
 
 PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglAlphaBits(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer_format_id, uint32_t bits) {
@@ -1645,7 +1645,7 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglAlphaBits(PincWindo
         framebuffer_format_id = pincQueryFramebufferFormatDefault(backend, PincGraphicsApi_opengl);
     }
     FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_id);
-    return WindowBackend_queryGlAlphaBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
+    return pincWindowBackend_queryGlAlphaBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
 }
 
 PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglDepthBits(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer_format_id, uint32_t bits) {
@@ -1658,7 +1658,7 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglDepthBits(PincWindo
         framebuffer_format_id = pincQueryFramebufferFormatDefault(backend, PincGraphicsApi_opengl);
     }
     FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_id);
-    return WindowBackend_queryGlDepthBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
+    return pincWindowBackend_queryGlDepthBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
 }
 
 PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglStencilBits(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer_format_id, uint32_t bits) {
@@ -1671,7 +1671,7 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglStencilBits(PincWin
         framebuffer_format_id = pincQueryFramebufferFormatDefault(backend, PincGraphicsApi_opengl);
     }
     FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_id);
-    return WindowBackend_queryGlStencilBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
+    return pincWindowBackend_queryGlStencilBits(&staticState.sdl2WindowBackend, *framebufferFormatObj, bits);
 }
 
 PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglSamples(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer_format_handle, uint32_t samples) {
@@ -1684,7 +1684,7 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglSamples(PincWindowB
         framebuffer_format_handle = pincQueryFramebufferFormatDefault(backend, PincGraphicsApi_opengl);
     }
     FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_handle);
-    return WindowBackend_queryGlSamples(&staticState.sdl2WindowBackend, *framebufferFormatObj, samples);
+    return pincWindowBackend_queryGlSamples(&staticState.sdl2WindowBackend, *framebufferFormatObj, samples);
 }
 
 PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglStereoBuffer(PincWindowBackend backend, PincFramebufferFormatHandle framebuffer_format_id) {
@@ -1697,7 +1697,7 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglStereoBuffer(PincWi
         framebuffer_format_id = pincQueryFramebufferFormatDefault(backend, PincGraphicsApi_opengl);
     }
     FramebufferFormat* framebufferFormatObj = PincObject_ref_framebufferFormat(framebuffer_format_id);
-    return WindowBackend_queryGlStereoBuffer(&staticState.sdl2WindowBackend, *framebufferFormatObj);
+    return pincWindowBackend_queryGlStereoBuffer(&staticState.sdl2WindowBackend, *framebufferFormatObj);
 }
 
 PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglContextDebug(PincWindowBackend backend){
@@ -1708,7 +1708,7 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglContextDebug(PincWi
     }
     PErrorUser(backend == PincWindowBackend_sdl2, "Unsupported window backend");
     PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
-    return WindowBackend_queryGlContextDebug(&staticState.sdl2WindowBackend);
+    return pincWindowBackend_queryGlContextDebug(&staticState.sdl2WindowBackend);
 }
 
 PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglRobustAccess(PincWindowBackend backend){
@@ -1719,7 +1719,7 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglRobustAccess(PincWi
     }
     PErrorUser(backend == PincWindowBackend_sdl2, "Unsupported window backend");
     PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
-    return WindowBackend_queryGlRobustAccess(&staticState.sdl2WindowBackend);
+    return pincWindowBackend_queryGlRobustAccess(&staticState.sdl2WindowBackend);
 }
 
 PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglResetIsolation(PincWindowBackend backend){
@@ -1730,7 +1730,7 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglResetIsolation(Pinc
     }
     PErrorUser(backend == PincWindowBackend_sdl2, "Unsupported window backend");
     PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
-    return WindowBackend_queryGlResetIsolation(&staticState.sdl2WindowBackend);
+    return pincWindowBackend_queryGlResetIsolation(&staticState.sdl2WindowBackend);
 }
 
 PINC_EXPORT PincOpenglContextHandle PINC_CALL pincOpenglCreateContextIncomplete(void) {
@@ -1853,7 +1853,7 @@ PINC_EXTERN PincReturnCode PINC_CALL pincOpenglSetContextShareWithCurrent(PincOp
 PINC_EXPORT PincReturnCode PINC_CALL pincOpenglCompleteContext(PincOpenglContextHandle incomplete_context) {
     PincValidateForState(PincState_init);
     IncompleteGlContext* contextObj = PincObject_ref_incompleteGlContext(incomplete_context);
-    RawOpenglContextHandle contextHandle = WindowBackend_glCompleteContext(&staticState.windowBackend, *contextObj);
+    RawOpenglContextHandle contextHandle = pincWindowBackend_glCompleteContext(&staticState.windowBackend, *contextObj);
     if(contextHandle == 0) {
         return PincReturnCode_error;
     }
@@ -1873,7 +1873,7 @@ PINC_EXPORT void PINC_CALL pincOpenglDeinitContext(PincOpenglContextHandle conte
         }
         case PincObjectDiscriminator_glContext: {
             RawOpenglContextObject* object = PincObject_ref_glContext(context);
-            WindowBackend_glDeinitContext(&staticState.windowBackend, *object);
+            pincWindowBackend_glDeinitContext(&staticState.windowBackend, *object);
             PincObject_free(context);
             break;
         }
@@ -1892,7 +1892,7 @@ PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextAccumulatorBits(PincOpenglCon
         }
         case PincObjectDiscriminator_glContext: {
             RawOpenglContextObject* object = PincObject_ref_glContext(context);
-            return WindowBackend_glGetContextAccumulatorBits(&staticState.windowBackend, *object, channel);
+            return pincWindowBackend_glGetContextAccumulatorBits(&staticState.windowBackend, *object, channel);
         }
         default:
             PErrorUser(false, "Object must be an OpenGL context");
@@ -1909,7 +1909,7 @@ PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextAlphaBits(PincOpenglContextHa
         }
         case PincObjectDiscriminator_glContext: {
             RawOpenglContextObject* object = PincObject_ref_glContext(context);
-            return WindowBackend_glGetContextAlphaBits(&staticState.windowBackend, *object);
+            return pincWindowBackend_glGetContextAlphaBits(&staticState.windowBackend, *object);
         }
         default:
             PErrorUser(false, "Object must be an OpenGL context");
@@ -1926,7 +1926,7 @@ PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextDepthBits(PincOpenglContextHa
         }
         case PincObjectDiscriminator_glContext: {
             RawOpenglContextObject* object = PincObject_ref_glContext(context);
-            return WindowBackend_glGetContextDepthBits(&staticState.windowBackend, *object);
+            return pincWindowBackend_glGetContextDepthBits(&staticState.windowBackend, *object);
         }
         default:
             PErrorUser(false, "Object must be an OpenGL context");
@@ -1943,7 +1943,7 @@ PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextStencilBits(PincOpenglContext
         }
         case PincObjectDiscriminator_glContext: {
             RawOpenglContextObject* object = PincObject_ref_glContext(context);
-            return WindowBackend_glGetContextStencilBits(&staticState.windowBackend, *object);
+            return pincWindowBackend_glGetContextStencilBits(&staticState.windowBackend, *object);
         }
         default:
             PErrorUser(false, "Object must be an OpenGL context");
@@ -1960,7 +1960,7 @@ PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextSamples(PincOpenglContextHand
         }
         case PincObjectDiscriminator_glContext: {
             RawOpenglContextObject* object = PincObject_ref_glContext(context);
-            return WindowBackend_glGetContextSamples(&staticState.windowBackend, *object);
+            return pincWindowBackend_glGetContextSamples(&staticState.windowBackend, *object);
         }
         default:
             PErrorUser(false, "Object must be an OpenGL context");
@@ -1977,7 +1977,7 @@ PINC_EXPORT bool PINC_CALL pincOpenglGetContextStereoBuffer(PincOpenglContextHan
         }
         case PincObjectDiscriminator_glContext: {
             RawOpenglContextObject* object = PincObject_ref_glContext(context);
-            return WindowBackend_glGetContextStereoBuffer(&staticState.windowBackend, *object);
+            return pincWindowBackend_glGetContextStereoBuffer(&staticState.windowBackend, *object);
         }
         default:
             PErrorUser(false, "Object must be an OpenGL context");
@@ -1994,7 +1994,7 @@ PINC_EXPORT bool PINC_CALL pincOpenglGetContextDebug(PincOpenglContextHandle con
         }
         case PincObjectDiscriminator_glContext: {
             RawOpenglContextObject* object = PincObject_ref_glContext(context);
-            return WindowBackend_glGetContextDebug(&staticState.windowBackend, *object);
+            return pincWindowBackend_glGetContextDebug(&staticState.windowBackend, *object);
         }
         default:
             PErrorUser(false, "Object must be an OpenGL context");
@@ -2011,7 +2011,7 @@ PINC_EXPORT bool PINC_CALL pincOpenglGetContextRobustAccess(PincOpenglContextHan
         }
         case PincObjectDiscriminator_glContext: {
             RawOpenglContextObject* object = PincObject_ref_glContext(context);
-            return WindowBackend_glGetContextRobustAccess(&staticState.windowBackend, *object);
+            return pincWindowBackend_glGetContextRobustAccess(&staticState.windowBackend, *object);
         }
         default:
             PErrorUser(false, "Object must be an OpenGL context");
@@ -2028,7 +2028,7 @@ PINC_EXPORT bool PINC_CALL pincOpenglGetContextResetIsolation(PincOpenglContextH
         }
         case PincObjectDiscriminator_glContext: {
             RawOpenglContextObject* object = PincObject_ref_glContext(context);
-            return WindowBackend_glGetContextResetIsolation(&staticState.windowBackend, *object);
+            return pincWindowBackend_glGetContextResetIsolation(&staticState.windowBackend, *object);
         }
         default:
             PErrorUser(false, "Object must be an OpenGL context");
@@ -2046,20 +2046,20 @@ PINC_EXPORT PincReturnCode PINC_CALL pincOpenglMakeCurrent(PincWindowHandle wind
     if(context != 0){
         contextObj = *PincObject_ref_glContext(context);
     }
-    return WindowBackend_glMakeCurrent(&staticState.windowBackend, windowObj, contextObj.handle);
+    return pincWindowBackend_glMakeCurrent(&staticState.windowBackend, windowObj, contextObj.handle);
 }
 
 PINC_EXPORT PincWindowHandle PINC_CALL pincOpenglGetCurrentWindow(void) {
     PincValidateForState(PincState_init);
-    return WindowBackend_glGetCurrentWindow(&staticState.windowBackend);
+    return pincWindowBackend_glGetCurrentWindow(&staticState.windowBackend);
 }
 
 PINC_EXPORT PincOpenglContextHandle PINC_CALL pincOpenglGetCurrentContext(void) {
     PincValidateForState(PincState_init);
-    return WindowBackend_glGetCurrentContext(&staticState.windowBackend);
+    return pincWindowBackend_glGetCurrentContext(&staticState.windowBackend);
 }
 
 PINC_EXPORT PincPfn PINC_CALL pincOpenglGetProc(char const * procname) {
     PincValidateForState(PincState_init);
-    return WindowBackend_glGetProc(&staticState.windowBackend, procname);
+    return pincWindowBackend_glGetProc(&staticState.windowBackend, procname);
 }

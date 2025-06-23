@@ -21,7 +21,7 @@ struct WindowBackend;
     /* PINC_WINDOW_INTERFACE_PROCEDURE((WindowBackend* obj), initIncomplete)*/ \
     /* PINC_WINDOW_INTERFACE_FUNCTION(bool, (WindowBackend* obj), isSupported) */ \
     /* ### Initialization / query functions ### */ \
-    PINC_WINDOW_INTERFACE_FUNCTION(FramebufferFormat*, (struct WindowBackend* obj, Allocator allocator, size_t* outNumFormats), queryFramebufferFormats, (obj, allocator, outNumFormats)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(FramebufferFormat*, (struct WindowBackend* obj, pincAllocator allocator, size_t* outNumFormats), queryFramebufferFormats, (obj, allocator, outNumFormats)) \
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, PincGraphicsApi api), queryGraphicsApiSupport, (obj, api)) \
     PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj), queryMaxOpenWindows, (obj)) \
     /* The window backend is in charge of initializing the graphics api at this point */ \
@@ -109,7 +109,7 @@ typedef struct WindowBackend {
 // nice wrapper functions for the WindowBackend functions
 
 #define PINC_WINDOW_INTERFACE_FUNCTION(type, arguments, name, argumentsNames)\
-    static type WindowBackend_##name arguments { \
+    static type pincWindowBackend_##name arguments { \
         if(obj -> vt.name == 0) { \
             PErrorExternal(false, "Function " #name " Is not implemented for this window backend!"); \
         } \
@@ -117,7 +117,7 @@ typedef struct WindowBackend {
     }
 
 #define PINC_WINDOW_INTERFACE_PROCEDURE(arguments, name, argumentsNames)\
-    static void WindowBackend_##name arguments { \
+    static void pincWindowBackend_##name arguments { \
         if(obj -> vt.name == 0) { \
             PErrorExternal(false, "Function " #name " Is not implemented for this window backend!"); \
         } \

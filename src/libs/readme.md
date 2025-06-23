@@ -3,4 +3,4 @@
 This folder contains mostly self-contained headers and implementations of utilities. Things like memory allocators and string abstractions.
 
 Notes:
-- pstring.h depends on dynamic_allocator.h
+- pinc_string.h depends on pinc_allocator.h

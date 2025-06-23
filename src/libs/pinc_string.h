@@ -8,41 +8,41 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <platform/platform.h>
-#include "dynamic_allocator.h"
+#include <platform/pinc_platform.h>
+#include "pinc_allocator.h"
 
 /// @brief A basic string type. This is a basic C string, but there is no null terminator, and the length is held in the struct.
-typedef struct PString {
+typedef struct pincString {
     uint8_t* str;
     size_t len;
-} PString;
+} pincString;
 
-PString PString_makeDirect(char* str);
+pincString pincString_makeDirect(char* str);
 
-PString PString_makeAlloc(char const* str, Allocator alloc);
+pincString pincString_makeAlloc(char const* str, pincAllocator alloc);
 
-PString PString_copy(PString const str, Allocator alloc);
+pincString pincString_copy(pincString const str, pincAllocator alloc);
 
 /// Makes a new traditional C string from a PString.
 /// Returns null if the given string is null.
-char* PString_marshalAlloc(PString str, Allocator alloc);
+char* pincString_marshalAlloc(pincString str, pincAllocator alloc);
 
 /// Marshals str into dest, where dest has capacity characters it can hold (including null terminator)
-void PString_marshalDirect(PString str, char* dest, size_t capacity);
+void pincString_marshalDirect(pincString str, char* dest, size_t capacity);
 
-PString PString_slice(PString str, size_t start, size_t len);
+pincString pincString_slice(pincString str, size_t start, size_t len);
 
-void PString_free(PString* str, Allocator alloc);
+void pincString_free(pincString* str, pincAllocator alloc);
 
 /// @brief Concatenate multiple strings together
 /// @param numStrings the number of strings in the array to concatenate together 
 /// @param strings the strings to concatenate
 /// @param alloc The allocator that the new string will be allocated on. This function is guaranteed to only make a single allocation.
 /// @return the result of the concatenation, allocated with alloc.
-PString PString_concat(size_t numStrings, PString strings[], Allocator alloc);
+pincString pincString_concat(size_t numStrings, pincString strings[], pincAllocator alloc);
 
-PString PString_allocFormatUint32(uint32_t item, Allocator alloc);
+pincString pincString_allocFormatUint32(uint32_t item, pincAllocator alloc);
 
-PString PString_allocFormatUint64(uint64_t item, Allocator alloc);
+pincString pincString_allocFormatUint64(uint64_t item, pincAllocator alloc);
 
 #endif

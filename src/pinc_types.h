@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <pinc.h>
-#include "libs/pstring.h"
+#include "libs/pinc_string.h"
 #include "pinc_opengl.h"
 
 // Internal versions of external Pinc api pieces
@@ -18,7 +18,7 @@ typedef struct {
 
 typedef struct {
     // Allocated on the root allocator
-    PString title;
+    pincString title;
     bool hasWidth;
     uint32_t width;
     bool hasHeight;
