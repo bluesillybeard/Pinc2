@@ -13,8 +13,7 @@
     // For now however, Pinc will generally try to keep compatibility with whatever the current stable release is.
     .minimum_zig_version = "0.14.0",
 
-    .dependencies = .{
-    },
+    .dependencies = .{},
 
     .paths = .{
         "build.md",
@@ -32,5 +31,5 @@
         "include",
         "MinGW",
         "src",
-    }
+    },
 }

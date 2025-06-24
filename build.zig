@@ -66,41 +66,41 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
         .link_libc = link_libc,
-        .pic = if(shared) true else null,
+        .pic = if (shared) true else null,
     });
 
     var flags = try std.ArrayList([]const u8).initCapacity(b.allocator, 8);
 
-    if(have_window_sdl2) |enable| {
-        try flags.append(if(enable) "-DPINC_HAVE_WINDOW_SDL2=ON" else "-DPINC_HAVE_WINDOW_SDL2=OFF");
+    if (have_window_sdl2) |enable| {
+        try flags.append(if (enable) "-DPINC_HAVE_WINDOW_SDL2=ON" else "-DPINC_HAVE_WINDOW_SDL2=OFF");
     }
-    if(enable_error_external) |enable| {
-        try flags.append(if(enable) "-DPINC_ENABLE_ERROR_EXTERNAL=ON" else "-DPINC_ENABLE_ERROR_EXTERNAL=OFF");
+    if (enable_error_external) |enable| {
+        try flags.append(if (enable) "-DPINC_ENABLE_ERROR_EXTERNAL=ON" else "-DPINC_ENABLE_ERROR_EXTERNAL=OFF");
     }
-    if(enable_error_assert) |enable| {
-        try flags.append(if(enable) "-DPINC_ENABLE_ERROR_ASSERT=ON" else "-DPINC_ENABLE_ERROR_ASSERT=OFF");
+    if (enable_error_assert) |enable| {
+        try flags.append(if (enable) "-DPINC_ENABLE_ERROR_ASSERT=ON" else "-DPINC_ENABLE_ERROR_ASSERT=OFF");
     }
-    if(enable_error_user) |enable| {
-        try flags.append(if(enable) "-DPINC_ENABLE_ERROR_USER=ON" else "-DPINC_ENABLE_ERROR_USER=OFF");
+    if (enable_error_user) |enable| {
+        try flags.append(if (enable) "-DPINC_ENABLE_ERROR_USER=ON" else "-DPINC_ENABLE_ERROR_USER=OFF");
     }
-    if(enable_error_sanitize) |enable| {
-        try flags.append(if(enable) "-DPINC_ENABLE_ERROR_SANITIZE=ON" else "-DPINC_ENABLE_ERROR_SANITIZE=OFF");
+    if (enable_error_sanitize) |enable| {
+        try flags.append(if (enable) "-DPINC_ENABLE_ERROR_SANITIZE=ON" else "-DPINC_ENABLE_ERROR_SANITIZE=OFF");
     }
-    if(enable_error_validate) |enable| {
-        try flags.append(if(enable) "-DPINC_ENABLE_ERROR_VALIDATE=ON" else "-DPINC_ENABLE_ERROR_VALIDATE=OFF");
+    if (enable_error_validate) |enable| {
+        try flags.append(if (enable) "-DPINC_ENABLE_ERROR_VALIDATE=ON" else "-DPINC_ENABLE_ERROR_VALIDATE=OFF");
     }
-    if(use_custom_platform_implementation) |enable| {
-        try flags.append(if(enable) "-DPINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=ON" else "-PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=OFF");
+    if (use_custom_platform_implementation) |enable| {
+        try flags.append(if (enable) "-DPINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=ON" else "-PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=OFF");
     }
 
     lib_mod.addCSourceFiles(.{
-        .files = &[_][]const u8 {
+        .files = &[_][]const u8{
             // Actual source files
             "src/pinc_main.c",
             "src/platform/pinc_platform.c",
             "src/pinc_sdl2.c",
             "src/pinc_arena.c",
-            "src/libs/pinc_string.c"
+            "src/libs/pinc_string.c",
         },
         .flags = try flags.toOwnedSlice(),
     });
@@ -111,11 +111,11 @@ pub fn build(b: *std.Build) !void {
     lib_mod.addSystemIncludePath(b.path("include"));
 
     const lib = b.addLibrary(.{
-        .linkage = if(shared) .dynamic else .static,
+        .linkage = if (shared) .dynamic else .static,
         .name = "pinc",
         .root_module = lib_mod,
         // VERSION
-        .version = std.SemanticVersion{.major = 2, .minor = 0, .patch = 0},
+        .version = std.SemanticVersion{ .major = 2, .minor = 0, .patch = 0 },
     });
 
     lib.addIncludePath(b.path("ext"));
