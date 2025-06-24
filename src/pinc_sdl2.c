@@ -432,6 +432,7 @@ void pincSdl2step(struct WindowBackend* obj) {
                 }
                 break;
             }
+            case SDL_MOUSEBUTTONUP: 
             case SDL_MOUSEBUTTONDOWN: {
                 // TODO: We only care about mouse 0?
                 // What does it even mean to have multiple mice? Multiple cursors?
