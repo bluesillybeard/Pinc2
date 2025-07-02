@@ -1,4 +1,6 @@
 #include "pinc_string.h"
+#include "libs/pinc_allocator.h"
+#include "platform/pinc_platform.h"
 
 #include <pinc_error.h>
 
@@ -91,6 +93,34 @@ pincString pincString_allocFormatUint32(uint32_t item, pincAllocator alloc) {
     PErrorAssert(len, "Zero length string");
     new.len = len;
     return new;
+}
+
+pincString pincString_allocFormatInt32(int32_t v, pincAllocator alloc) {
+    if(v == 0) {
+        return pincString_makeAlloc("0", alloc);
+    }
+    bool sign = (v < 0);
+    if(v < 0) v = -v;
+    char buf[11] = "abcdefghijk";
+    size_t i = 0;
+    while(v > 0) {
+        uint32_t d = v % 10;
+        v = v / 10;
+        char c = (char)(d+0x30);
+        i += 1;
+        buf[11-i] = c;
+    }
+    if(sign) {
+        i += 1;
+        buf[11 - i] = '-';
+    }
+    PErrorSanitize(i <= 11, "");
+    uint8_t* str = pincAllocator_allocate(alloc, i);
+    pincMemCopy(&buf[11-i], str, i);
+    return (pincString){
+        .str = str,
+        .len = i,
+    };
 }
 
 pincString pincString_allocFormatUint64(uint64_t item, pincAllocator alloc) {

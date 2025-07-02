@@ -686,10 +686,10 @@ PINC_EXTERN PincWindowHandle PINC_CALL pincEventCursorTransitionWindow(uint32_t 
 /// The unicode codepoint that was typed
 PINC_EXTERN uint32_t PINC_CALL pincEventTextInputCodepoint(uint32_t event_index);
 
-/// The amount of vertical scroll
+/// The amount of vertical scroll, positive is "away" and negative is "towards"
 PINC_EXTERN float PINC_CALL pincEventScrollVertical(uint32_t event_index);
 
-/// The amount of horizontal scroll
+/// The amount of horizontal scroll, positive is right and negative is left
 PINC_EXTERN float PINC_CALL pincEventScrollHorizontal(uint32_t event_index);
 
 #endif

@@ -1,4 +1,6 @@
 // To make the build system as simple as possible, backend source files must remove themselves rather than rely on the build system
+#include "SDL2/SDL_events.h"
+#include "SDL2/SDL_mouse.h"
 #include "pinc_options.h"
 #if PINC_HAVE_WINDOW_SDL2
 
@@ -469,6 +471,53 @@ void pincSdl2step(struct WindowBackend* obj) {
                     PincEventMouseButton(((int64_t)event.button.timestamp) + timeOffset, this->mouseState, newState);
                     this->mouseState = newState;
                 }
+                break;
+            }
+            case SDL_MOUSEMOTION: {
+                SDL_Window* sdlWin = this->libsdl2.getWindowFromId(event.window.windowID);
+                // External -> caused by SDL2 giving us events for nonexistent windows
+                PErrorExternal(sdlWin, "SDL2 window from WindowEvent is NULL!");
+                PincSdl2Window* windowObj = (PincSdl2Window*)this->libsdl2.getWindowData(sdlWin, "pincSdl2Window");
+                // Assert -> caused by Pinc not setting the window event data (supposedly)
+                PErrorAssert(windowObj, "Pinc SDL2 window object from WindowEvent is NULL!");
+                // TODO: make sure the window that has the cursor is actually the window that SDL2 gave us
+                int32_t x = event.motion.x;
+                int32_t y = event.motion.y;
+                int32_t oldX = event.motion.x - event.motion.xrel;
+                int32_t oldY = event.motion.y - event.motion.yrel;
+                // SDL (On X11 anyways) reports cursor coordinates beyond the window.
+                // This happens when a mouse button is held down (so the window keeps cursor focus) and is moved outside the window.
+                // From my understanding, this is technically valid but rather strange behavior.
+                // If someone actually needs this to behave the exact same as SDL2, they can make an issue about it.
+                if(x < 0) x = 0;
+                if(y < 0) y = 0;
+                if(oldX < 0) oldX = 0;
+                if(oldY < 0) oldY = 0;
+                if(x > windowObj->width) x = windowObj->width;
+                if(y > windowObj->height) y = windowObj->height;
+                if(oldX > windowObj->width) oldX = windowObj->width;
+                if(oldY > windowObj->height) oldY = windowObj->height;
+
+                PincEventCursorMove((int64_t)event.button.timestamp + timeOffset, windowObj->frontHandle, oldX, oldY, x, y);
+                break;
+            }
+            case SDL_MOUSEWHEEL: {
+                float xMovement = event.wheel.x;
+                float yMovement = event.wheel.y;
+                if(event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED) {
+                    // Seriously though, what in the heck is this for
+                    yMovement *= -1;
+                    xMovement *= -1;
+                }
+                // Gotta love backwards compatibility
+                SDL_version sdlVersion;
+                this->libsdl2.getVersion(&sdlVersion);
+                if(sdlVersion.minor > 0 || (sdlVersion.minor == 2 && sdlVersion.patch >= 18)) {
+                    xMovement += event.wheel.preciseX;
+                    yMovement += event.wheel.preciseY;
+                }
+                PincEventScroll((int64_t)event.wheel.timestamp + timeOffset, yMovement, xMovement);
+                break;
             }
             default:{
                 // TODO: Once all SDL events are handled, assert.

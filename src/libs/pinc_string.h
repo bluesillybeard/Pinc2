@@ -43,6 +43,8 @@ pincString pincString_concat(size_t numStrings, pincString strings[], pincAlloca
 
 pincString pincString_allocFormatUint32(uint32_t item, pincAllocator alloc);
 
+pincString pincString_allocFormatInt32(int32_t v, pincAllocator alloc);
+
 pincString pincString_allocFormatUint64(uint64_t item, pincAllocator alloc);
 
 #endif
