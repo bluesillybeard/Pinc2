@@ -151,8 +151,8 @@ typedef uint32_t PincEventType;
 /// @brief enumeration of pinc keyboard codes
 ///     These are not physical, but logical - when the user presses the button labeled 'q' on their keyboard, that's the key reported here.
 typedef enum {
-    PincKeyboardKey_unknown = -1,
-    PincKeyboardKey_space = 0,
+    PincKeyboardKey_unknown = 0,
+    PincKeyboardKey_space = 1,
     PincKeyboardKey_apostrophe,
     PincKeyboardKey_comma,
     PincKeyboardKey_dash,
@@ -607,11 +607,11 @@ PINC_EXTERN int64_t PINC_CALL pincEventGetTimestampUnixMillis(uint32_t event_ind
 // the window that received the close signal
 PINC_EXTERN PincWindowHandle PINC_CALL pincEventCloseSignalWindow(uint32_t event_index);
 
-/// @brief Get the old state of the mouse buttons before the event ocurred. Only defined for mouse button events.
+/// @brief Get the old state of the mouse buttons before the event occurred. Only defined for mouse button events.
 /// @return The state of the mouse buttons in a bitfield. The 5 bits, from least to most significant, are left, right, middle, back, and forward respectively.
 PINC_EXTERN uint32_t PINC_CALL pincEventMouseButtonOldState(uint32_t event_index);
 
-/// @brief Get the new state of the mouse buttons after the event ocurred. Only defined for mouse button events.
+/// @brief Get the new state of the mouse buttons after the event occurred. Only defined for mouse button events.
 /// @return The state of the mouse buttons in a bitfield. The 5 bits, from least to most significant, are left, right, middle, back, and forward respectively.
 PINC_EXTERN uint32_t PINC_CALL pincEventMouseButtonState(uint32_t event_index);
 
