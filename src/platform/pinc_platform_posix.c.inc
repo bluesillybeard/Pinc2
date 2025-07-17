@@ -50,6 +50,18 @@ void* pincLoadLibrary(uint8_t const* nameUtf8, size_t nameSize) {
     // TODO: does dlOpen accept utf8?
     void* lib = dlopen((char*)nameUtf8NullTerm, RTLD_LAZY);
     pincFree(nameUtf8NullTerm, nameSize+1);
+
+    if(!lib) {
+        // try adding .0 because soversions and stuff
+        // Why can't distros just make a symlink called (for example) "libsdl2.so"? Seriously.
+        uint8_t* nameUtf8NullTerm = pincAlloc(nameSize+9);
+        pincMemCopy("lib", nameUtf8NullTerm, 3);
+        pincMemCopy(nameUtf8, nameUtf8NullTerm+3, nameSize);
+        pincMemCopy(".so.0\0", nameUtf8NullTerm+3+nameSize, 6);
+        // TODO: does dlOpen accept utf8?
+        lib = dlopen((char*)nameUtf8NullTerm, RTLD_LAZY);
+        pincFree(nameUtf8NullTerm, nameSize+1);
+    }
     return lib;
     // TODO: Since this is on unix, there may be other things (ex: libsdl.so.2)
     // Probably best to change the function signature to specify a version of the library to load.
