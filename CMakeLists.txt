@@ -155,3 +155,17 @@ target_compile_options(example_share_context PRIVATE ${PINC_COMPILE_OPTIONS})
 target_link_options(example_share_context PRIVATE ${PINC_LINK_OPTIONS})
 
 target_link_libraries(example_share_context PUBLIC pinc)
+
+# Example 4_events
+
+add_executable(example_events
+    examples/4_events.c
+)
+
+target_include_directories(example_events PUBLIC include)
+target_include_directories(example_events PRIVATE examples)
+
+target_compile_options(example_events PRIVATE ${PINC_COMPILE_OPTIONS})
+target_link_options(example_events PRIVATE ${PINC_LINK_OPTIONS})
+
+target_link_libraries(example_events PUBLIC pinc)

@@ -446,6 +446,20 @@ void PincEventScroll(int64_t timeUnixMillis, float vertical, float horizontal) {
     PincEventBackAppend(&e);
 }
 
+void PincEventClipboardChanged(int64_t timeUnixMillis, PincMediaType type, char* dataNullterm, size_t dataSize) {
+    PincEvent e = {
+        .currentWindow = staticState.realCurrentWindow,
+        .timeUnixMillis = timeUnixMillis,
+        .type = PincEventType_clipboardChanged,
+        .data.clipboard = {
+            .type = type,
+            .data = dataNullterm,
+            .dataSize = dataSize,
+        }
+    };
+    PincEventBackAppend(&e);
+}
+
 // StateValidMacroForConvenience
 #define SttVld(_expr, _message) if(!(_expr)) {pincPrintErrorEZ(_message); return false;}
 static bool PincStateValidForIncomplete(void) {
@@ -1345,8 +1359,8 @@ PINC_EXPORT void PINC_CALL pincWindowPresentFramebuffer(PincWindowHandle window)
 PINC_EXPORT void PINC_CALL pincStep(void) {
     PincValidateForState(PincState_init);
     PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pincInitComplete?");
-    pincWindowBackend_step(&staticState.windowBackend);
     arena_reset(&staticState.arenaAllocatorObject);
+    pincWindowBackend_step(&staticState.windowBackend);
     // Event buffer swap
     PincEvent* te = staticState.eventsBuffer;
     uint32_t tc = staticState.eventsBufferCapacity;
@@ -1605,6 +1619,27 @@ PINC_EXPORT float PINC_CALL pincEventScrollHorizontal(uint32_t event_index) {
     PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
     PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_scroll, "Wrong event type");
     return staticState.eventsBuffer[event_index].data.scroll.horizontal;
+}
+
+PINC_EXPORT PincMediaType PINC_CALL pincEventClipboardChangedMediaType(uint32_t event_index) {
+    PincValidateForState(PincState_init);
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_clipboardChanged, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.clipboard.type;
+}
+
+PINC_EXPORT char* PINC_CALL pincEventClipboardChangedData(uint32_t event_index) {
+    PincValidateForState(PincState_init);
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_clipboardChanged, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.clipboard.data;
+}
+
+PINC_EXPORT size_t PINC_CALL pincEventClipboardChangedDataSize(uint32_t event_index) {
+    PincValidateForState(PincState_init);
+    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_clipboardChanged, "Wrong event type");
+    return staticState.eventsBuffer[event_index].data.clipboard.dataSize;
 }
 
 // ### OPENGL FUNCTIONS ###

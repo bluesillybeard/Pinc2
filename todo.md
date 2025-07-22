@@ -20,7 +20,7 @@
             - many APIs do not support these so they must be optional to implement
             - With that said, on the OpenGL 1.1 - 2.1 side, ARB_framebuffer_object or EXT_framebuffer_object are apparently widely supported, and almost guaranteed on 2.x hardware.
         - queue based rendering - the user makes a queue, submits all of it at once, and can query if it's finished or not.
-            - Not so nice in OpenGL land, which does all of the sync explicitly, but this is a nice abstraction that many other APIs can benefit from.
+            - Not so nice in OpenGL land, which does all of the sync automatically, but this is a nice abstraction that many other APIs can benefit from.
                 - Note: Look at OpenGL sync objects, ARB_sync, NV_fence.
                 - Note: Look into NV_command_list, also ARB_shader_draw_parameters may be useful
     - set up interface for graphics backend
@@ -34,12 +34,22 @@
 
 ## TODO for API features / changes
 - better text selection input. ex: SDL_TextSelectionEvent
+- Clipboard
+    - text is already done
+    - arbitrary data / MIME types
+        - Not supported by any of the current backends! This means we're going to need a backend that even has the concept of a non-text clipboard before implementing this into the API
+            - OK but seriously, did it really take until the after SDL2 was 'finished' for arbitrary clipboard MIME types to be implemented? They even have it for drag & drop!
+- Drag & Drop
+    - arbitrary data / MIME types
 - window position
     - wayland be like:
     - In fact, there are many potential platforms that don't support window positioning:
         - Pretty much any console
         - Emscripten / web canvas
         - applets
+        - Window positioning will likely have to be optional
+- querying monitor / display configuration
+    - xinerama mentioned?
 - lots of events aren't implemented yet
 - ability get data from specific backends
     - X display, X windows, SDL2 opengl context, Win32 window handle, etc etc etc

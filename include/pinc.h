@@ -83,7 +83,7 @@
 #define PINC_PROC_CALL 
 #endif
 
-// @section types
+/// @section types
 
 /// @brief Window backend
 typedef enum {
@@ -144,6 +144,8 @@ typedef enum {
     PincEventType_textInput,
     /// Scroll wheel / pad
     PincEventType_scroll,
+    /// The environment's clipboard was modified (effectively, someone copied some text)
+    PincEventType_clipboardChanged,
 } pincEventTypeEnum;
 
 typedef uint32_t PincEventType;
@@ -291,6 +293,13 @@ typedef enum {
 } PincColorSpaceEnum;
 
 typedef uint32_t PincColorSpace;
+
+typedef enum {
+    PincMediaType_unknown = 0,
+    PincMediaType_text,
+} PincMediaTypeEnum;
+
+typedef uint32_t PincMediaType;
 
 /// @section IDs
 
@@ -691,5 +700,16 @@ PINC_EXTERN float PINC_CALL pincEventScrollVertical(uint32_t event_index);
 
 /// The amount of horizontal scroll, positive is right and negative is left
 PINC_EXTERN float PINC_CALL pincEventScrollHorizontal(uint32_t event_index);
+
+PINC_EXTERN PincMediaType PINC_CALL pincEventClipboardChangedMediaType(uint32_t event_index);
+
+/// For the sake of convenience, this is null terminated. The memory containing this data is reused upon calling pincStep(),
+/// so be careful to either finish using the memory before the next call to pincStep, or make a copy.
+/// Please note that this data might not be text, and the data itself can contain null words before the null terminator.
+/// See pincEventClipboardChangedMediaType, and pincEventClipboardChangedDataSize for more information.
+PINC_EXTERN char* PINC_CALL pincEventClipboardChangedData(uint32_t event_index);
+
+/// The size of the new clipboard data in bytes / characters
+PINC_EXTERN size_t PINC_CALL pincEventClipboardChangedDataSize(uint32_t event_index);
 
 #endif

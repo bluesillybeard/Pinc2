@@ -109,6 +109,12 @@ typedef struct {
             float vertical;
             float horizontal;
         } scroll;
+        struct PincEventClipboardChanged {
+            PincMediaType type;
+            // This data is on the temporary allocator
+            char* data;
+            size_t dataSize;
+        } clipboard;
     } data;
 } PincEvent;
 
@@ -133,6 +139,9 @@ void PincEventCursorTransition(int64_t timeUnixMillis, PincWindowHandle oldWindo
 void PincEventTextInput(int64_t timeUnixMillis, uint32_t codepoint);
 
 void PincEventScroll(int64_t timeUnixMillis, float vertical, float horizontal);
+
+/// Note: the data given here is assumed to be already on the pinc temporary allocator
+void PincEventClipboardChanged(int64_t timeUnixMillis, PincMediaType type, char* dataNullterm, size_t dataSize);
 
 // Pinc static state
 

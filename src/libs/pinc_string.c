@@ -104,7 +104,7 @@ pincString pincString_allocFormatInt32(int32_t v, pincAllocator alloc) {
     char buf[11] = "abcdefghijk";
     size_t i = 0;
     while(v > 0) {
-        uint32_t d = v % 10;
+        uint32_t d = (uint32_t)v % 10;
         v = v / 10;
         char c = (char)(d+0x30);
         i += 1;

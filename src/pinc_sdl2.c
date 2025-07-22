@@ -493,17 +493,18 @@ void pincSdl2step(struct WindowBackend* obj) {
                 if(y < 0) y = 0;
                 if(oldX < 0) oldX = 0;
                 if(oldY < 0) oldY = 0;
-                if(x > windowObj->width) x = windowObj->width;
-                if(y > windowObj->height) y = windowObj->height;
-                if(oldX > windowObj->width) oldX = windowObj->width;
-                if(oldY > windowObj->height) oldY = windowObj->height;
-
-                PincEventCursorMove((int64_t)event.button.timestamp + timeOffset, windowObj->frontHandle, oldX, oldY, x, y);
+                if((uint32_t)x > windowObj->width) x = (int32_t)windowObj->width;
+                if((uint32_t)y > windowObj->height) y = (int32_t)windowObj->height;
+                if((uint32_t)oldX > windowObj->width) oldX = (int32_t)windowObj->width;
+                if((uint32_t)oldY > windowObj->height) oldY = (int32_t)windowObj->height;
+                
+                // TODO: is it even worth handling the case where the window's width is greater than the maximum value of int32_t? Because it seems every OS / desktop environment / compositor breaks way before that anyways
+                PincEventCursorMove((int64_t)event.button.timestamp + timeOffset, windowObj->frontHandle, (uint32_t)oldX, (uint32_t)oldY, (uint32_t)x, (uint32_t)y);
                 break;
             }
             case SDL_MOUSEWHEEL: {
-                float xMovement = event.wheel.x;
-                float yMovement = event.wheel.y;
+                float xMovement = (float)event.wheel.x;
+                float yMovement = (float)event.wheel.y;
                 if(event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED) {
                     // Seriously though, what in the heck is this for
                     yMovement *= -1;
@@ -512,11 +513,28 @@ void pincSdl2step(struct WindowBackend* obj) {
                 // Gotta love backwards compatibility
                 SDL_version sdlVersion;
                 this->libsdl2.getVersion(&sdlVersion);
-                if(sdlVersion.minor > 0 || (sdlVersion.minor == 2 && sdlVersion.patch >= 18)) {
+                if(sdlVersion.minor > 2 || (sdlVersion.minor == 2 && sdlVersion.patch >= 18)) {
                     xMovement += event.wheel.preciseX;
                     yMovement += event.wheel.preciseY;
                 }
                 PincEventScroll((int64_t)event.wheel.timestamp + timeOffset, yMovement, xMovement);
+                break;
+            }
+            case SDL_CLIPBOARDUPDATE: {
+                // There is some weirdness with this - in particular, duplicates tend to get sent often.
+                // When VSCode is open, as much as selecting some text will cause it to spam this function with the current clipboard
+                // Or more accurately, system events are rather chaotic so often things get doubled along the way
+                // It's an absolute non-issue, but something worth noting here.
+                if(this->libsdl2.hasClipboardText()) {
+                    char* clipboardText = this->libsdl2.getClipboardText();
+                    PErrorExternal(clipboardText, "SDL2 clipboard is NULL");
+                    if(!clipboardText) break;
+                    size_t clipboardTextLen = pincStringLen(clipboardText);
+                    char* clipboardTextCopy = pincAllocator_allocate(tempAllocator, clipboardTextLen + 1);
+                    pincMemCopy(clipboardText, clipboardTextCopy, clipboardTextLen);
+                    clipboardTextCopy[clipboardTextLen] = 0;
+                    PincEventClipboardChanged((int64_t)event.common.timestamp + timeOffset, PincMediaType_text, clipboardTextCopy, clipboardTextLen);
+                }
                 break;
             }
             default:{
