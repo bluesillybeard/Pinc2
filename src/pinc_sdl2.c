@@ -1,6 +1,8 @@
 // To make the build system as simple as possible, backend source files must remove themselves rather than rely on the build system
 #include "SDL2/SDL_events.h"
+#include "SDL2/SDL_keyboard.h"
 #include "SDL2/SDL_mouse.h"
+#include "SDL2/SDL_scancode.h"
 #include "pinc_options.h"
 #if PINC_HAVE_WINDOW_SDL2
 
@@ -98,6 +100,261 @@ static void pincSdl2UnloadLib(void* lib) {
     if(lib) {
         pincUnloadLibrary(lib);
     }
+}
+
+static PincKeyboardKey pincSdl2ConvertSdlKeycode(SDL_Scancode code) {
+    PincKeyboardKey key;
+    switch(code){
+        case SDL_SCANCODE_UNKNOWN: key = PincKeyboardKey_unknown; break;
+        case SDL_SCANCODE_A: key = PincKeyboardKey_a; break;
+        case SDL_SCANCODE_B: key = PincKeyboardKey_b; break;
+        case SDL_SCANCODE_C: key = PincKeyboardKey_c; break;
+        case SDL_SCANCODE_D: key = PincKeyboardKey_d; break;
+        case SDL_SCANCODE_E: key = PincKeyboardKey_e; break;
+        case SDL_SCANCODE_F: key = PincKeyboardKey_f; break;
+        case SDL_SCANCODE_G: key = PincKeyboardKey_g; break;
+        case SDL_SCANCODE_H: key = PincKeyboardKey_h; break;
+        case SDL_SCANCODE_I: key = PincKeyboardKey_i; break;
+        case SDL_SCANCODE_J: key = PincKeyboardKey_j; break;
+        case SDL_SCANCODE_K: key = PincKeyboardKey_k; break;
+        case SDL_SCANCODE_L: key = PincKeyboardKey_l; break;
+        case SDL_SCANCODE_M: key = PincKeyboardKey_m; break;
+        case SDL_SCANCODE_N: key = PincKeyboardKey_n; break;
+        case SDL_SCANCODE_O: key = PincKeyboardKey_o; break;
+        case SDL_SCANCODE_P: key = PincKeyboardKey_p; break;
+        case SDL_SCANCODE_Q: key = PincKeyboardKey_q; break;
+        case SDL_SCANCODE_R: key = PincKeyboardKey_r; break;
+        case SDL_SCANCODE_S: key = PincKeyboardKey_s; break;
+        case SDL_SCANCODE_T: key = PincKeyboardKey_t; break;
+        case SDL_SCANCODE_U: key = PincKeyboardKey_u; break;
+        case SDL_SCANCODE_V: key = PincKeyboardKey_v; break;
+        case SDL_SCANCODE_W: key = PincKeyboardKey_w; break;
+        case SDL_SCANCODE_X: key = PincKeyboardKey_x; break;
+        case SDL_SCANCODE_Y: key = PincKeyboardKey_y; break;
+        case SDL_SCANCODE_Z: key = PincKeyboardKey_z; break;
+        case SDL_SCANCODE_1: key = PincKeyboardKey_1; break;
+        case SDL_SCANCODE_2: key = PincKeyboardKey_2; break;
+        case SDL_SCANCODE_3: key = PincKeyboardKey_3; break;
+        case SDL_SCANCODE_4: key = PincKeyboardKey_4; break;
+        case SDL_SCANCODE_5: key = PincKeyboardKey_5; break;
+        case SDL_SCANCODE_6: key = PincKeyboardKey_6; break;
+        case SDL_SCANCODE_7: key = PincKeyboardKey_7; break;
+        case SDL_SCANCODE_8: key = PincKeyboardKey_8; break;
+        case SDL_SCANCODE_9: key = PincKeyboardKey_9; break;
+        case SDL_SCANCODE_0: key = PincKeyboardKey_0; break;
+        case SDL_SCANCODE_RETURN: key = PincKeyboardKey_enter; break;
+        case SDL_SCANCODE_ESCAPE: key = PincKeyboardKey_escape; break;
+        case SDL_SCANCODE_BACKSPACE: key = PincKeyboardKey_backspace; break;
+        case SDL_SCANCODE_TAB: key = PincKeyboardKey_tab; break;
+        case SDL_SCANCODE_SPACE: key = PincKeyboardKey_space; break;
+        case SDL_SCANCODE_MINUS: key = PincKeyboardKey_dash; break;
+        case SDL_SCANCODE_EQUALS: key = PincKeyboardKey_equals; break;
+        case SDL_SCANCODE_LEFTBRACKET: key = PincKeyboardKey_leftBracket; break;
+        case SDL_SCANCODE_RIGHTBRACKET: key = PincKeyboardKey_rightBracket; break;
+        case SDL_SCANCODE_BACKSLASH: key = PincKeyboardKey_backspace; break;
+        case SDL_SCANCODE_NONUSHASH: key = PincKeyboardKey_unknown; break;// TODO: what is this?
+        case SDL_SCANCODE_SEMICOLON: key = PincKeyboardKey_semicolon; break;
+        case SDL_SCANCODE_APOSTROPHE: key = PincKeyboardKey_apostrophe; break;
+        case SDL_SCANCODE_GRAVE: key = PincKeyboardKey_backtick; break;
+        case SDL_SCANCODE_COMMA: key = PincKeyboardKey_comma; break;
+        case SDL_SCANCODE_PERIOD: key = PincKeyboardKey_dot; break;
+        case SDL_SCANCODE_SLASH: key = PincKeyboardKey_slash; break;
+        case SDL_SCANCODE_CAPSLOCK: key = PincKeyboardKey_capsLock; break;
+        case SDL_SCANCODE_F1: key = PincKeyboardKey_f1; break;
+        case SDL_SCANCODE_F2: key = PincKeyboardKey_f2; break;
+        case SDL_SCANCODE_F3: key = PincKeyboardKey_f3; break;
+        case SDL_SCANCODE_F4: key = PincKeyboardKey_f4; break;
+        case SDL_SCANCODE_F5: key = PincKeyboardKey_f5; break;
+        case SDL_SCANCODE_F6: key = PincKeyboardKey_f6; break;
+        case SDL_SCANCODE_F7: key = PincKeyboardKey_f7; break;
+        case SDL_SCANCODE_F8: key = PincKeyboardKey_f8; break;
+        case SDL_SCANCODE_F9: key = PincKeyboardKey_f9; break;
+        case SDL_SCANCODE_F10: key = PincKeyboardKey_f10; break;
+        case SDL_SCANCODE_F11: key = PincKeyboardKey_f11; break;
+        case SDL_SCANCODE_F12: key = PincKeyboardKey_f12; break;
+        case SDL_SCANCODE_PRINTSCREEN: key = PincKeyboardKey_printScreen; break;
+        case SDL_SCANCODE_SCROLLLOCK: key = PincKeyboardKey_scrollLock; break;
+        case SDL_SCANCODE_PAUSE: key = PincKeyboardKey_pause; break;
+        case SDL_SCANCODE_INSERT: key = PincKeyboardKey_insert; break;
+        case SDL_SCANCODE_HOME: key = PincKeyboardKey_home; break;
+        case SDL_SCANCODE_PAGEUP: key = PincKeyboardKey_pageUp; break;
+        case SDL_SCANCODE_DELETE: key = PincKeyboardKey_delete; break;
+        case SDL_SCANCODE_END: key = PincKeyboardKey_end; break;
+        case SDL_SCANCODE_PAGEDOWN: key = PincKeyboardKey_pageDown; break;
+        case SDL_SCANCODE_RIGHT: key = PincKeyboardKey_right; break;
+        case SDL_SCANCODE_LEFT: key = PincKeyboardKey_left; break;
+        case SDL_SCANCODE_DOWN: key = PincKeyboardKey_down; break;
+        case SDL_SCANCODE_UP: key = PincKeyboardKey_up; break;
+        case SDL_SCANCODE_NUMLOCKCLEAR: key = PincKeyboardKey_numLock; break;
+        case SDL_SCANCODE_KP_DIVIDE: key = PincKeyboardKey_numpadSlash; break;
+        case SDL_SCANCODE_KP_MULTIPLY: key = PincKeyboardKey_numpadAsterisk; break;
+        case SDL_SCANCODE_KP_MINUS: key = PincKeyboardKey_numpadDash; break;
+        case SDL_SCANCODE_KP_PLUS: key = PincKeyboardKey_numpadPlus; break;
+        case SDL_SCANCODE_KP_ENTER: key = PincKeyboardKey_numpadEnter; break;
+        case SDL_SCANCODE_KP_1: key = PincKeyboardKey_numpad1; break;
+        case SDL_SCANCODE_KP_2: key = PincKeyboardKey_numpad2; break;
+        case SDL_SCANCODE_KP_3: key = PincKeyboardKey_numpad3; break;
+        case SDL_SCANCODE_KP_4: key = PincKeyboardKey_numpad4; break;
+        case SDL_SCANCODE_KP_5: key = PincKeyboardKey_numpad5; break;
+        case SDL_SCANCODE_KP_6: key = PincKeyboardKey_numpad6; break;
+        case SDL_SCANCODE_KP_7: key = PincKeyboardKey_numpad7; break;
+        case SDL_SCANCODE_KP_8: key = PincKeyboardKey_numpad8; break;
+        case SDL_SCANCODE_KP_9: key = PincKeyboardKey_numpad9; break;
+        case SDL_SCANCODE_KP_0: key = PincKeyboardKey_numpad0; break;
+        case SDL_SCANCODE_KP_PERIOD: key = PincKeyboardKey_numpadDot; break;
+        case SDL_SCANCODE_NONUSBACKSLASH: key = PincKeyboardKey_unknown; break; // TODO: what is this
+        case SDL_SCANCODE_APPLICATION: key = PincKeyboardKey_unknown; break; // TODO: what is this
+        case SDL_SCANCODE_POWER: key = PincKeyboardKey_unknown; break; // TODO: what is this
+        case SDL_SCANCODE_KP_EQUALS: key = PincKeyboardKey_numpadEqual; break;
+        case SDL_SCANCODE_F13: key = PincKeyboardKey_f13; break;
+        case SDL_SCANCODE_F14: key = PincKeyboardKey_f14; break;
+        case SDL_SCANCODE_F15: key = PincKeyboardKey_f15; break;
+        case SDL_SCANCODE_F16: key = PincKeyboardKey_f16; break;
+        case SDL_SCANCODE_F17: key = PincKeyboardKey_f17; break;
+        case SDL_SCANCODE_F18: key = PincKeyboardKey_f18; break;
+        case SDL_SCANCODE_F19: key = PincKeyboardKey_f19; break;
+        case SDL_SCANCODE_F20: key = PincKeyboardKey_f20; break;
+        case SDL_SCANCODE_F21: key = PincKeyboardKey_f21; break;
+        case SDL_SCANCODE_F22: key = PincKeyboardKey_f22; break;
+        case SDL_SCANCODE_F23: key = PincKeyboardKey_f23; break;
+        case SDL_SCANCODE_F24: key = PincKeyboardKey_f24; break;
+        case SDL_SCANCODE_EXECUTE: key = PincKeyboardKey_unknown; break; // TODO: what is this
+        case SDL_SCANCODE_HELP: key = PincKeyboardKey_unknown; break; // TODO: what is this
+        case SDL_SCANCODE_MENU: key = PincKeyboardKey_menu; break;
+        case SDL_SCANCODE_SELECT: key = PincKeyboardKey_unknown; break; // TODO: what is this
+        case SDL_SCANCODE_STOP: key = PincKeyboardKey_unknown; break; // TODO: what is this
+        case SDL_SCANCODE_AGAIN: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_UNDO: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_CUT: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_COPY: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_PASTE: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_FIND: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_MUTE: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_VOLUMEUP: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_VOLUMEDOWN: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_COMMA: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_EQUALSAS400: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_INTERNATIONAL1: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_INTERNATIONAL2: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_INTERNATIONAL3: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_INTERNATIONAL4: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_INTERNATIONAL5: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_INTERNATIONAL6: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_INTERNATIONAL7: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_INTERNATIONAL8: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_INTERNATIONAL9: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_LANG1: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_LANG2: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_LANG3: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_LANG4: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_LANG5: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_LANG6: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_LANG7: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_LANG8: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_LANG9: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_ALTERASE: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_SYSREQ: key = PincKeyboardKey_printScreen; break;  // TODO: is this really the same as print screen?
+        case SDL_SCANCODE_CANCEL: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_CLEAR: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_PRIOR: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_RETURN2: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_SEPARATOR: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_OUT: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_OPER: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_CLEARAGAIN: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_CRSEL: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_EXSEL: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_KP_00: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_KP_000: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_THOUSANDSSEPARATOR: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_DECIMALSEPARATOR: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_CURRENCYUNIT: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_CURRENCYSUBUNIT: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_KP_LEFTPAREN: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_KP_RIGHTPAREN: key = PincKeyboardKey_unknown; break;  // what
+        case SDL_SCANCODE_KP_LEFTBRACE: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_RIGHTBRACE: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_TAB: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_BACKSPACE: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_A: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_B: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_C: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_D: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_E: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_F: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_XOR: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_POWER: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_PERCENT: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_LESS: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_GREATER: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_AMPERSAND: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_DBLAMPERSAND: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_VERTICALBAR: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_DBLVERTICALBAR: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_COLON: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_HASH: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_SPACE: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_AT: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_EXCLAM: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_MEMSTORE: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_MEMRECALL: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_MEMCLEAR: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_MEMADD: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_MEMSUBTRACT: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_MEMMULTIPLY: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_MEMDIVIDE: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_PLUSMINUS: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_CLEAR: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_CLEARENTRY: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_BINARY: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_OCTAL: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_DECIMAL: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KP_HEXADECIMAL: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_LCTRL: key = PincKeyboardKey_leftControl; break;
+        case SDL_SCANCODE_LSHIFT: key = PincKeyboardKey_leftShift; break;
+        case SDL_SCANCODE_LALT: key = PincKeyboardKey_leftAlt; break;
+        case SDL_SCANCODE_LGUI: key = PincKeyboardKey_leftSuper; break; // TODO: is this right?
+        case SDL_SCANCODE_RCTRL: key = PincKeyboardKey_rightControl; break;
+        case SDL_SCANCODE_RSHIFT: key = PincKeyboardKey_rightShift; break;
+        case SDL_SCANCODE_RALT: key = PincKeyboardKey_rightAlt; break;
+        case SDL_SCANCODE_RGUI: key = PincKeyboardKey_rightSuper; break; // TODO: is this right?
+        case SDL_SCANCODE_MODE: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_AUDIONEXT: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_AUDIOPREV: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_AUDIOSTOP: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_AUDIOPLAY: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_AUDIOMUTE: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_MEDIASELECT: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_WWW: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_MAIL: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_CALCULATOR: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_COMPUTER: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_AC_SEARCH: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_AC_HOME: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_AC_BACK: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_AC_FORWARD: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_AC_STOP: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_AC_REFRESH: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_AC_BOOKMARKS: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_BRIGHTNESSDOWN: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_BRIGHTNESSUP: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_DISPLAYSWITCH: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KBDILLUMTOGGLE: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KBDILLUMDOWN: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_KBDILLUMUP: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_EJECT: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_SLEEP: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_APP1: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_APP2: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_AUDIOREWIND: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_AUDIOFASTFORWARD: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_SOFTLEFT: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_SOFTRIGHT: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_CALL: key = PincKeyboardKey_unknown; break; // what
+        case SDL_SCANCODE_ENDCALL: key = PincKeyboardKey_unknown; break; // what
+        default: PErrorExternal(false, "Received invalid keyboard scancode"); break; // Maybe better as a simple log in case SDL2 adds new scancodes. With that said, SDL2 is ABI stable so this really shouldn't ever trigger.
+    }
+    return key;
 }
 
 // declare the sdl2 window functions
@@ -535,6 +792,12 @@ void pincSdl2step(struct WindowBackend* obj) {
                     clipboardTextCopy[clipboardTextLen] = 0;
                     PincEventClipboardChanged((int64_t)event.common.timestamp + timeOffset, PincMediaType_text, clipboardTextCopy, clipboardTextLen);
                 }
+                break;
+            }
+            case SDL_KEYDOWN:
+            case SDL_KEYUP: {
+                PincKeyboardKey key = pincSdl2ConvertSdlKeycode(event.key.keysym.scancode);
+                PincEventKeyboardButton((int64_t)event.common.timestamp + timeOffset, key, event.key.state == SDL_PRESSED, event.key.repeat != 0);
                 break;
             }
             default:{
