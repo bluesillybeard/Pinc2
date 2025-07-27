@@ -116,6 +116,8 @@
 - option for an amalgamated "build" (so pack the entirety of Pinc into a single .c and .h file)
 
 ## TODO for internal library
+- always recoverable errors
+    - In effect, on any error of any kind, there should be a valid return path to the caller with a signal that an error occurred
 - replace tscoding/areana with custom implementation
 - Add unit tests for certain functions
     - *cough cough* bufPrint\* *cough cough*

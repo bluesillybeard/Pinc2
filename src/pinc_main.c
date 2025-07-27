@@ -708,7 +708,7 @@ PINC_EXPORT PincReturnCode PINC_CALL pincInitIncomplete(void) {
 
     // Query collective information from window backends
     // Again, SDL2 is the only window backend, so some shortcuts can be taken
-    size_t numFramebufferFormats;
+    size_t numFramebufferFormats = 0;
     FramebufferFormat* framebufferFormats = pincWindowBackend_queryFramebufferFormats(&staticState.sdl2WindowBackend, tempAllocator, &numFramebufferFormats);
     for(size_t i=0; i<numFramebufferFormats; ++i) {
         PincFramebufferFormatHandle handle = PincObject_allocate(PincObjectDiscriminator_framebufferFormat);
@@ -1106,7 +1106,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetTitle(PincWindowHandle window, const cha
 PINC_EXPORT uint32_t PINC_CALL pincWindowGetTitle(PincWindowHandle window, char* title_buf, uint32_t title_capacity) {
     PincValidateForState(PincState_init);
     WindowHandle* win = PincObject_ref_window(window);
-    size_t len;
+    size_t len = 0;
     uint8_t const* title = pincWindowBackend_getWindowTitle(&staticState.windowBackend, *win, &len);
     PErrorAssert(len > UINT32_MAX, "Integer Overflow");
     if(title_buf) {

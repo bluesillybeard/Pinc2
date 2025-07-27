@@ -359,7 +359,7 @@ static PincKeyboardKey pincSdl2ConvertSdlKeycode(SDL_Scancode code) {
 
 // declare the sdl2 window functions
 
-#define PINC_WINDOW_INTERFACE_FUNCTION(type, arguments, name, argumentsNames) type pincSdl2##name arguments;
+#define PINC_WINDOW_INTERFACE_FUNCTION(type, arguments, name, argumentsNames, defaultReturn) type pincSdl2##name arguments;
 #define PINC_WINDOW_INTERFACE_PROCEDURE(arguments, name, argumentsNames) void pincSdl2##name arguments;
 
 PINC_WINDOW_INTERFACE
@@ -404,7 +404,7 @@ bool pincSdl2Init(WindowBackend* obj) {
     }
     this->libsdl2.init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
     // Load all of the functions into the vtable
-    #define PINC_WINDOW_INTERFACE_FUNCTION(type, arguments, name, argumentsNames) obj->vt.name = pincSdl2##name;
+    #define PINC_WINDOW_INTERFACE_FUNCTION(type, arguments, name, argumentsNames, defaultReturn) obj->vt.name = pincSdl2##name;
     #define PINC_WINDOW_INTERFACE_PROCEDURE(arguments, name, argumentsNames) obj->vt.name = pincSdl2##name;
 
     PINC_WINDOW_INTERFACE
