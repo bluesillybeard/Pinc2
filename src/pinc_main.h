@@ -2,12 +2,13 @@
 #define PINC_MAIN_H
 
 #include <pinc.h>
+
 #include "libs/pinc_allocator.h"
-#include "pinc_options.h"
-#include "pinc_error.h"
-#include "pinc_window.h"
-#include "pinc_types.h"
 #include "pinc_arena.h"
+#include "pinc_error.h"
+#include "pinc_options.h"
+#include "pinc_types.h"
+#include "pinc_window.h"
 
 // pinc objects are a user-facing map from what the user sees, and the actual internal objects / handles.
 // The real internal objects are usually done with opaque pointers managed by the backend itself.
@@ -118,7 +119,7 @@ typedef struct {
 } PincEvent;
 
 // Call these functions to trigger events
-// TODO: Would it possibly make sense to make these public? Is there are use case for that?
+// TODO(bluesillybeard): Would it possibly make sense to make these public? Is there are use case for that?
 void PincEventCloseSignal(int64_t timeUnixMillis, PincWindowHandle window);
 
 void PincEventMouseButton(int64_t timeUnixMillis, uint32_t oldState, uint32_t state);
@@ -201,7 +202,7 @@ typedef struct {
     PincReallocCallback userReallocFn;
     PincFreeCallback userFreeFn;
 
-    // TODO: is this still needed?
+    // TODO(bluesillybeard): is this still needed?
     bool windowBackendSet;
     WindowBackend windowBackend;
 } PincStaticState;
@@ -209,7 +210,7 @@ typedef struct {
 
 #define PINC_PREINIT_STATE {0}
 
-extern PincStaticState pinc_intern_staticState;
+extern PincStaticState pinc_intern_staticState; // NOLINT
 
 // shortcuts
 // shortcut to the Pinc global static state struct.
@@ -222,52 +223,52 @@ extern PincStaticState pinc_intern_staticState;
 PincObjectHandle PincObject_allocate(PincObjectDiscriminator discriminator);
 
 // Destroy the old object and make a new object in its place with the same ID.
-void PincObject_reallocate(PincObjectHandle id, PincObjectDiscriminator discriminator);
+void PincObject_reallocate(PincObjectHandle handle, PincObjectDiscriminator discriminator);
 
-void PincObject_free(PincObjectHandle id);
+void PincObject_free(PincObjectHandle handle);
 
-static P_INLINE PincObjectDiscriminator PincObject_discriminator(PincObjectHandle id) {
-    PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
-    PErrorUser(id != 0, "Invalid object id");
-    return ((PincObject*)staticState.objects.objectsArray)[id-1].discriminator;
+static P_INLINE PincObjectDiscriminator PincObject_discriminator(PincObjectHandle handle) {
+    PErrorUser(handle <= staticState.objects.objectsNum, "Invalid object id");
+    PErrorUser(handle != 0, "Invalid object id");
+    return ((PincObject*)staticState.objects.objectsArray)[handle-1].discriminator;
 }
 
-static P_INLINE IncompleteWindow* PincObject_ref_incompleteWindow(PincObjectHandle id) {
-    PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
-    PErrorUser(id != 0, "Invalid object id");
-    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
+static P_INLINE IncompleteWindow* PincObject_ref_incompleteWindow(PincObjectHandle handle) {
+    PErrorUser(handle <= staticState.objects.objectsNum, "Invalid object id");
+    PErrorUser(handle != 0, "Invalid object id");
+    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[handle-1];
     PErrorUser(obj.discriminator == PincObjectDiscriminator_incompleteWindow, "Object must be an incomplete window");
     return &((IncompleteWindow*)staticState.incompleteWindowObjects.objectsArray)[obj.internalIndex];
 }
 
-static P_INLINE WindowHandle* PincObject_ref_window(PincObjectHandle id) {
-    PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
-    PErrorUser(id != 0, "Invalid object id");
-    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
+static P_INLINE WindowHandle* PincObject_ref_window(PincObjectHandle handle) {
+    PErrorUser(handle <= staticState.objects.objectsNum, "Invalid object id");
+    PErrorUser(handle != 0, "Invalid object id");
+    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[handle-1];
     PErrorUser(obj.discriminator == PincObjectDiscriminator_window, "Object must be a complete window");
     return &((WindowHandle*)staticState.windowHandleObjects.objectsArray)[obj.internalIndex];
 }
 
-static P_INLINE IncompleteGlContext* PincObject_ref_incompleteGlContext(PincObjectHandle id) {
-    PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
-    PErrorUser(id != 0, "Invalid object id");
-    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
+static P_INLINE IncompleteGlContext* PincObject_ref_incompleteGlContext(PincObjectHandle handle) {
+    PErrorUser(handle <= staticState.objects.objectsNum, "Invalid object id");
+    PErrorUser(handle != 0, "Invalid object id");
+    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[handle-1];
     PErrorUser(obj.discriminator == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
     return &((IncompleteGlContext*)staticState.incompleteGlContextObjects.objectsArray)[obj.internalIndex];
 }
 
-static P_INLINE RawOpenglContextObject* PincObject_ref_glContext(PincObjectHandle id) {
-    PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
-    PErrorUser(id != 0, "Invalid object id");
-    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
+static P_INLINE RawOpenglContextObject* PincObject_ref_glContext(PincObjectHandle handle) {
+    PErrorUser(handle <= staticState.objects.objectsNum, "Invalid object id");
+    PErrorUser(handle != 0, "Invalid object id");
+    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[handle-1];
     PErrorUser(obj.discriminator == PincObjectDiscriminator_glContext, "Object must be a complete OpenGL context");
     return &((RawOpenglContextObject*)staticState.rawOpenglContextHandleObjects.objectsArray)[obj.internalIndex];
 }
 
-static P_INLINE FramebufferFormat* PincObject_ref_framebufferFormat(PincObjectHandle id) {
-    PErrorUser(id <= staticState.objects.objectsNum, "Invalid object id");
-    PErrorUser(id != 0, "Invalid object id");
-    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[id-1];
+static P_INLINE FramebufferFormat* PincObject_ref_framebufferFormat(PincObjectHandle handle) {
+    PErrorUser(handle <= staticState.objects.objectsNum, "Invalid object id");
+    PErrorUser(handle != 0, "Invalid object id");
+    PincObject obj = ((PincObject*)staticState.objects.objectsArray)[handle-1];
     PErrorUser(obj.discriminator == PincObjectDiscriminator_framebufferFormat, "Object must be a framebuffer format");
     return &((FramebufferFormat*)staticState.framebufferFormatObjects.objectsArray)[obj.internalIndex];
 }

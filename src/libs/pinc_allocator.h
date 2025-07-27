@@ -1,7 +1,6 @@
 #ifndef DYNAMIC_ALLOCATOR_H
 #define DYNAMIC_ALLOCATOR_H
 
-#include <stddef.h>
 #include <platform/pinc_platform.h>
 // Zig style allocators
 

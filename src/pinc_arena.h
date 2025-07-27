@@ -1,4 +1,7 @@
 // Taken from https://github.com/tsoding/arena/blob/master/arena.h and modified for use in Pinc.
+// This is third party code that is known to be good - also this file is planned to be completely replaced at some point
+// NOLINTBEGIN
+
 #define ARENA_NOSTDIO
 // TODO: use platform.h assert
 #define ARENA_ASSERT(_expr)
@@ -471,3 +474,4 @@ void arena_trim(Arena *a){
 }
 
 #endif // ARENA_IMPLEMENTATION
+// NOLINTEND

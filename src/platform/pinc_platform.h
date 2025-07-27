@@ -1,9 +1,9 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
-#include <stdint.h>
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 // Platform provides some base platform functionality
 
@@ -29,7 +29,7 @@
 
 typedef void (*pincPFN)(void);
 
-// TODO: It is probably worth exposing these functions to the user, as an alternative to whatever other platform library they may use.
+// TODO(bluesillybeard): It is probably worth exposing these functions to the user, as an alternative to whatever other platform library they may use.
 // We have to implement all of these nice functions for every supported platform anyway, may as well let the downstream developer make use of it,
 // Although many of them are just wrappers of libc (for now)
 
@@ -142,11 +142,13 @@ void pincPrintErrorLine(uint8_t const* message, size_t len);
 
 void pincPrintDebugLine(uint8_t const* message, size_t len);
 
-/// Returns the number of characters that would have been written given enough space, not including the null terminator
-size_t pincBufPrintUint32(char* buf, size_t capacity, uint32_t v);
+// TODO(bluesillybeard): these print functions should really be moved out of platform and into some kind of logging package
 
 /// Returns the number of characters that would have been written given enough space, not including the null terminator
-size_t pincBufPrintUint64(char* buf, size_t capacity, uint64_t v);
+size_t pincBufPrintUint32(char* buf, size_t capacity, uint32_t value);
+
+/// Returns the number of characters that would have been written given enough space, not including the null terminator
+size_t pincBufPrintUint64(char* buf, size_t capacity, uint64_t value);
 
 // A monotonic time counter in milliseconds.
 // The only strict requirement is that it is relatively consistent so two time values can be compared with decent accuracy.

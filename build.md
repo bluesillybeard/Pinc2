@@ -35,6 +35,7 @@ However, there are many options specific to the cmake build. Those are:
 - `PINC_ADDITIONAL_LINK_OPTIONS` - this will be added to the list of linker options used to build Pinc and the examples
 - `PINC_COMPILE_OPTIONS` - Setting this will completely override the compiler options used to build Pinc
 - `PINC_LINK_OPTIONS` - Setting this will completely override the compiler options used to build Pinc
+- `PINC_USE_CLANG_TIDY` - Setting this to true will create an extra target to run clang-tidy on the entire project
 
 These options can be set using `-D[option name]=[value]` in the cmake command. Note that these are cached, in order to change them you should delete `build/CMakeCache.txt` before re-running the cmake command.
 

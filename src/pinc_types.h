@@ -1,10 +1,11 @@
 #ifndef PINC_TYPES_H
 #define PINC_TYPES_H
 
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
 #include <pinc.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #include "libs/pinc_string.h"
 #include "pinc_opengl.h"
 

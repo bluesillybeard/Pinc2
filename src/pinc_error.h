@@ -4,7 +4,7 @@
 #include "pinc_options.h"
 #include "libs/pinc_string.h"
 #include <pinc.h>
-// TODO: should we make errors use __file__ and __line__ macros?
+// TODO(bluesillybeard): should we make errors use __file__ and __line__ macros?
 
 // NOTE: This function is implemented in pinc_main.c - there is no pinc_error.c
 // Call the error function for a non-fatal error

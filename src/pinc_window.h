@@ -5,6 +5,7 @@
 
 #include <pinc.h>
 #include <pinc_opengl.h>
+
 #include "pinc_types.h"
 #include "pinc_error.h"
 
@@ -88,9 +89,9 @@ struct WindowBackend;
 #undef PINC_WINDOW_INTERFACE_FUNCTION
 #undef PINC_WINDOW_INTERFACE_PROCEDURE
 // Classic interfaces in C.
-// TODO: evaluate if this actually saves time or is just a big mess
-#define PINC_WINDOW_INTERFACE_FUNCTION(type, arguments, name, argumentsNames, defaultReturn) type (* name) arguments;
-#define PINC_WINDOW_INTERFACE_PROCEDURE(arguments, name, argumentsNames) void (* name) arguments;
+// TODO(bluesillybeard): evaluate if this actually saves time or is just a big mess
+#define PINC_WINDOW_INTERFACE_FUNCTION(type, arguments, name, argumentsNames, defaultReturn) type (* name) arguments; //NOLINT these macros are intentionally non-parenthesized. Homework: can you figure out why?
+#define PINC_WINDOW_INTERFACE_PROCEDURE(arguments, name, argumentsNames) void (* name) arguments; //NOLINT these macros are intentionally non-parenthesized. Homework: can you figure out why?
 
 struct WindowBackendVtable {
     PINC_WINDOW_INTERFACE
@@ -133,9 +134,10 @@ PINC_WINDOW_INTERFACE
 
 // These are declared here to avoid a circular reference between pinc_main.h and window.h
 // However, the variables themselves are located in pinc_main.c
+// TODO(bluesillybeard): wait, is that actually a problem? I'm genuinely confused.
 
-extern bool windowBackendSet;
+extern bool windowBackendSet; //NOLINT: see above
 
-extern WindowBackend windowBackend;
+extern WindowBackend windowBackend; //NOLINT: see above
 
 #endif

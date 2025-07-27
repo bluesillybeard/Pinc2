@@ -6,19 +6,20 @@
 #include "pinc_options.h"
 #if PINC_HAVE_WINDOW_SDL2
 
+#include <SDL2/SDL_stdinc.h>
 #include <SDL2/SDL_video.h>
-#include "SDL2/SDL_stdinc.h"
+
+#include <pinc.h>
+#include <pinc_opengl.h>
+
 #include "libs/pinc_allocator.h"
 #include "libs/pinc_string.h"
-#include "pinc.h"
 #include "pinc_error.h"
-#include "pinc_opengl.h"
-#include "pinc_types.h"
-
-#include "platform/pinc_platform.h"
 #include "pinc_main.h"
-#include "pinc_window.h"
 #include "pinc_sdl2load.h"
+#include "pinc_types.h"
+#include "pinc_window.h"
+#include "platform/pinc_platform.h"
 
 typedef struct {
     SDL_Window* sdlWindow;
@@ -35,7 +36,7 @@ typedef struct {
     // Whether the dummy window is also in use as a user-facing window object
     bool dummyWindowInUse;
     // List of windows.
-    // TODO: instead of a list of pointers, just use a list of the struct itself
+    // TODO(bluesillybeard): instead of a list of pointers, just use a list of the struct itself
     // All external references to a window would need to change to be an ID / index into the list, instead of an arbitrary pointer.
     PincSdl2Window** windows;
     size_t windowsNum;
@@ -65,7 +66,7 @@ void pincSdl2RemoveWindow(PincSdl2WindowBackend* this, PincSdl2Window* window) {
     // Linear search is fine - this is cold code (hopefully), and the number of windows (should be) quite small.
     // Arguably it's the user's problem if they are constantly destroying windows and there are enough of them to make linear search slow.
     bool indexFound = false;
-    uintptr_t index;
+    uintptr_t index = 0;
     for(uintptr_t i=0; i<this->windowsNum; i++) {
         if(this->windows[i] == window) {
             index = i;
@@ -73,7 +74,7 @@ void pincSdl2RemoveWindow(PincSdl2WindowBackend* this, PincSdl2Window* window) {
             break;
         }
     }
-    if(!indexFound) return;
+    if(!indexFound) { return; }
     if(this->windows[index] == this->dummyWindow) {
         this->dummyWindowInUse = false;
     }
@@ -103,7 +104,8 @@ static void pincSdl2UnloadLib(void* lib) {
 }
 
 static PincKeyboardKey pincSdl2ConvertSdlKeycode(SDL_Scancode code) {
-    PincKeyboardKey key;
+    PincKeyboardKey key = 0;
+    // NOLINTBEGIN(bugprone-branch-clone)
     switch(code){
         case SDL_SCANCODE_UNKNOWN: key = PincKeyboardKey_unknown; break;
         case SDL_SCANCODE_A: key = PincKeyboardKey_a; break;
@@ -152,7 +154,7 @@ static PincKeyboardKey pincSdl2ConvertSdlKeycode(SDL_Scancode code) {
         case SDL_SCANCODE_LEFTBRACKET: key = PincKeyboardKey_leftBracket; break;
         case SDL_SCANCODE_RIGHTBRACKET: key = PincKeyboardKey_rightBracket; break;
         case SDL_SCANCODE_BACKSLASH: key = PincKeyboardKey_backspace; break;
-        case SDL_SCANCODE_NONUSHASH: key = PincKeyboardKey_unknown; break;// TODO: what is this?
+        case SDL_SCANCODE_NONUSHASH: key = PincKeyboardKey_unknown; break;// TODO(bluesillybeard): what is this?
         case SDL_SCANCODE_SEMICOLON: key = PincKeyboardKey_semicolon; break;
         case SDL_SCANCODE_APOSTROPHE: key = PincKeyboardKey_apostrophe; break;
         case SDL_SCANCODE_GRAVE: key = PincKeyboardKey_backtick; break;
@@ -202,9 +204,9 @@ static PincKeyboardKey pincSdl2ConvertSdlKeycode(SDL_Scancode code) {
         case SDL_SCANCODE_KP_9: key = PincKeyboardKey_numpad9; break;
         case SDL_SCANCODE_KP_0: key = PincKeyboardKey_numpad0; break;
         case SDL_SCANCODE_KP_PERIOD: key = PincKeyboardKey_numpadDot; break;
-        case SDL_SCANCODE_NONUSBACKSLASH: key = PincKeyboardKey_unknown; break; // TODO: what is this
+        case SDL_SCANCODE_NONUSBACKSLASH: key = PincKeyboardKey_unknown; break; // TODO(bluesillybeard): what is this
         case SDL_SCANCODE_APPLICATION: key = PincKeyboardKey_menu; break; // If SDL's APPLICATION key is menu, then what is SDL's MENU?
-        case SDL_SCANCODE_POWER: key = PincKeyboardKey_unknown; break; // TODO: what is this
+        case SDL_SCANCODE_POWER: key = PincKeyboardKey_unknown; break; // TODO(bluesillybeard): what is this
         case SDL_SCANCODE_KP_EQUALS: key = PincKeyboardKey_numpadEqual; break;
         case SDL_SCANCODE_F13: key = PincKeyboardKey_f13; break;
         case SDL_SCANCODE_F14: key = PincKeyboardKey_f14; break;
@@ -218,11 +220,11 @@ static PincKeyboardKey pincSdl2ConvertSdlKeycode(SDL_Scancode code) {
         case SDL_SCANCODE_F22: key = PincKeyboardKey_f22; break;
         case SDL_SCANCODE_F23: key = PincKeyboardKey_f23; break;
         case SDL_SCANCODE_F24: key = PincKeyboardKey_f24; break;
-        case SDL_SCANCODE_EXECUTE: key = PincKeyboardKey_unknown; break; // TODO: what is this
-        case SDL_SCANCODE_HELP: key = PincKeyboardKey_unknown; break; // TODO: what is this
+        case SDL_SCANCODE_EXECUTE: key = PincKeyboardKey_unknown; break; // TODO(bluesillybeard): what is this
+        case SDL_SCANCODE_HELP: key = PincKeyboardKey_unknown; break; // TODO(bluesillybeard): what is this
         case SDL_SCANCODE_MENU: key = PincKeyboardKey_menu; break;
-        case SDL_SCANCODE_SELECT: key = PincKeyboardKey_unknown; break; // TODO: what is this
-        case SDL_SCANCODE_STOP: key = PincKeyboardKey_unknown; break; // TODO: what is this
+        case SDL_SCANCODE_SELECT: key = PincKeyboardKey_unknown; break; // TODO(bluesillybeard): what is this
+        case SDL_SCANCODE_STOP: key = PincKeyboardKey_unknown; break; // TODO(bluesillybeard): what is this
         case SDL_SCANCODE_AGAIN: key = PincKeyboardKey_unknown; break; // what
         case SDL_SCANCODE_UNDO: key = PincKeyboardKey_unknown; break; // what
         case SDL_SCANCODE_CUT: key = PincKeyboardKey_unknown; break; // what
@@ -253,7 +255,7 @@ static PincKeyboardKey pincSdl2ConvertSdlKeycode(SDL_Scancode code) {
         case SDL_SCANCODE_LANG8: key = PincKeyboardKey_unknown; break; // what
         case SDL_SCANCODE_LANG9: key = PincKeyboardKey_unknown; break; // what
         case SDL_SCANCODE_ALTERASE: key = PincKeyboardKey_unknown; break; // what
-        case SDL_SCANCODE_SYSREQ: key = PincKeyboardKey_printScreen; break;  // TODO: is this really the same as print screen?
+        case SDL_SCANCODE_SYSREQ: key = PincKeyboardKey_printScreen; break;  // TODO(bluesillybeard): is this really the same as print screen?
         case SDL_SCANCODE_CANCEL: key = PincKeyboardKey_unknown; break;  // what
         case SDL_SCANCODE_CLEAR: key = PincKeyboardKey_unknown; break;  // what
         case SDL_SCANCODE_PRIOR: key = PincKeyboardKey_unknown; break;  // what
@@ -313,11 +315,11 @@ static PincKeyboardKey pincSdl2ConvertSdlKeycode(SDL_Scancode code) {
         case SDL_SCANCODE_LCTRL: key = PincKeyboardKey_leftControl; break;
         case SDL_SCANCODE_LSHIFT: key = PincKeyboardKey_leftShift; break;
         case SDL_SCANCODE_LALT: key = PincKeyboardKey_leftAlt; break;
-        case SDL_SCANCODE_LGUI: key = PincKeyboardKey_leftSuper; break; // TODO: is this right?
+        case SDL_SCANCODE_LGUI: key = PincKeyboardKey_leftSuper; break; // TODO(bluesillybeard): is this right?
         case SDL_SCANCODE_RCTRL: key = PincKeyboardKey_rightControl; break;
         case SDL_SCANCODE_RSHIFT: key = PincKeyboardKey_rightShift; break;
         case SDL_SCANCODE_RALT: key = PincKeyboardKey_rightAlt; break;
-        case SDL_SCANCODE_RGUI: key = PincKeyboardKey_rightSuper; break; // TODO: is this right?
+        case SDL_SCANCODE_RGUI: key = PincKeyboardKey_rightSuper; break; // TODO(bluesillybeard): is this right?
         case SDL_SCANCODE_MODE: key = PincKeyboardKey_unknown; break; // what
         case SDL_SCANCODE_AUDIONEXT: key = PincKeyboardKey_unknown; break; // what
         case SDL_SCANCODE_AUDIOPREV: key = PincKeyboardKey_unknown; break; // what
@@ -354,6 +356,7 @@ static PincKeyboardKey pincSdl2ConvertSdlKeycode(SDL_Scancode code) {
         case SDL_SCANCODE_ENDCALL: key = PincKeyboardKey_unknown; break; // what
         default: PErrorExternal(false, "Received invalid keyboard scancode"); key = PincKeyboardKey_unknown; break; // Maybe better as a simple log in case SDL2 adds new scancodes. With that said, SDL2 is ABI stable so this really shouldn't ever trigger.
     }
+    // NOLINTEND(bugprone-branch-clone)
     return key;
 }
 
@@ -415,16 +418,16 @@ bool pincSdl2Init(WindowBackend* obj) {
 }
 
 // Clang, GCC, and MSVC optimize this into the most efficient form, when optimization flags are passed.
-static uint32_t bitCount32(uint32_t n) {
+static uint32_t bitCount32(uint32_t value) {
     uint32_t counter = 0;
-    while(n) {
+    while(value) {
         counter++;
-        n &= (n - 1);
+        value &= (value - 1);
     }
     return counter;
 }
 
-static PincSdl2Window* _dummyWindow(struct WindowBackend* obj) {
+static PincSdl2Window* pincSdl2GetDummyWindow(struct WindowBackend* obj) {
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     if(this->dummyWindow) {
         return this->dummyWindow;
@@ -456,25 +459,25 @@ static PincSdl2Window* _dummyWindow(struct WindowBackend* obj) {
 }
 
 // Quick function for convenience
-static void _pincFramebufferFormatAdd(FramebufferFormat** formats, size_t* formatsNum, size_t* formatsCapacity, FramebufferFormat const* fmt) {
+static void pincSdl2FramebufferFormatAdd(FramebufferFormat** formats, size_t* formatsNum, size_t* formatsCapacity, FramebufferFormat const* fmt) {
     for(size_t formatid=0; formatid<(*formatsNum); formatid++) {
-        FramebufferFormat ft = (*formats)[formatid];
-        if(ft.color_space != fmt->color_space) {
+        FramebufferFormat format = (*formats)[formatid];
+        if(format.color_space != fmt->color_space) {
             continue;
         }
-        if(ft.channels != fmt->channels) {
+        if(format.channels != fmt->channels) {
             continue;
         }
-        if(ft.channel_bits[0] != fmt->channel_bits[0]) {
+        if(format.channel_bits[0] != fmt->channel_bits[0]) {
             continue;
         }
-        if(ft.channels >= 2 && ft.channel_bits[1] != fmt->channel_bits[1]) {
+        if(format.channels >= 2 && format.channel_bits[1] != fmt->channel_bits[1]) {
             continue;
         }
-        if(ft.channels >= 3 && ft.channel_bits[2] != fmt->channel_bits[2]) {
+        if(format.channels >= 3 && format.channel_bits[2] != fmt->channel_bits[2]) {
             continue;
         }
-        if(ft.channels >= 4 && ft.channel_bits[3] != fmt->channel_bits[3]) {
+        if(format.channels >= 4 && format.channel_bits[3] != fmt->channel_bits[3]) {
             continue;
         }
         // This format is already in the list, don't add it again
@@ -502,7 +505,7 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, pi
     // Ideally, SDL2 would report the list of Visuals from X or the list of pixel formats from win32, but this is the next best option
 
     // Dynamic list to hold the framebuffer formats
-    // TODO: A proper set data structure for deduplication is a good idea
+    // TODO(bluesillybeard): A proper set data structure for deduplication is a good idea
     FramebufferFormat* formats = pincAllocator_allocate(tempAllocator, sizeof(FramebufferFormat)*8);
     size_t formatsNum = 0;
     size_t formatsCapacity = 8;
@@ -567,12 +570,12 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, pi
             // bytes*8, bits*8, layout*4, order*4, type*4, 1, 0*remaining
             // SDL2 has us covered though, with a nice function that decodes all of it
             FramebufferFormat bufferFormat;
-            // TODO: properly figure out transparent window support
+            // TODO(bluesillybeard): properly figure out transparent window support
             // There is absolutely no reason for assuming sRGB, other than SDL doesn't let us get what the real color space is.
             // sRGB is a fairly safe bet, and even if it's wrong, 99% of the time if it's not Srgb it's another similar perceptual color space.
             // There is a rare chance that it's a linear color space, but given SDL2's supported platforms, I find that incredibly unlikely.
             bufferFormat.color_space = PincColorSpace_srgb;
-            // TODO: is this right? I think so
+            // TODO(bluesillybeard): is this right? I think so
             bufferFormat.channel_bits[0] = bitCount32(rmask);
             bufferFormat.channel_bits[1] = bitCount32(gmask);
             bufferFormat.channel_bits[2] = bitCount32(bmask);
@@ -585,7 +588,7 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, pi
                 bufferFormat.channels = 4;
                 bufferFormat.channel_bits[3] = bitCount32(amask);
             }
-            _pincFramebufferFormatAdd(&formats, &formatsNum, &formatsCapacity, &bufferFormat);
+            pincSdl2FramebufferFormatAdd(&formats, &formatsNum, &formatsCapacity, &bufferFormat);
         }
     }
     // Allocate the final returned value
@@ -601,7 +604,7 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, pi
 
 bool pincSdl2queryGraphicsApiSupport(struct WindowBackend* obj, PincGraphicsApi api) {
     P_UNUSED(obj);
-    switch (api) {
+    switch (api) { //NOLINT: this switch statement will have more cases added to it over time
         case PincGraphicsApi_opengl:
             return true;
         default:
@@ -618,8 +621,7 @@ uint32_t pincSdl2queryMaxOpenWindows(struct WindowBackend* obj) {
 PincReturnCode pincSdl2completeInit(struct WindowBackend* obj, PincGraphicsApi graphicsBackend, FramebufferFormat framebuffer) {
     P_UNUSED(obj);
     P_UNUSED(framebuffer);
-    // Sdl2WindowBackend* this = (Sdl2WindowBackend*)obj->obj;
-    switch (graphicsBackend)
+    switch (graphicsBackend) //NOLINT: more cases will be added over time
     {
         case PincGraphicsApi_opengl:
             break;
@@ -648,7 +650,7 @@ void pincSdl2deinit(struct WindowBackend* obj) {
 }
 
 
-void pincSdl2step(struct WindowBackend* obj) {
+void pincSdl2step(struct WindowBackend* obj) { //NOLINT: TODO: Fix this abominably massive function. I'm still undecided on the best way to do this.
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
 
     // The offset between SDL2's getTicks() and platform's pCurrentTimeMillis()
@@ -656,7 +658,6 @@ void pincSdl2step(struct WindowBackend* obj) {
     int64_t timeOffset = pincCurrentTimeMillis() - ((int64_t)this->libsdl2.getTicks64());
 
     SDL_Event event;
-    // NEXTLOOP:
     while(this->libsdl2.pollEvent(&event)) {
         int64_t timestamp = (int64_t)event.common.timestamp + timeOffset;
         switch (event.type) {
@@ -673,7 +674,7 @@ void pincSdl2step(struct WindowBackend* obj) {
                         break;
                     }
                     // case SDL_WINDOWEVENT_RESIZED: // This is the version for only external events, where the other one does both
-                    // TODO: which one makes more sense to do? Pinc still needs to have the edge-case semantics of event triggers determined.
+                    // TODO(bluesillybeard): which one makes more sense to do? Pinc still needs to have the edge-case semantics of event triggers determined.
                     case SDL_WINDOWEVENT_SIZE_CHANGED: {
                         // Gotta love using variables named "data1" and "data2" with inappropriate signedness.
                         PErrorAssert(event.window.data1 > 0, "Integer underflow");
@@ -697,7 +698,7 @@ void pincSdl2step(struct WindowBackend* obj) {
                         break;
                     }
                     case SDL_WINDOWEVENT_ENTER: {
-                        // TODO: it seems we need to keep track of the cursor position in order to fill out this event
+                        // TODO(bluesillybeard): it seems we need to keep track of the cursor position in order to fill out this event
                         // SDL doesn't reliably place cursor move events before the enter / leave event (in fact, it seems to reliable do the exact opposite)
                         // So some additional event processing may be required here....
                         // With that said, it may be worth entirely switching to the enter/leave paradigm as it seems more generic, if less immediately useful.
@@ -705,11 +706,11 @@ void pincSdl2step(struct WindowBackend* obj) {
                         break;
                     }
                     case SDL_WINDOWEVENT_LEAVE: {
-                        // TODO: it seems we need to keep track of the cursor position in order to fill out this event
+                        // TODO(bluesillybeard): it seems we need to keep track of the cursor position in order to fill out this event
                         PincEventCursorTransition(timestamp, windowObj->frontHandle, 0, 0, 0, 0, 0);
                     }
                     default:{
-                        // TODO: once all window events are handled, assert.
+                        // TODO(bluesillybeard): once all window events are handled, assert.
                         break;
                     }
                 }
@@ -717,7 +718,7 @@ void pincSdl2step(struct WindowBackend* obj) {
             }
             case SDL_MOUSEBUTTONUP: 
             case SDL_MOUSEBUTTONDOWN: {
-                // TODO: We only care about mouse 0?
+                // TODO(bluesillybeard): We only care about mouse 0?
                 // What does it even mean to have multiple mice? Multiple cursors?
                 // On my X11 based system, it seems all mouse events are merged into mouse 0,
                 if(event.button.which == 0) {
@@ -733,7 +734,7 @@ void pincSdl2step(struct WindowBackend* obj) {
                     // 2 -> middle  (4s place)
                     // 3 -> back    (8s place)
                     // 4 -> forward (16s place)
-                    uint32_t buttonBit;
+                    uint32_t buttonBit = 0;
                     switch (event.button.button)
                     {
                         case 1: buttonBit = 0; break;
@@ -744,7 +745,7 @@ void pincSdl2step(struct WindowBackend* obj) {
                         // There are certainly more buttons, but for now I don't think they really exist.
                         default: PErrorAssert(false, "Invalid button index!");
                     }
-                    uint32_t buttonBitMask = 1<<buttonBit;
+                    uint32_t buttonBitMask = (uint32_t)1<<buttonBit;
                     // event.button.state is 1 when pressed, 0 when released. SDL2 is ABI stable, so this is safe.
                     PErrorAssert(event.button.state < 2, "It appears SDL2's ABI has changed. The universe as we know it is broken!");
                     // Cast here because for some reason the compiler thinks one of these is signed
@@ -761,26 +762,26 @@ void pincSdl2step(struct WindowBackend* obj) {
                 PincSdl2Window* windowObj = (PincSdl2Window*)this->libsdl2.getWindowData(sdlWin, "pincSdl2Window");
                 // Assert -> caused by Pinc not setting the window event data (supposedly)
                 PErrorAssert(windowObj, "Pinc SDL2 window object from WindowEvent is NULL!");
-                // TODO: make sure the window that has the cursor is actually the window that SDL2 gave us
-                int32_t x = event.motion.x;
-                int32_t y = event.motion.y;
-                int32_t oldX = event.motion.x - event.motion.xrel;
-                int32_t oldY = event.motion.y - event.motion.yrel;
+                // TODO(bluesillybeard): make sure the window that has the cursor is actually the window that SDL2 gave us
+                int32_t motion_x = event.motion.x;
+                int32_t motion_y = event.motion.y;
+                int32_t oldMotionX = event.motion.x - event.motion.xrel;
+                int32_t oldMotionY = event.motion.y - event.motion.yrel;
                 // SDL (On X11 anyways) reports cursor coordinates beyond the window.
                 // This happens when a mouse button is held down (so the window keeps cursor focus) and is moved outside the window.
                 // From my understanding, this is technically valid but rather strange behavior.
                 // If someone actually needs this to behave the exact same as SDL2, they can make an issue about it.
-                if(x < 0) x = 0;
-                if(y < 0) y = 0;
-                if(oldX < 0) oldX = 0;
-                if(oldY < 0) oldY = 0;
-                if((uint32_t)x > windowObj->width) x = (int32_t)windowObj->width;
-                if((uint32_t)y > windowObj->height) y = (int32_t)windowObj->height;
-                if((uint32_t)oldX > windowObj->width) oldX = (int32_t)windowObj->width;
-                if((uint32_t)oldY > windowObj->height) oldY = (int32_t)windowObj->height;
+                if(motion_x < 0) { motion_x = 0; }
+                if(motion_y < 0) { motion_y = 0; }
+                if(oldMotionX < 0) { oldMotionX = 0; }
+                if(oldMotionY < 0) { oldMotionY = 0; }
+                if((uint32_t)motion_x > windowObj->width) { motion_x = (int32_t)windowObj->width; }
+                if((uint32_t)motion_y > windowObj->height) { motion_y = (int32_t)windowObj->height; }
+                if((uint32_t)oldMotionX > windowObj->width) { oldMotionX = (int32_t)windowObj->width; }
+                if((uint32_t)oldMotionY > windowObj->height) { oldMotionY = (int32_t)windowObj->height; }
                 
-                // TODO: is it even worth handling the case where the window's width is greater than the maximum value of int32_t? Because it seems every OS / desktop environment / compositor breaks way before that anyways
-                PincEventCursorMove(timestamp, windowObj->frontHandle, (uint32_t)oldX, (uint32_t)oldY, (uint32_t)x, (uint32_t)y);
+                // TODO(bluesillybeard): is it even worth handling the case where the window's width is greater than the maximum value of int32_t? Because it seems every OS / desktop environment / compositor breaks way before that anyways
+                PincEventCursorMove(timestamp, windowObj->frontHandle, (uint32_t)oldMotionX, (uint32_t)oldMotionY, (uint32_t)motion_x, (uint32_t)motion_y);
                 break;
             }
             case SDL_MOUSEWHEEL: {
@@ -809,7 +810,7 @@ void pincSdl2step(struct WindowBackend* obj) {
                 if(this->libsdl2.hasClipboardText()) {
                     char* clipboardText = this->libsdl2.getClipboardText();
                     PErrorExternal(clipboardText, "SDL2 clipboard is NULL");
-                    if(!clipboardText) break;
+                    if(!clipboardText) { break; }
                     size_t clipboardTextLen = pincStringLen(clipboardText);
                     char* clipboardTextCopy = pincAllocator_allocate(tempAllocator, clipboardTextLen + 1);
                     pincMemCopy(clipboardText, clipboardTextCopy, clipboardTextLen);
@@ -825,18 +826,18 @@ void pincSdl2step(struct WindowBackend* obj) {
                 break;
             }
             case SDL_TEXTEDITING: {
-                // TODO: Pinc needs utf8 decode before this can be implemented
+                // TODO(bluesillybeard): Pinc needs utf8 decode before this can be implemented
             }
-            // TODO: text edit ext event
+            // TODO(bluesillybeard): text edit extended event
             default:{
-                // TODO: Once all SDL events are handled, assert.
+                // TODO(bluesillybeard): Once all SDL events are handled, assert.
                 break;
             }
         }
     }
 }
 
-WindowHandle pincSdl2completeWindow(struct WindowBackend* obj, IncompleteWindow const * incomplete, PincWindowHandle frontHandle) {
+WindowHandle pincSdl2completeWindow(struct WindowBackend* obj, IncompleteWindow const * incomplete, PincWindowHandle frontHandle) { //NOLINT: TODO: this function is a mess, rewrite it to be better
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     this->libsdl2.resetHints();
 
@@ -850,31 +851,31 @@ WindowHandle pincSdl2completeWindow(struct WindowBackend* obj, IncompleteWindow 
     }
     uint32_t windowFlags = 0;
     if(incomplete->resizable) {
-        windowFlags |= SDL_WINDOW_RESIZABLE;
+        windowFlags |= (uint32_t)SDL_WINDOW_RESIZABLE;
     }
     if(incomplete->minimized) {
-        windowFlags |= SDL_WINDOW_MINIMIZED;
+        windowFlags |= (uint32_t)SDL_WINDOW_MINIMIZED;
     }
     if(incomplete->maximized) {
-        windowFlags |= SDL_WINDOW_MAXIMIZED;
+        windowFlags |= (uint32_t)SDL_WINDOW_MAXIMIZED;
     }
     if(incomplete->fullscreen) {
-        // TODO: do we want to use fullscreen or fullscreen_desktop?
+        // TODO(bluesillybeard): do we want to use fullscreen or fullscreen_desktop?
         // Currently, we use "real" fullscreen,
         // But it may be a good option to "fake" fullscreen via fullscreen_desktop.
         // Really, we should add an option so the user gets to decide.
-        windowFlags |= SDL_WINDOW_FULLSCREEN;
+        windowFlags |= (uint32_t)SDL_WINDOW_FULLSCREEN;
     }
     if(incomplete->focused) {
-        // TODO: Does keyboard grabbed just steal keyboard input entirely, or does it allow the user to move to other windows normally?
+        // TODO(bluesillybeard): Does keyboard grabbed just steal keyboard input entirely, or does it allow the user to move to other windows normally?
         // What even is keyboard grabbed? the SDL2 documentation is annoyingly not specific.
-        windowFlags |= SDL_WINDOW_INPUT_FOCUS; // | SDL_WINDOW_KEYBOARD_GRABBED;
+        windowFlags |= (uint32_t)SDL_WINDOW_INPUT_FOCUS; // | SDL_WINDOW_KEYBOARD_GRABBED;
     }
     if(incomplete->hidden) {
-        windowFlags |= SDL_WINDOW_HIDDEN;
+        windowFlags |= (uint32_t)SDL_WINDOW_HIDDEN;
     }
     // Only graphics api is OpenGL, shortcuts are taken
-    windowFlags |= SDL_WINDOW_OPENGL;
+    windowFlags |= (uint32_t)SDL_WINDOW_OPENGL;
 
     if(!this->dummyWindowInUse && this->dummyWindow) {
         PincSdl2Window* dummyWindow = this->dummyWindow;
@@ -884,30 +885,32 @@ WindowHandle pincSdl2completeWindow(struct WindowBackend* obj, IncompleteWindow 
         // Then, as long as Pinc doesn't start supporting a different graphics api for each window,
         // the dummy window is fully useless and it should be replaced.
         // SDL does not support changing a window to have opengl after it was created without it.
-        if((windowFlags&SDL_WINDOW_OPENGL) && !(realFlags&SDL_WINDOW_OPENGL)) {
+        // TODO(bluesillybeard) clang-tidy doesn't complain about this, but this if statement is hard to read
+        // In fact, a lof of these if statements are difficult to parse
+        if((windowFlags&(uint32_t)SDL_WINDOW_OPENGL) && !(realFlags&(uint32_t)SDL_WINDOW_OPENGL)) {
             this->libsdl2.destroyWindow(dummyWindow->sdlWindow);
             pincAllocator_free(rootAllocator, dummyWindow, sizeof(PincSdl2Window));
             goto SDL_MAKE_NEW_WINDOW;
         }
 
         // All of the other flags can be changed
-        if((windowFlags&SDL_WINDOW_RESIZABLE) != (realFlags&SDL_WINDOW_RESIZABLE)) {
-            pincSdl2setWindowResizable(obj, dummyWindow, (windowFlags&SDL_WINDOW_RESIZABLE) != 0);
+        if((windowFlags&(uint32_t)SDL_WINDOW_RESIZABLE) != (realFlags&(uint32_t)SDL_WINDOW_RESIZABLE)) {
+            pincSdl2setWindowResizable(obj, dummyWindow, (windowFlags&(uint32_t)SDL_WINDOW_RESIZABLE) != 0);
         }
-        if((windowFlags&SDL_WINDOW_MINIMIZED) != (realFlags&SDL_WINDOW_MINIMIZED)) {
-            pincSdl2setWindowMinimized(obj, dummyWindow, (windowFlags&SDL_WINDOW_MINIMIZED) != 0);
+        if((windowFlags&(uint32_t)SDL_WINDOW_MINIMIZED) != (realFlags&(uint32_t)SDL_WINDOW_MINIMIZED)) {
+            pincSdl2setWindowMinimized(obj, dummyWindow, (windowFlags&(uint32_t)SDL_WINDOW_MINIMIZED) != 0);
         }
-        if((windowFlags&SDL_WINDOW_MAXIMIZED) != (realFlags&SDL_WINDOW_MAXIMIZED)) {
-            pincSdl2setWindowMaximized(obj, dummyWindow, (windowFlags&SDL_WINDOW_MAXIMIZED) != 0);
+        if((windowFlags&(uint32_t)SDL_WINDOW_MAXIMIZED) != (realFlags&(uint32_t)SDL_WINDOW_MAXIMIZED)) {
+            pincSdl2setWindowMaximized(obj, dummyWindow, (windowFlags&(uint32_t)SDL_WINDOW_MAXIMIZED) != 0);
         }
-        if((windowFlags&SDL_WINDOW_FULLSCREEN) != (realFlags&SDL_WINDOW_FULLSCREEN)) {
-            pincSdl2setWindowFullscreen(obj, dummyWindow, (windowFlags&SDL_WINDOW_FULLSCREEN) != 0);
+        if((windowFlags&(uint32_t)SDL_WINDOW_FULLSCREEN) != (realFlags&(uint32_t)SDL_WINDOW_FULLSCREEN)) {
+            pincSdl2setWindowFullscreen(obj, dummyWindow, (windowFlags&(uint32_t)SDL_WINDOW_FULLSCREEN) != 0);
         }
-        if((windowFlags&SDL_WINDOW_INPUT_FOCUS) != (realFlags&SDL_WINDOW_INPUT_FOCUS)) {
-            pincSdl2setWindowFocused(obj, dummyWindow, (windowFlags&SDL_WINDOW_INPUT_FOCUS) != 0);
+        if((windowFlags&(uint32_t)SDL_WINDOW_INPUT_FOCUS) != (realFlags&(uint32_t)SDL_WINDOW_INPUT_FOCUS)) {
+            pincSdl2setWindowFocused(obj, dummyWindow, (windowFlags&(uint32_t)SDL_WINDOW_INPUT_FOCUS) != 0);
         }
-        if((windowFlags&SDL_WINDOW_HIDDEN) != (realFlags&SDL_WINDOW_HIDDEN)) {
-            pincSdl2setWindowHidden(obj, dummyWindow, (windowFlags&SDL_WINDOW_HIDDEN) != 0);
+        if((windowFlags&(uint32_t)SDL_WINDOW_HIDDEN) != (realFlags&(uint32_t)SDL_WINDOW_HIDDEN)) {
+            pincSdl2setWindowHidden(obj, dummyWindow, (windowFlags&(uint32_t)SDL_WINDOW_HIDDEN) != 0);
         }
 
         this->dummyWindowInUse = true;
@@ -931,7 +934,7 @@ WindowHandle pincSdl2completeWindow(struct WindowBackend* obj, IncompleteWindow 
         // (How come nobody ever makes options for those using non null-terminated strings?)
         // Reminder: SDL2 uses UTF8 encoding for pretty much all strings
         char* titleNullTerm = pincString_marshalAlloc(incomplete->title, tempAllocator);
-        SDL_Window* win = this->libsdl2.createWindow(titleNullTerm, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (int)realWidth, (int)realHeight, windowFlags);
+        SDL_Window* win = this->libsdl2.createWindow(titleNullTerm, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (int)realWidth, (int)realHeight, windowFlags); //NOLINT: we do not have control over SDL macros
         // I'm so paranoid, I actually went through the SDL2 source code to make sure it actually duplicates the window title to avoid a use-after-free
         // Better too worried than not enough I guess
         pincAllocator_free(tempAllocator, titleNullTerm, incomplete->title.len+1);
@@ -967,16 +970,14 @@ void pincSdl2deinitWindow(struct WindowBackend* obj, WindowHandle windowHandle) 
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     PincSdl2Window* window = (PincSdl2Window*)windowHandle;
     #if PINC_ENABLE_ERROR_VALIDATE
-    if(1) {
-        bool dummyWindowActuallyInUse = false;
-        for(size_t i=0; i<this->windowsNum; ++i) {
-            PincSdl2Window* windowToCheck = this->windows[i];
-            if(windowToCheck == this->dummyWindow) {
-                dummyWindowActuallyInUse = true;
-            }
+    bool dummyWindowActuallyInUse = false;
+    for(size_t i=0; i<this->windowsNum; ++i) {
+        PincSdl2Window* windowToCheck = this->windows[i];
+        if(windowToCheck == this->dummyWindow) {
+            dummyWindowActuallyInUse = true;
         }
-        PErrorValidate(dummyWindowActuallyInUse == this->dummyWindowInUse, "Dummy window in use does not match reality");
     }
+    PErrorValidate(dummyWindowActuallyInUse == this->dummyWindowInUse, "Dummy window in use does not match reality");
     #endif
     pincSdl2RemoveWindow(this, window);
     if(window == this->dummyWindow) {
@@ -1014,7 +1015,7 @@ void pincSdl2setWindowWidth(struct WindowBackend* obj, WindowHandle windowHandle
     window->width = width;
     PErrorAssert(window->width < INT32_MAX, "Integer Overflow");
     PErrorAssert(window->height < INT32_MAX, "Integer Overflow");
-    // TODO: what about the hacky HiDPI / scaling support in SDL2?
+    // TODO(bluesillybeard): what about the hacky HiDPI / scaling support in SDL2?
     // This function's documentation somehow manages to make the situation more confusing.
     // Really, I think we'll just have to abandon the idea of supporting scaling for the SDL2 backend
     // and work on implementing 'native' backends that deal with it properly.
@@ -1050,7 +1051,7 @@ void pincSdl2setWindowHeight(struct WindowBackend* obj, WindowHandle windowHandl
     window->height = height;
     PErrorAssert(window->width < INT32_MAX, "Integer Overflow");
     PErrorAssert(window->height < INT32_MAX, "Integer Overflow");
-    // TODO: what about the hacky HiDPI / scaling support in SDL2?
+    // TODO(bluesillybeard): what about the hacky HiDPI / scaling support in SDL2?
     // This function's documentation somehow manages to make the situation more confusing.
     // Really, I think we'll just have to abandon the idea of supporting scaling for the SDL2 backend
     // and work on implementing 'native' backends that deal with it properly.
@@ -1065,7 +1066,7 @@ uint32_t pincSdl2getWindowHeight(struct WindowBackend* obj, WindowHandle window)
     if(this->libsdl2.getWindowSizeInPixels) {
         this->libsdl2.getWindowSizeInPixels(windowObj->sdlWindow, NULL, &height);
     } else if(this->libsdl2.glGetDrawableSize) {
-        // TODO: only graphics api is OpenGl, shortcuts are made
+        // TODO(bluesillybeard): only graphics api is OpenGl, shortcuts are made
         this->libsdl2.glGetDrawableSize(windowObj->sdlWindow, NULL, &height);
     } else {
         // If the previously tried functions don't work, then it means this is a version of SDL from before it became hidpi aware.
@@ -1081,7 +1082,7 @@ uint32_t pincSdl2getWindowHeight(struct WindowBackend* obj, WindowHandle window)
 float pincSdl2getWindowScaleFactor(struct WindowBackend* obj, WindowHandle window) {
     P_UNUSED(obj);
     P_UNUSED(window);
-    // TODO
+    // TODO(bluesillybeard): 
     return 0;
 }
 
@@ -1089,13 +1090,13 @@ void pincSdl2setWindowResizable(struct WindowBackend* obj, WindowHandle window, 
     P_UNUSED(obj);
     P_UNUSED(window);
     P_UNUSED(resizable);
-    // TODO
+    // TODO(bluesillybeard): 
 }
 
 bool pincSdl2getWindowResizable(struct WindowBackend* obj, WindowHandle window) {
     P_UNUSED(obj);
     P_UNUSED(window);
-    // TODO
+    // TODO(bluesillybeard): 
     return false;
 }
 
@@ -1103,13 +1104,13 @@ void pincSdl2setWindowMinimized(struct WindowBackend* obj, WindowHandle window, 
     P_UNUSED(obj);
     P_UNUSED(window);
     P_UNUSED(minimized);
-    // TODO
+    // TODO(bluesillybeard): 
 }
 
 bool pincSdl2getWindowMinimized(struct WindowBackend* obj, WindowHandle window) {
     P_UNUSED(obj);
     P_UNUSED(window);
-    // TODO
+    // TODO(bluesillybeard): 
     return false;
 }
 
@@ -1117,13 +1118,13 @@ void pincSdl2setWindowMaximized(struct WindowBackend* obj, WindowHandle window, 
     P_UNUSED(obj);
     P_UNUSED(window);
     P_UNUSED(maximized);
-    // TODO
+    // TODO(bluesillybeard): 
 }
 
 bool pincSdl2getWindowMaximized(struct WindowBackend* obj, WindowHandle window) {
     P_UNUSED(obj);
     P_UNUSED(window);
-    // TODO
+    // TODO(bluesillybeard): 
     return false;
 }
 
@@ -1131,13 +1132,13 @@ void pincSdl2setWindowFullscreen(struct WindowBackend* obj, WindowHandle window,
     P_UNUSED(obj);
     P_UNUSED(window);
     P_UNUSED(fullscreen);
-    // TODO
+    // TODO(bluesillybeard): 
 }
 
 bool pincSdl2getWindowFullscreen(struct WindowBackend* obj, WindowHandle window) {
     P_UNUSED(obj);
     P_UNUSED(window);
-    // TODO
+    // TODO(bluesillybeard): 
     return false;
 }
 
@@ -1145,13 +1146,13 @@ void pincSdl2setWindowFocused(struct WindowBackend* obj, WindowHandle window, bo
     P_UNUSED(obj);
     P_UNUSED(window);
     P_UNUSED(focused);
-    // TODO
+    // TODO(bluesillybeard): 
 }
 
 bool pincSdl2getWindowFocused(struct WindowBackend* obj, WindowHandle window) {
     P_UNUSED(obj);
     P_UNUSED(window);
-    // TODO
+    // TODO(bluesillybeard): 
     return false;
 }
 
@@ -1159,19 +1160,19 @@ void pincSdl2setWindowHidden(struct WindowBackend* obj, WindowHandle window, boo
     P_UNUSED(obj);
     P_UNUSED(window);
     P_UNUSED(hidden);
-    // TODO
+    // TODO(bluesillybeard): 
 }
 
 bool pincSdl2getWindowHidden(struct WindowBackend* obj, WindowHandle window) {
     P_UNUSED(obj);
     P_UNUSED(window);
-    // TODO
+    // TODO(bluesillybeard): 
     return false;
 }
 
 PincReturnCode pincSdl2setVsync(struct WindowBackend* obj, bool vsync) {
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
-    // TODO: only graphics backend is OpenGL, shortcuts are taken
+    // TODO(bluesillybeard): only graphics backend is OpenGL, shortcuts are taken
     if(vsync) {
         if(this->libsdl2.glSetSwapInterval(-1) == -1) {
             // Try again with non-adaptive vsync
@@ -1189,7 +1190,7 @@ PincReturnCode pincSdl2setVsync(struct WindowBackend* obj, bool vsync) {
 }
 
 bool pincSdl2getVsync(struct WindowBackend* obj) {
-    // TODO: only graphics backend is OpenGL, shortcuts are taken
+    // TODO(bluesillybeard): only graphics backend is OpenGL, shortcuts are taken
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     return this->libsdl2.glGetSwapInterval() != 0;
 }
@@ -1197,7 +1198,7 @@ bool pincSdl2getVsync(struct WindowBackend* obj) {
 void pincSdl2windowPresentFramebuffer(struct WindowBackend* obj, WindowHandle window) {
     PincSdl2Window* windowObj = (PincSdl2Window*)window;
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
-    // TODO: only graphics backend is OpenGL, shortcuts are taken
+    // TODO(bluesillybeard): only graphics backend is OpenGL, shortcuts are taken
     this->libsdl2.glSwapWindow(windowObj->sdlWindow);
 }
 
@@ -1280,7 +1281,7 @@ RawOpenglContextHandle pincSdl2glCompleteContext(struct WindowBackend* obj, Inco
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     FramebufferFormat* fmt = PincObject_ref_framebufferFormat(staticState.framebufferFormat);
     // Due to reasons, we have to create a compatible RGB framebuffer format for the context
-    // TODO: is this actually valid?
+    // TODO(bluesillybeard): is this actually valid?
     uint32_t channel_bits[4] = { 0 };
     channel_bits[0] = fmt->channel_bits[0];
     switch(fmt->channels) {
@@ -1313,7 +1314,7 @@ RawOpenglContextHandle pincSdl2glCompleteContext(struct WindowBackend* obj, Inco
         stereo = 1;
     }
     this->libsdl2.glSetAttribute(SDL_GL_STEREO, stereo);
-    // TODO: As far as I can tell, MULTISAMPLEBUFFERS is only 1 or 0. Nobody explains a use case with more than 1.
+    // TODO(bluesillybeard): As far as I can tell, MULTISAMPLEBUFFERS is only 1 or 0. Nobody explains a use case with more than 1.
     // the ARB samples extension doesn't even mention the idea of more than one buffer, and has no way to set a number of them
     // But the ARB extension hasn't been modified in at least 15 years.
     if(incompleteContext.samples > 1) {
@@ -1337,14 +1338,14 @@ RawOpenglContextHandle pincSdl2glCompleteContext(struct WindowBackend* obj, Inco
             break;
         case PincOpenglContextProfile_forward:
             this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-            glFlags |= SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG;
+            glFlags |= SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG; //NOLINT: SDL wants an int
             break;
     }
     if(incompleteContext.robustAccess) {
-        glFlags |= SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG;
+        glFlags |= SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG; //NOLINT: SDL wants an int
     }
     if(incompleteContext.debug) {
-        glFlags |= SDL_GL_CONTEXT_DEBUG_FLAG;
+        glFlags |= SDL_GL_CONTEXT_DEBUG_FLAG; //NOLINT: SDL wants an int
     }
     this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_FLAGS, glFlags);
     int share = 0;
@@ -1353,9 +1354,9 @@ RawOpenglContextHandle pincSdl2glCompleteContext(struct WindowBackend* obj, Inco
     }
     this->libsdl2.glSetAttribute(SDL_GL_SHARE_WITH_CURRENT_CONTEXT, share);
 
-    // TODO: SDL says it needs the attributes set before creating the window,
+    // TODO(bluesillybeard): SDL says it needs the attributes set before creating the window,
     // But is that actually true beyond just the framebuffer format?
-    PincSdl2Window* dummyWindow = _dummyWindow(obj);
+    PincSdl2Window* dummyWindow = pincSdl2GetDummyWindow(obj);
     SDL_GLContext sdlGlContext = this->libsdl2.glCreateContext(dummyWindow->sdlWindow);
     if(!sdlGlContext) {
         #if PINC_ENABLE_ERROR_EXTERNAL
@@ -1386,61 +1387,61 @@ uint32_t pincSdl2glGetContextAccumulatorBits(struct WindowBackend* obj, RawOpeng
     P_UNUSED(obj);
     P_UNUSED(context);
     P_UNUSED(channel);
-    // TODO
+    // TODO (bluesillybeard): 
     return 0;
 }
 
 uint32_t pincSdl2glGetContextAlphaBits(struct WindowBackend* obj, RawOpenglContextObject context) {
-    // TODO
+    // TODO (bluesillybeard): 
     P_UNUSED(obj);
     P_UNUSED(context);
     return 0;
 }
 
 uint32_t pincSdl2glGetContextDepthBits(struct WindowBackend* obj, RawOpenglContextObject context) {
-    // TODO
+    // TODO (bluesillybeard): 
     P_UNUSED(obj);
     P_UNUSED(context);
     return 0;
 }
 
 uint32_t pincSdl2glGetContextStencilBits(struct WindowBackend* obj, RawOpenglContextObject context) {
-    // TODO
+    // TODO (bluesillybeard): 
     P_UNUSED(obj);
     P_UNUSED(context);
     return 0;
 }
 
 uint32_t pincSdl2glGetContextSamples(struct WindowBackend* obj, RawOpenglContextObject context) {
-    // TODO
+    // TODO (bluesillybeard): 
     P_UNUSED(obj);
     P_UNUSED(context);
     return 0;
 }
 
 bool pincSdl2glGetContextStereoBuffer(struct WindowBackend* obj, RawOpenglContextObject context) {
-    // TODO
+    // TODO (bluesillybeard): 
     P_UNUSED(obj);
     P_UNUSED(context);
     return false;
 }
 
 bool pincSdl2glGetContextDebug(struct WindowBackend* obj, RawOpenglContextObject context) {
-    // TODO
+    // TODO (bluesillybeard): 
     P_UNUSED(obj);
     P_UNUSED(context);
     return false;
 }
 
 bool pincSdl2glGetContextRobustAccess(struct WindowBackend* obj, RawOpenglContextObject context) {
-    // TODO
+    // TODO (bluesillybeard): 
     P_UNUSED(obj);
     P_UNUSED(context);
     return false;
 }
 
 bool pincSdl2glGetContextResetIsolation(struct WindowBackend* obj, RawOpenglContextObject context) {
-    // TODO
+    // TODO (bluesillybeard): 
     P_UNUSED(obj);
     P_UNUSED(context);
     return false;
@@ -1454,7 +1455,7 @@ PincReturnCode pincSdl2glMakeCurrent(struct WindowBackend* obj, WindowHandle win
     // SDL2 does not state it needs a window, but it also does not state that no window is an option
     // So, in the event of a null window, get the dummy window
     if(!windowObj) {
-        windowObj = _dummyWindow(obj);
+        windowObj = pincSdl2GetDummyWindow(obj);
     }
     // Unlike a window, an OpenGl context contains no other information than just the opaque pointer
     // So no need to wrap it in a struct or anything
@@ -1489,7 +1490,7 @@ PincWindowHandle pincSdl2glGetCurrentWindow(struct WindowBackend* obj) {
 }
 
 PincOpenglContextHandle pincSdl2glGetCurrentContext(struct WindowBackend* obj) {
-    // TODO: I'm not too confident about this, it should be tested properly
+    // TODO(bluesillybeard): I'm not too confident about this, it should be tested properly
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     SDL_GLContext sdlContext = this->libsdl2.glGetCurrentContext();
     if(!sdlContext) {

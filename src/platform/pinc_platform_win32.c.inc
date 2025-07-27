@@ -5,6 +5,7 @@
 // 1. Set up Pinc's include directories properly within the build system
 // 2. Use a compiler toolchain with the windows headers (We recommend MinGW + Clang or MinGW + GCC, but MSVC should work too)
 
+// NOLINTBEGIN: Windows api headers are stupid and order-dependent
 #include <minwindef.h>
 #include <windef.h>
 #include <wingdi.h>
@@ -16,15 +17,16 @@
 #include <wincon.h>
 #include <winbase.h>
 #include <winnt.h>
+// NOLINTEND
 
 #include "pinc_platform.h"
 
-// TODO: does it make any sense to expose this to the user?
-static void* pincHeap = NULL;
+// TODO(bluesillybeard): does it make any sense to expose this to the user?
+static void* pincHeap = NULL; //NOLINT
 
 void* pincAlloc(size_t bytes) {
     if(!pincHeap) {
-        // TODO: should we use getProcessHeap instead?
+        // TODO(bluesillybeard): should we use getProcessHeap instead?
         pincHeap = HeapCreate(0, 0, 0);
     }
     return HeapAlloc(pincHeap, 0, bytes);
@@ -42,13 +44,13 @@ void* pincAllocAligned(size_t bytes, size_t alignment) {
 }
 
 void* pincRealloc(void* pointer, size_t oldSize, size_t newSize) {
-    // TODO: assert that oldSize matches the size of the allocation?
+    // TODO(bluesillybeard): assert that oldSize matches the size of the allocation?
     (void)oldSize;
     return HeapReAlloc(pincHeap, 0, pointer, newSize);
 }
 
 void pincFree(void* pointer, size_t bytes) {
-    // TODO: assert that bytes matches the size of the allocation?
+    // TODO(bluesillybeard): assert that bytes matches the size of the allocation?
     (void)bytes;
     HeapFree(pincHeap, 0, pointer);
 }
@@ -57,7 +59,7 @@ void* pincLoadLibrary(uint8_t const* nameUtf8, size_t nameSize) {
     char* nameNullTerm = pincAlloc(nameSize);
     pincMemCopy(nameUtf8, nameNullTerm, nameSize+1);
     nameNullTerm[nameSize] = 0;
-    // TODO: handle utf8?
+    // TODO(bluesillybeard): handle utf8?
     void* lib = LoadLibraryA(nameNullTerm);
     return lib;
 }
@@ -71,22 +73,22 @@ pincPFN pincLibrarySymbol(void* library, uint8_t const* symbolNameUtf8, size_t n
 
 void pincUnloadLibrary(void* library) {
     FreeLibrary(library);
-    // TODO: getLastError and trigger debugger
+    // TODO(bluesillybeard): getLastError and trigger debugger
 }
 
 size_t pincStringLen(char const* str) {
     // It appears we have no win32 equivalent for strlen
-    // TODO: properly optimize this, assuming the compiler doesn't do that already
-    size_t l=0;
-    while(str[l] != 0) {
-        ++l;
+    // TODO(bluesillybeard): properly optimize this, assuming the compiler doesn't do that already
+    size_t length=0;
+    while(str[length] != 0) {
+        ++length;
     }
-    return l;
+    return length;
 }
 
 void pincMemCopy(void const* P_RESTRICT source, void* P_RESTRICT destination, size_t numBytes) {
     // CopyMemory is a macro to a macro to something that depends on the compiler
-    // TODO: optimization
+    // TODO(bluesillybeard): optimization
     uint8_t const* P_RESTRICT src = (uint8_t*) source;
     uint8_t* P_RESTRICT dst = (uint8_t*) destination;
     for(size_t i=0; i<numBytes; ++i) {
@@ -96,7 +98,7 @@ void pincMemCopy(void const* P_RESTRICT source, void* P_RESTRICT destination, si
 
 void pincMemMove(void const* source, void* destination, size_t numBytes) {
     // MoveMemory is a macro to a macro to something that depends on the compiler
-    // TODO: optimization
+    // TODO(bluesillybeard): optimization
     uint8_t* src = (uint8_t*) source;
     uint8_t* dst = (uint8_t*) destination;
     for(size_t i=0; i<numBytes; ++i) {
@@ -106,19 +108,18 @@ void pincMemMove(void const* source, void* destination, size_t numBytes) {
 
 void pincMemSet(uint8_t value, void* destination, size_t numBytes) {
     // It seems win32 has no equivalent for memset
-    // TODO: optimize this
+    // TODO(bluesillybeard): optimize this
     uint8_t* P_RESTRICT destBytes = destination;
     for(size_t i=0; i<numBytes; ++i) {
         destBytes[i] = value;
     }
 }
 
-// TODO: unicode functions
-// Arguably these go in their own header, as UTF8 and unicode should not be platform specific
-uint32_t pincUtf8Unicode(uint8_t const* str, size_t strLen, size_t* outLen);
-size_t pincUnicodeUtf8(uint32_t codepoint, char* destStr);
-size_t pincUtf8UnicodeString(uint8_t const* str, size_t strLen, uint32_t* outUnicode);
-size_t pincUnicodeUtf8String(uint32_t const* codepoints, size_t numCodepoints, uint8_t* outUtf8);
+// // Arguably these go in their own header, as UTF8 and unicode should not be platform specific
+// uint32_t pincUtf8Unicode(uint8_t const* str, size_t strLen, size_t* outLen);
+// size_t pincUnicodeUtf8(uint32_t codepoint, char* destStr);
+// size_t pincUtf8UnicodeString(uint8_t const* str, size_t strLen, uint32_t* outUnicode);
+// size_t pincUnicodeUtf8String(uint32_t const* codepoints, size_t numCodepoints, uint8_t* outUtf8);
 
 void pincTriggerDebugger(void) {
     // Windows W right here, doing this reliably on posix is rather annoying
@@ -126,15 +127,15 @@ void pincTriggerDebugger(void) {
 }
 
 P_NORETURN void pincAssertFail(void) {
-    // TODO: is this the correct way to do this?
+    // TODO(bluesillybeard): is this the correct way to do this?
     DebugBreak();
     ExitProcess(255);
 }
 
 void pincWin32Print(uint8_t const* message, size_t len, DWORD handle) {
-    // TODO: utf8
+    // TODO(bluesillybeard): utf8
     void* console = GetStdHandle(handle);
-    DWORD charsWritten;
+    DWORD charsWritten = 0;
     if(len > UINT32_MAX) {
         PPANIC("Integer Overflow");
     }
@@ -163,12 +164,13 @@ void pincPrintDebug(uint8_t const* message, size_t len) {
     pincWin32Print(message, len, STD_OUTPUT_HANDLE);
 }
 
-size_t pincBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
-    if(capacity == 1 && buf) buf[0] = 0;
-    if(v == 0) {
+// These print functions really need to get moved out of here
+size_t pincBufPrintUint32(char* buf, size_t capacity, uint32_t value) {
+    if(capacity == 1 && buf) { buf[0] = 0; }
+    if(value == 0) {
         if(capacity >= 2) {
-            if(buf) (buf[0] = '0');
-            if(buf) (buf[1] = 0);
+            if(buf) { buf[0] = '0'; }
+            if(buf) { buf[1] = 0; }
         }
         return 1;
     }
@@ -176,34 +178,34 @@ size_t pincBufPrintUint32(char* buf, size_t capacity, uint32_t v) {
     // One more for null terminator
     char realbuf[11] = { 0 };
     // Assuming ASCII or something similar
-    size_t i = 0;
-    while(v > 0) {
-        uint32_t d = v % 10;
-        v = v / 10;
-        char c = (char)(d+0x30);
-        i += 1;
-        realbuf[10-i] = c;
+    size_t index = 0;
+    while(value > 0) {
+        uint32_t decimal = value % 10;
+        value = value / 10;
+        char character = (char)(decimal+0x30);
+        index += 1;
+        realbuf[10-index] = character;
     }
     // Bro why are there so many edge cases like wth
     if(buf){
-        size_t num = i+1;
+        size_t num = index+1;
         if(num > capacity) {
             num = capacity;
         }
-        pincMemCopy(&realbuf[10-i], buf, num);
+        pincMemCopy(&realbuf[10-index], buf, num);
         if(num > 0){
             buf[num-1] = 0;
         }
     }
-    return i;
+    return index;
 }
 
-size_t pincBufPrintUint64(char* buf, size_t capacity, uint64_t v) {
-    if(capacity == 1 && buf) buf[0] = 0;
-    if(v == 0) {
+size_t pincBufPrintUint64(char* buf, size_t capacity, uint64_t value) {
+    if(capacity == 1 && buf) { buf[0] = 0; }
+    if(value == 0) {
         if(capacity >= 2) {
-            if(buf) (buf[0] = '0');
-            if(buf) (buf[1] = 0);
+            if(buf) { buf[0] = '0'; }
+            if(buf) { buf[1] = 0; }
         }
         return 1;
     }
@@ -211,31 +213,31 @@ size_t pincBufPrintUint64(char* buf, size_t capacity, uint64_t v) {
     // One more for null terminator
     char realbuf[21] = { 0 };
     // Assuming ASCII or something similar
-    size_t i = 0;
-    while(v > 0) {
-        uint64_t d = v % 10;
-        v = v / 10;
-        char c = (char)(d+0x30);
-        i += 1;
-        realbuf[20-i] = c;
+    size_t index = 0;
+    while(value > 0) {
+        uint64_t decimal = value % 10;
+        value = value / 10;
+        char character = (char)(decimal+0x30);
+        index += 1;
+        realbuf[20-index] = character;
     }
     // Bro why are there so many edge cases like wth
     if(buf){
-        size_t num = i+1;
+        size_t num = index+1;
         if(num > capacity) {
             num = capacity;
         }
-        pincMemCopy(&realbuf[20-i], buf, num);
+        pincMemCopy(&realbuf[20-index], buf, num);
         if(num > 0){
             buf[num-1] = 0;
         }
     }
-    return i;
+    return index;
 }
 
 int64_t pincCurrentTimeMillis(void) {
     // This is *probably* good enough, in the accuracy of 10-20 ms
-    // TODO: However, it is almost certainly a good idea to get something that is accurate to 1-2 ms
+    // TODO(bluesillybeard): However, it is almost certainly a good idea to get something that is accurate to 1-2 ms
     uint64_t ticks = GetTickCount64();
     if(ticks > INT64_MAX) {
         pincPrintError((uint8_t*)"Integer Overflow", sizeof("Integer Overflow"));

@@ -6,10 +6,8 @@
 #ifndef P_STRING_H
 #define P_STRING_H
 
-#include <stdint.h>
-#include <stddef.h>
-#include <platform/pinc_platform.h>
 #include "pinc_allocator.h"
+#include <platform/pinc_platform.h>
 
 /// @brief A basic string type. This is a basic C string, but there is no null terminator, and the length is held in the struct.
 typedef struct pincString {
@@ -21,7 +19,7 @@ pincString pincString_makeDirect(char* str);
 
 pincString pincString_makeAlloc(char const* str, pincAllocator alloc);
 
-pincString pincString_copy(pincString const str, pincAllocator alloc);
+pincString pincString_copy(pincString str, pincAllocator alloc);
 
 /// Makes a new traditional C string from a PString.
 /// Returns null if the given string is null.
@@ -43,7 +41,7 @@ pincString pincString_concat(size_t numStrings, pincString strings[], pincAlloca
 
 pincString pincString_allocFormatUint32(uint32_t item, pincAllocator alloc);
 
-pincString pincString_allocFormatInt32(int32_t v, pincAllocator alloc);
+pincString pincString_allocFormatInt32(int32_t value, pincAllocator alloc);
 
 pincString pincString_allocFormatUint64(uint64_t item, pincAllocator alloc);
 

@@ -1,8 +1,10 @@
-    #include "example.h"
+#include "example.h"
 #include "pinc.h"
 #include <stdio.h>
 
-int main(void) {
+// NOLINTBEGIN: As examples, these are really only subject to what matters for demonstrating features, not for 'real' code
+
+int main(void) { //NOLINT: I'm conflicted on the complexity of this example function, waiting for feedback.
     pincPreinitSetErrorCallback(exampleErrorCallback);
     pincInitIncomplete();
     if(pincInitComplete(PincWindowBackend_any, PincGraphicsApi_any, 0) == PincReturnCode_error) {
@@ -32,7 +34,7 @@ int main(void) {
         // Then we can iterate the events
         uint32_t num_events = pincEventGetNum();
         for(uint32_t i=0; i<num_events; ++i) {
-            printf("[%lx] ", pincEventGetTimestampUnixMillis(i));
+            // printf("[%lx] ", pincEventGetTimestampUnixMillis(i)); // TODO: fix this
             switch(pincEventGetType(i)) {
                 case PincEventType_closeSignal: {
                     PincWindowHandle window_closed = pincEventCloseSignalWindow(i);
@@ -160,3 +162,5 @@ int main(void) {
     if(window2) pincWindowDeinit(window2);
     pincDeinit();
 }
+
+// NOLINTEND

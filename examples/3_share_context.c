@@ -1,5 +1,7 @@
 // This example demonstrates use with OpenGL shared contexts
 
+// NOLINTBEGIN: As examples, these are really only subject to what matters for demonstrating features, not for 'real' code
+
 #include "example.h"
 #include "pinc.h"
 #include <pinc_opengl.h>
@@ -212,3 +214,5 @@ int main(void) {
     pincWindowDeinit(window);
     pincDeinit();
 }
+
+// NOLINTEND

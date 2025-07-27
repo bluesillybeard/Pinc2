@@ -5,7 +5,9 @@
 #include <pinc_error.h>
 
 pincString pincString_makeDirect(char* str) {
-    if(!str) return (pincString) {.str = 0, .len = 0};
+    if(!str) {
+        return (pincString) {.str = 0, .len = 0};
+    }
     return (pincString) {
         .str = (uint8_t*)str,
         .len = pincStringLen(str),
@@ -41,7 +43,9 @@ char* pincString_marshalAlloc(pincString str, pincAllocator alloc) {
 }
 
 void pincString_marshalDirect(pincString str, char* dest, size_t capacity) {
-    if(capacity == 0) return;
+    if(capacity == 0) {
+        return;   
+    }
     if(capacity > str.len) {
         capacity = str.len;
     }
@@ -76,8 +80,8 @@ pincString pincString_concat(size_t numStrings, pincString strings[], pincAlloca
     uint8_t* writePtr = newStr.str;
     for(size_t index = 0; index < numStrings; ++index) {
         pincString str1 = strings[index];
-        if(str1.len == 0) continue;
-        if(str1.str == 0) continue;
+        if(str1.len == 0) {continue;}
+        if(str1.str == 0) {continue;}
         pincMemCopy(str1.str, writePtr, str1.len);
         writePtr += str1.len;
     }
@@ -95,31 +99,31 @@ pincString pincString_allocFormatUint32(uint32_t item, pincAllocator alloc) {
     return new;
 }
 
-pincString pincString_allocFormatInt32(int32_t v, pincAllocator alloc) {
-    if(v == 0) {
+pincString pincString_allocFormatInt32(int32_t value, pincAllocator alloc) {
+    if(value == 0) {
         return pincString_makeAlloc("0", alloc);
     }
-    bool sign = (v < 0);
-    if(v < 0) v = -v;
+    bool sign = (value < 0);
+    if(value < 0) { value = -value; }
     char buf[11] = "abcdefghijk";
-    size_t i = 0;
-    while(v > 0) {
-        uint32_t d = (uint32_t)v % 10;
-        v = v / 10;
-        char c = (char)(d+0x30);
-        i += 1;
-        buf[11-i] = c;
+    size_t index = 0;
+    while(value > 0) {
+        uint32_t decimal = (uint32_t)value % 10;
+        value = value / 10;
+        char character = (char)(decimal+0x30);
+        index += 1;
+        buf[11-index] = character;
     }
     if(sign) {
-        i += 1;
-        buf[11 - i] = '-';
+        index += 1;
+        buf[11 - index] = '-';
     }
     PErrorSanitize(i <= 11, "");
-    uint8_t* str = pincAllocator_allocate(alloc, i);
-    pincMemCopy(&buf[11-i], str, i);
+    uint8_t* str = pincAllocator_allocate(alloc, index);
+    pincMemCopy(&buf[11-index], str, index);
     return (pincString){
         .str = str,
-        .len = i,
+        .len = index,
     };
 }
 
