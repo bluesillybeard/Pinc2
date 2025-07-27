@@ -1,6 +1,6 @@
 # Contributing to Pinc
 
-Want to contribute to Pinc? Here's what you need to know.
+Want to contribute to Pinc? Here's what you need to know. This guide covers contributing actual code to the project. For the time being, issues and communication is not regulated.
 
 ## Prerequisites
 - A usable understanding of the Pinc API
