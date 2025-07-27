@@ -203,7 +203,7 @@ static PincKeyboardKey pincSdl2ConvertSdlKeycode(SDL_Scancode code) {
         case SDL_SCANCODE_KP_0: key = PincKeyboardKey_numpad0; break;
         case SDL_SCANCODE_KP_PERIOD: key = PincKeyboardKey_numpadDot; break;
         case SDL_SCANCODE_NONUSBACKSLASH: key = PincKeyboardKey_unknown; break; // TODO: what is this
-        case SDL_SCANCODE_APPLICATION: key = PincKeyboardKey_unknown; break; // TODO: what is this
+        case SDL_SCANCODE_APPLICATION: key = PincKeyboardKey_menu; break; // If SDL's APPLICATION key is menu, then what is SDL's MENU?
         case SDL_SCANCODE_POWER: key = PincKeyboardKey_unknown; break; // TODO: what is this
         case SDL_SCANCODE_KP_EQUALS: key = PincKeyboardKey_numpadEqual; break;
         case SDL_SCANCODE_F13: key = PincKeyboardKey_f13; break;
@@ -352,7 +352,7 @@ static PincKeyboardKey pincSdl2ConvertSdlKeycode(SDL_Scancode code) {
         case SDL_SCANCODE_SOFTRIGHT: key = PincKeyboardKey_unknown; break; // what
         case SDL_SCANCODE_CALL: key = PincKeyboardKey_unknown; break; // what
         case SDL_SCANCODE_ENDCALL: key = PincKeyboardKey_unknown; break; // what
-        default: PErrorExternal(false, "Received invalid keyboard scancode"); break; // Maybe better as a simple log in case SDL2 adds new scancodes. With that said, SDL2 is ABI stable so this really shouldn't ever trigger.
+        default: PErrorExternal(false, "Received invalid keyboard scancode"); key = PincKeyboardKey_unknown; break; // Maybe better as a simple log in case SDL2 adds new scancodes. With that said, SDL2 is ABI stable so this really shouldn't ever trigger.
     }
     return key;
 }

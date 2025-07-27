@@ -524,6 +524,135 @@ static void PincValidateForStates(PincState st1, PincState st2) {
 
 // Below are the actual implementations of the Pinc API functions.
 
+PINC_EXPORT char const* PINC_CALL pincKeyboardKeyName(PincKeyboardKey key) {
+    switch(key){
+        case PincKeyboardKey_unknown: return "unknown";
+        case PincKeyboardKey_space: return "space";
+        case PincKeyboardKey_apostrophe: return "apostrophe";
+        case PincKeyboardKey_comma: return "comma";
+        case PincKeyboardKey_dash: return "dash";
+        case PincKeyboardKey_dot: return "dot";
+        case PincKeyboardKey_slash: return "slash";
+        case PincKeyboardKey_0: return "0";
+        case PincKeyboardKey_1: return "1";
+        case PincKeyboardKey_2: return "2";
+        case PincKeyboardKey_3: return "3";
+        case PincKeyboardKey_4: return "4";
+        case PincKeyboardKey_5: return "5";
+        case PincKeyboardKey_6: return "6";
+        case PincKeyboardKey_7: return "7";
+        case PincKeyboardKey_8: return "8";
+        case PincKeyboardKey_9: return "9";
+        case PincKeyboardKey_semicolon: return "semicolon";
+        case PincKeyboardKey_equals: return "equals";
+        case PincKeyboardKey_a: return "a";
+        case PincKeyboardKey_b: return "b";
+        case PincKeyboardKey_c: return "c";
+        case PincKeyboardKey_d: return "d";
+        case PincKeyboardKey_e: return "e";
+        case PincKeyboardKey_f: return "f";
+        case PincKeyboardKey_g: return "g";
+        case PincKeyboardKey_h: return "h";
+        case PincKeyboardKey_i: return "i";
+        case PincKeyboardKey_j: return "j";
+        case PincKeyboardKey_k: return "k";
+        case PincKeyboardKey_l: return "l";
+        case PincKeyboardKey_m: return "m";
+        case PincKeyboardKey_n: return "n";
+        case PincKeyboardKey_o: return "o";
+        case PincKeyboardKey_p: return "p";
+        case PincKeyboardKey_q: return "q";
+        case PincKeyboardKey_r: return "r";
+        case PincKeyboardKey_s: return "s";
+        case PincKeyboardKey_t: return "t";
+        case PincKeyboardKey_u: return "u";
+        case PincKeyboardKey_v: return "v";
+        case PincKeyboardKey_w: return "w";
+        case PincKeyboardKey_x: return "x";
+        case PincKeyboardKey_y: return "y";
+        case PincKeyboardKey_z: return "z";
+        case PincKeyboardKey_leftBracket: return "leftBracket";
+        case PincKeyboardKey_backslash: return "backslash";
+        case PincKeyboardKey_rightBracket: return "rightBracket";
+        case PincKeyboardKey_backtick: return "backtick";
+        case PincKeyboardKey_escape: return "escape";
+        case PincKeyboardKey_enter: return "enter";
+        case PincKeyboardKey_tab: return "tab";
+        case PincKeyboardKey_backspace: return "backspace";
+        case PincKeyboardKey_insert: return "insert";
+        case PincKeyboardKey_delete: return "delete";
+        case PincKeyboardKey_right: return "right";
+        case PincKeyboardKey_left: return "left";
+        case PincKeyboardKey_down: return "down";
+        case PincKeyboardKey_up: return "up";
+        case PincKeyboardKey_pageUp: return "pageUp";
+        case PincKeyboardKey_pageDown: return "pageDown";
+        case PincKeyboardKey_home: return "home";
+        case PincKeyboardKey_end: return "end";
+        case PincKeyboardKey_capsLock: return "capsLock";
+        case PincKeyboardKey_scrollLock: return "scrollLock";
+        case PincKeyboardKey_numLock: return "numLock";
+        case PincKeyboardKey_printScreen: return "printScreen";
+        case PincKeyboardKey_pause: return "pause";
+        case PincKeyboardKey_f1: return "f1";
+        case PincKeyboardKey_f2: return "f2";
+        case PincKeyboardKey_f3: return "f3";
+        case PincKeyboardKey_f4: return "f4";
+        case PincKeyboardKey_f5: return "f5";
+        case PincKeyboardKey_f6: return "f6";
+        case PincKeyboardKey_f7: return "f7";
+        case PincKeyboardKey_f8: return "f8";
+        case PincKeyboardKey_f9: return "f9";
+        case PincKeyboardKey_f10: return "f10";
+        case PincKeyboardKey_f11: return "f11";
+        case PincKeyboardKey_f12: return "f12";
+        case PincKeyboardKey_f13: return "f13";
+        case PincKeyboardKey_f14: return "f14";
+        case PincKeyboardKey_f15: return "f15";
+        case PincKeyboardKey_f16: return "f16";
+        case PincKeyboardKey_f17: return "f17";
+        case PincKeyboardKey_f18: return "f18";
+        case PincKeyboardKey_f19: return "f19";
+        case PincKeyboardKey_f20: return "f20";
+        case PincKeyboardKey_f21: return "f21";
+        case PincKeyboardKey_f22: return "f22";
+        case PincKeyboardKey_f23: return "f23";
+        case PincKeyboardKey_f24: return "f24";
+        case PincKeyboardKey_numpad0: return "numpad0";
+        case PincKeyboardKey_numpad1: return "numpad1";
+        case PincKeyboardKey_numpad2: return "numpad2";
+        case PincKeyboardKey_numpad3: return "numpad3";
+        case PincKeyboardKey_numpad4: return "numpad4";
+        case PincKeyboardKey_numpad5: return "numpad5";
+        case PincKeyboardKey_numpad6: return "numpad6";
+        case PincKeyboardKey_numpad7: return "numpad7";
+        case PincKeyboardKey_numpad8: return "numpad8";
+        case PincKeyboardKey_numpad9: return "numpad9";
+        case PincKeyboardKey_numpadDot: return "numpadDot";
+        case PincKeyboardKey_numpadSlash: return "numpadSlash";
+        case PincKeyboardKey_numpadAsterisk: return "numpadAsterisk";
+        case PincKeyboardKey_numpadDash: return "numpadDash";
+        case PincKeyboardKey_numpadPlus: return "numpadPlus";
+        case PincKeyboardKey_numpadEnter: return "numpadEnter";
+        case PincKeyboardKey_numpadEqual: return "numpadEqual";
+        case PincKeyboardKey_leftShift: return "leftShift";
+        case PincKeyboardKey_leftControl: return "leftControl";
+        case PincKeyboardKey_leftAlt: return "leftAlt";
+        case PincKeyboardKey_leftSuper: return "leftSuper";
+        case PincKeyboardKey_rightShift: return "rightShift";
+        case PincKeyboardKey_rightControl: return "rightControl";
+        case PincKeyboardKey_rightAlt: return "rightAlt";
+        case PincKeyboardKey_rightSuper: return "rightSuper";
+        case PincKeyboardKey_menu: return "menu";
+    }
+    return "invalid";
+}
+
+size_t pincKeyboardKeyNameLen(PincKeyboardKey key) {
+    // Probably fast enough
+    return pincStringLen(pincKeyboardKeyName(key));
+}
+
 PINC_EXPORT void PINC_CALL pincPreinitSetErrorCallback(PincErrorCallback callback) {
     PincValidateForState(PincState_preinit);
     staticState.userCallError = callback;
@@ -1628,7 +1757,7 @@ PINC_EXPORT PincMediaType PINC_CALL pincEventClipboardChangedMediaType(uint32_t 
     return staticState.eventsBuffer[event_index].data.clipboard.type;
 }
 
-PINC_EXPORT char* PINC_CALL pincEventClipboardChangedData(uint32_t event_index) {
+PINC_EXPORT char const* PINC_CALL pincEventClipboardChangedData(uint32_t event_index) {
     PincValidateForState(PincState_init);
     PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
     PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_clipboardChanged, "Wrong event type");

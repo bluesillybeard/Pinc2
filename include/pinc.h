@@ -281,6 +281,10 @@ typedef enum {
 
 typedef uint32_t PincKeyboardKey;
 
+PINC_EXTERN char const* PINC_CALL pincKeyboardKeyName(PincKeyboardKey key);
+
+PINC_EXTERN size_t PINC_CALL pincKeyboardKeyNameLen(PincKeyboardKey key);
+
 typedef enum {
     /// A basic color space with generally vague semantics. In general, bigger number = brighter output.
     PincColorSpace_basic,
@@ -692,7 +696,7 @@ PINC_EXTERN uint32_t PINC_CALL pincEventCursorTransitionY(uint32_t event_index);
 /// Will not necessarily return the same thing as pinc_event_get_window
 PINC_EXTERN PincWindowHandle PINC_CALL pincEventCursorTransitionWindow(uint32_t event_index);
 
-/// The unicode codepoint that was typed
+/// The unicode codepoint that was typed. If multiple points were typed in a single frame, multiple events are sent in the order the characters were typed.
 PINC_EXTERN uint32_t PINC_CALL pincEventTextInputCodepoint(uint32_t event_index);
 
 /// The amount of vertical scroll, positive is "away" and negative is "towards"
@@ -707,7 +711,7 @@ PINC_EXTERN PincMediaType PINC_CALL pincEventClipboardChangedMediaType(uint32_t 
 /// so be careful to either finish using the memory before the next call to pincStep, or make a copy.
 /// Please note that this data might not be text, and the data itself can contain null words before the null terminator.
 /// See pincEventClipboardChangedMediaType, and pincEventClipboardChangedDataSize for more information.
-PINC_EXTERN char* PINC_CALL pincEventClipboardChangedData(uint32_t event_index);
+PINC_EXTERN char const* PINC_CALL pincEventClipboardChangedData(uint32_t event_index);
 
 /// The size of the new clipboard data in bytes / characters
 PINC_EXTERN size_t PINC_CALL pincEventClipboardChangedDataSize(uint32_t event_index);

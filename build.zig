@@ -18,7 +18,7 @@
 //     .language = .c,
 //     .root = b.path("where-ever-your-put-the-pinc-repository"),
 //     .flags = &[_][]const u8 {
-//         // Assume SDL2 window backend
+//         // Assume SDL2 window backend - Note that these options are here for example, see settings.md for your options here
 //         "-DPINC_HAVE_WINDOW_SDL2=ON",
 //         // External errors are always useful to have
 //         "-DPINC_ENABLE_ERROR_EXTERNAL=ON",
@@ -30,6 +30,8 @@
 //         if(optimize != .Debug) "-DPINC_ENABLE_ERROR_VALIDATE=OFF" else "-DPINC_ENABLE_ERROR_VALIDATE=ON",
 //     },
 //     .files = &[_][]const u8 {
+//         // Pinc is rather small and you won't be editing it often so the unity build should not be a bottleneck
+//         // But if it does, you can replace the unity build source with every other source file in this project
 //         "src/unitybuild.c
 //     }
 // });

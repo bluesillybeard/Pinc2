@@ -10,7 +10,7 @@
 
 // Tip: if you don't know what's going on with macros, use the '-E' flag in gcc to preprocess the file without compiling it.
 
-// This is required to get around annoying recursive structs, which can't be typedef'd for some reason
+// This random pseudo opaque struct is required
 struct WindowBackend;
 
 #define PINC_WINDOW_INTERFACE_FUNCTION(type, arguments, name, argumentsNames)

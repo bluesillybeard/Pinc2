@@ -33,7 +33,6 @@ typedef struct {
 
 // Object pool struct
 typedef struct {
-    // C with generics (I mean actual generics that aren't evil magic macros) would be quite nice
     void* objectsArray;
     uint32_t objectsNum;
     uint32_t objectsCapacity;
