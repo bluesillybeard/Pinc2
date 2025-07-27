@@ -658,6 +658,7 @@ void pincSdl2step(struct WindowBackend* obj) {
     SDL_Event event;
     // NEXTLOOP:
     while(this->libsdl2.pollEvent(&event)) {
+        int64_t timestamp = (int64_t)event.common.timestamp + timeOffset;
         switch (event.type) {
             case SDL_WINDOWEVENT: {
                 SDL_Window* sdlWin = this->libsdl2.getWindowFromId(event.window.windowID);
@@ -668,21 +669,44 @@ void pincSdl2step(struct WindowBackend* obj) {
                 PErrorAssert(windowObj, "Pinc SDL2 window object from WindowEvent is NULL!");
                 switch (event.window.event) {
                     case SDL_WINDOWEVENT_CLOSE:{
-                        PincEventCloseSignal(((int64_t)event.window.timestamp) + timeOffset, windowObj->frontHandle);
+                        PincEventCloseSignal(timestamp, windowObj->frontHandle);
                         break;
                     }
-                    case SDL_WINDOWEVENT_SIZE_CHANGED:
-                    case SDL_WINDOWEVENT_RESIZED:{
-                        // Is this a good time to say just how much I dislike SDL2's event union struct thing?
-                        // It's such a big confusing mess. What in the heck is data1 and data2?
-                        // Everything is sorta half-manually baked together in weirdly signed mixed data types...
-                        // SDL2's imperfect documentation does not make it any easier either.
+                    // case SDL_WINDOWEVENT_RESIZED: // This is the version for only external events, where the other one does both
+                    // TODO: which one makes more sense to do? Pinc still needs to have the edge-case semantics of event triggers determined.
+                    case SDL_WINDOWEVENT_SIZE_CHANGED: {
+                        // Gotta love using variables named "data1" and "data2" with inappropriate signedness.
                         PErrorAssert(event.window.data1 > 0, "Integer underflow");
                         PErrorAssert(event.window.data2 > 0, "Integer underflow");
-                        PincEventResize(((int64_t)event.window.timestamp) + timeOffset, windowObj->frontHandle, windowObj->width, windowObj->height, (uint32_t)event.window.data1, (uint32_t)event.window.data2);
+                        PincEventResize(timestamp, windowObj->frontHandle, windowObj->width, windowObj->height, (uint32_t)event.window.data1, (uint32_t)event.window.data2);
                         windowObj->width = (uint32_t)event.window.data1;
                         windowObj->height = (uint32_t)event.window.data2;
                         break;
+                    }
+                    case SDL_WINDOWEVENT_FOCUS_GAINED: {
+                        PincEventFocus(timestamp, windowObj->frontHandle);
+                        break;
+                    }
+                    case SDL_WINDOWEVENT_FOCUS_LOST: {
+                        PincEventFocus(timestamp, 0);
+                        break;
+                    }
+                    case SDL_WINDOWEVENT_EXPOSED: {
+                        // SDL only understands exposure events in terms of redrawing the entire window
+                        PincEventExposure(timestamp, windowObj->frontHandle, 0, 0, windowObj->width, windowObj->height);
+                        break;
+                    }
+                    case SDL_WINDOWEVENT_ENTER: {
+                        // TODO: it seems we need to keep track of the cursor position in order to fill out this event
+                        // SDL doesn't reliably place cursor move events before the enter / leave event (in fact, it seems to reliable do the exact opposite)
+                        // So some additional event processing may be required here....
+                        // With that said, it may be worth entirely switching to the enter/leave paradigm as it seems more generic, if less immediately useful.
+                        PincEventCursorTransition(timestamp, 0, 0, 0, windowObj->frontHandle, 0, 0);
+                        break;
+                    }
+                    case SDL_WINDOWEVENT_LEAVE: {
+                        // TODO: it seems we need to keep track of the cursor position in order to fill out this event
+                        PincEventCursorTransition(timestamp, windowObj->frontHandle, 0, 0, 0, 0, 0);
                     }
                     default:{
                         // TODO: once all window events are handled, assert.
@@ -725,7 +749,7 @@ void pincSdl2step(struct WindowBackend* obj) {
                     PErrorAssert(event.button.state < 2, "It appears SDL2's ABI has changed. The universe as we know it is broken!");
                     // Cast here because for some reason the compiler thinks one of these is signed
                     uint32_t newState = (this->mouseState & ~buttonBitMask) | (((uint32_t)event.button.state)<<buttonBit);
-                    PincEventMouseButton(((int64_t)event.button.timestamp) + timeOffset, this->mouseState, newState);
+                    PincEventMouseButton(timestamp, this->mouseState, newState);
                     this->mouseState = newState;
                 }
                 break;
@@ -756,7 +780,7 @@ void pincSdl2step(struct WindowBackend* obj) {
                 if((uint32_t)oldY > windowObj->height) oldY = (int32_t)windowObj->height;
                 
                 // TODO: is it even worth handling the case where the window's width is greater than the maximum value of int32_t? Because it seems every OS / desktop environment / compositor breaks way before that anyways
-                PincEventCursorMove((int64_t)event.button.timestamp + timeOffset, windowObj->frontHandle, (uint32_t)oldX, (uint32_t)oldY, (uint32_t)x, (uint32_t)y);
+                PincEventCursorMove(timestamp, windowObj->frontHandle, (uint32_t)oldX, (uint32_t)oldY, (uint32_t)x, (uint32_t)y);
                 break;
             }
             case SDL_MOUSEWHEEL: {
@@ -774,7 +798,7 @@ void pincSdl2step(struct WindowBackend* obj) {
                     xMovement += event.wheel.preciseX;
                     yMovement += event.wheel.preciseY;
                 }
-                PincEventScroll((int64_t)event.wheel.timestamp + timeOffset, yMovement, xMovement);
+                PincEventScroll(timestamp, yMovement, xMovement);
                 break;
             }
             case SDL_CLIPBOARDUPDATE: {
@@ -790,16 +814,20 @@ void pincSdl2step(struct WindowBackend* obj) {
                     char* clipboardTextCopy = pincAllocator_allocate(tempAllocator, clipboardTextLen + 1);
                     pincMemCopy(clipboardText, clipboardTextCopy, clipboardTextLen);
                     clipboardTextCopy[clipboardTextLen] = 0;
-                    PincEventClipboardChanged((int64_t)event.common.timestamp + timeOffset, PincMediaType_text, clipboardTextCopy, clipboardTextLen);
+                    PincEventClipboardChanged(timestamp, PincMediaType_text, clipboardTextCopy, clipboardTextLen);
                 }
                 break;
             }
             case SDL_KEYDOWN:
             case SDL_KEYUP: {
                 PincKeyboardKey key = pincSdl2ConvertSdlKeycode(event.key.keysym.scancode);
-                PincEventKeyboardButton((int64_t)event.common.timestamp + timeOffset, key, event.key.state == SDL_PRESSED, event.key.repeat != 0);
+                PincEventKeyboardButton(timestamp, key, event.key.state == SDL_PRESSED, event.key.repeat != 0);
                 break;
             }
+            case SDL_TEXTEDITING: {
+                // TODO: Pinc needs utf8 decode before this can be implemented
+            }
+            // TODO: text edit ext event
             default:{
                 // TODO: Once all SDL events are handled, assert.
                 break;

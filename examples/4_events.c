@@ -1,4 +1,4 @@
-#include "example.h"
+    #include "example.h"
 #include "pinc.h"
 #include <stdio.h>
 
@@ -8,10 +8,19 @@ int main(void) {
     if(pincInitComplete(PincWindowBackend_any, PincGraphicsApi_any, 0) == PincReturnCode_error) {
         return 100;
     }
-    PincWindowHandle window = pincWindowCreateIncomplete();
-    pincWindowSetTitle(window, "Minimal Pinc Window!", 0);
-    if(pincWindowComplete(window) == PincReturnCode_error) {
+    PincWindowHandle window1 = pincWindowCreateIncomplete();
+    if(pincWindowComplete(window1) == PincReturnCode_error) {
         return 100;
+    }
+
+    // Actually, let's make a second window for the fun of it (if that is allowed)
+    PincWindowHandle window2 = 0;
+    uint32_t max_open_windows = pincQueryMaxOpenWindows(PincWindowBackend_any);
+    if(max_open_windows > 1 || max_open_windows == 0) {
+        window2 = pincWindowCreateIncomplete();
+        if(pincWindowComplete(window2) == PincReturnCode_error) {
+            return 100;
+        }
     }
     bool running = true;
     while(running) {
@@ -23,13 +32,16 @@ int main(void) {
         // Then we can iterate the events
         uint32_t num_events = pincEventGetNum();
         for(uint32_t i=0; i<num_events; ++i) {
+            printf("[%lx] ", pincEventGetTimestampUnixMillis(i));
             switch(pincEventGetType(i)) {
                 case PincEventType_closeSignal: {
                     PincWindowHandle window_closed = pincEventCloseSignalWindow(i);
-                    printf("Window %i was signalled to close.\n", window_closed);
                     // Follow through with closing the window, as long as it's actually the right one
-                    if(window_closed == window) {
+                    if(window_closed == window1) {
+                        printf("Window %i was signalled to close, exiting.\n", window_closed);
                         running = false;
+                    } else {
+                        printf("Window %i was signalled to close, but it wants to stay open.\n", window_closed);
                     }
                     break;
                 }
@@ -141,8 +153,10 @@ int main(void) {
                 }
             }
         }
-        pincWindowPresentFramebuffer(window);
+        pincWindowPresentFramebuffer(window1);
+        if(window2) pincWindowPresentFramebuffer(window2);
     }
-    pincWindowDeinit(window);
+    pincWindowDeinit(window1);
+    if(window2) pincWindowDeinit(window2);
     pincDeinit();
 }
