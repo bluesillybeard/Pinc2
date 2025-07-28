@@ -116,17 +116,22 @@
 - option for an amalgamated "build" (so pack the entirety of Pinc into a single .c and .h file)
 
 ## TODO for internal library
+- Don't forget the seemingly infinite sea of TODOs in the sources
 - always recoverable errors
     - In effect, on any error of any kind, there should be a valid return path to the caller with a signal that an error occurred
+    - Might need to be checked by some kind of tool?
+    - Probably needs a major re-think of the error management system
+- Fix internal conventions:
+    - name style
+    - Adjust clang-tidy configuration
 - replace tscoding/areana with custom implementation
 - Add unit tests for certain functions
-    - *cough cough* bufPrint\* *cough cough*
+    - *cough cough* bufPrint\* *cough cough* (that whole mess needs to be replaced anyway)
 - add debug print system with proper formatting (that isn't just a copy of libc's formatting)
     - Partially done, but it should be more ergonomic and have the ability to call into a user function
 - expose (most of) platform.h so users can write code that is just as portable as Pinc itself while not giving up features that libc doesn't have
 - Add options / code / auto detection for where libraries come from
     - This is a requirement for supporting platforms without dynamic linking (such as the web)
-- set up clang-tidy or another linter
 - allocation tracking
 - More build systems
     - scons
