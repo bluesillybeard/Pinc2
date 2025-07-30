@@ -118,7 +118,7 @@ pincString pincString_allocFormatInt32(int32_t value, pincAllocator alloc) {
         index += 1;
         buf[11 - index] = '-';
     }
-    PErrorSanitize(i <= 11, "");
+    PErrorSanitize(index <= 11, "");
     uint8_t* str = pincAllocator_allocate(alloc, index);
     pincMemCopy(&buf[11-index], str, index);
     return (pincString){
