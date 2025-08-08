@@ -618,7 +618,7 @@ uint32_t pincSdl2queryMaxOpenWindows(struct WindowBackend* obj) {
     return 0;
 }
 
-PincReturnCode pincSdl2completeInit(struct WindowBackend* obj, PincGraphicsApi graphicsBackend, FramebufferFormat framebuffer) {
+PincErrorCode pincSdl2completeInit(struct WindowBackend* obj, PincGraphicsApi graphicsBackend, FramebufferFormat framebuffer) {
     P_UNUSED(obj);
     P_UNUSED(framebuffer);
     switch (graphicsBackend) //NOLINT: more cases will be added over time
@@ -630,9 +630,9 @@ PincReturnCode pincSdl2completeInit(struct WindowBackend* obj, PincGraphicsApi g
             // We don't support this graphics api.
             // Technically this code should never run, because the user API frontend should have caught this
             PErrorUser(false, "Attempt to use SDL2 backend with an unsupported graphics api");
-            return PincReturnCode_error;
+            return PincErrorCode_assert;
     }
-    return PincReturnCode_pass;
+    return PincErrorCode_pass;
 }
 
 void pincSdl2deinit(struct WindowBackend* obj) {
@@ -1170,7 +1170,7 @@ bool pincSdl2getWindowHidden(struct WindowBackend* obj, WindowHandle window) {
     return false;
 }
 
-PincReturnCode pincSdl2setVsync(struct WindowBackend* obj, bool vsync) {
+PincErrorCode pincSdl2setVsync(struct WindowBackend* obj, bool vsync) {
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     // TODO(bluesillybeard): only graphics backend is OpenGL, shortcuts are taken
     if(vsync) {
@@ -1178,15 +1178,15 @@ PincReturnCode pincSdl2setVsync(struct WindowBackend* obj, bool vsync) {
             // Try again with non-adaptive vsync
             if(this->libsdl2.glSetSwapInterval(1) == -1) {
                 // big sad
-                return PincReturnCode_error;
+                return PincErrorCode_assert;
             }
         }
     } else {
         if(this->libsdl2.glSetSwapInterval(0) == -1) {
-            return PincReturnCode_error;
+            return PincErrorCode_assert;
         }
     }
-    return PincReturnCode_pass;
+    return PincErrorCode_pass;
 }
 
 bool pincSdl2getVsync(struct WindowBackend* obj) {
@@ -1448,7 +1448,7 @@ bool pincSdl2glGetContextResetIsolation(struct WindowBackend* obj, RawOpenglCont
 }
 
 
-PincReturnCode pincSdl2glMakeCurrent(struct WindowBackend* obj, WindowHandle window, RawOpenglContextHandle context) {
+PincErrorCode pincSdl2glMakeCurrent(struct WindowBackend* obj, WindowHandle window, RawOpenglContextHandle context) {
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     PincSdl2Window* windowObj = (PincSdl2Window*)window;
     // Window may be null to indicate any window.
@@ -1471,9 +1471,9 @@ PincReturnCode pincSdl2glMakeCurrent(struct WindowBackend* obj, WindowHandle win
         PErrorExternalStr(false, errorMsg);
         pincString_free(&errorMsg, tempAllocator);
         #endif
-        return PincReturnCode_error;
+        return PincErrorCode_assert;
     }
-    return PincReturnCode_pass;
+    return PincErrorCode_pass;
 }
 
 PincWindowHandle pincSdl2glGetCurrentWindow(struct WindowBackend* obj) {

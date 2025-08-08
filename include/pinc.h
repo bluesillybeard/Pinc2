@@ -9,29 +9,26 @@
 // - typedefs for ID handles
 
 // Error Policy:
-// Pinc has 5 types of errors, all of which can be enabled, disabled, and configured to call user callbacks.
+// Pinc has 3 types of errors, all of which can be enabled, disabled, and configured to call user callbacks.
 // Ordered from least to most performance impact:
 // - External error: an error that occurred from an external library. This either indicates an issue with the system running the program, or within Pinc.
 // - Assert error: an internal assert failed, this is an issue within Pinc.
 // - User error: an error in the program's usage of Pinc.
-// - Sanitize error: similar to adding "-fsanitize=address,undefined" to Pinc's flags - general validation checks for integer overflows and such
-// - Validate error: an error that is tough to check, such as memory allocation tracking, global state validation, etc.
 
-// In general, here are some useful configurations:
-// sanitize: External, Assert, User, Sanitize, and Validation are enabled - worst performance possible for maximum validation
-// debug: External, Assert, User, and Sanitize - mediocre performance for debugging purposes
-// test: External, Assert, User - decent performance for general testing, this is the default!
-// release: External, Assert - pretty good performance for distribution
-// speed: (all disabled) - maximize performance over everything else, absolutely zero error checking of any kind
+// Pinc functions will always return from any kind of error - even assert and user errors.
+// When an error occurs:
+// 1. Pinc sets the lastErrorCode, lastErrorMessage, and lastErrorRecoverable flags.
+// 2. Pinc calls the user-defined error callback function (if it is defined).
+// 3. Pinc "safely" returns from the function call, with a (generally well-defined) default result.
+// 4. The program acts on the error. Or not, it's really on the caller to decide what to do (or not do) with errors.
+//     - If an error is ignored, there may be consequences. Recoverable errors are not always ignorable - for example, an error during the creation of an OpenGL context is recoverable, but the context is still broken!
 
-// Assert, and User errors are often not recoverable, and even if your callback doesn't, Pinc will call the platform's assert/panic/crash function.
-// Sanitize and Validate errors are theoretically recoverable, however Pinc (currently) will call the platform's assert function if you don't.
-// External errors are usually recoverable, as long as your program has some way to gracefully handle them.
+// More or less every Pinc function has a possibility of triggering an error, so it is best practice to check after every function call
+// Although most functions are unlikely to trigger anything assuming valid usage of the Pinc API
 
 // Memory policy: Ownership is never transferred between Pinc an the application. Pinc has its own allocation management system, and it should never mix with the applications.
-// This means that the application will always free its own allocations, and Pinc will never return a pointer unless it was created by the user.
-
-// see settings.md in the root of Pinc's repo for 
+// This means that the application will always free its own allocations, and Pinc will never return a pointer for the user to keep unless it was previously created by the user.
+// Effectively, everything is pass-by-value - everything that crosses the API boundary is copied or forgotten before there is a chance to mess things up.
 
 // The flow of your code should be roughly like this:
 // - Set up preinit things
@@ -52,9 +49,9 @@
 //     - draw stuff
 //     - present window framebuffers
 
-#include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 // @section options
 // @brief build system options and stuff
@@ -106,11 +103,13 @@ typedef enum {
 typedef uint32_t PincGraphicsApi;
 
 typedef enum {
-    PincReturnCode_pass = 0,
-    PincReturnCode_error = 1,
-} PincReturnCode_enum;
+    PincErrorCode_pass = 0,
+    PincErrorCode_external,
+    PincErrorCode_assert,
+    PincErrorCode_user,
+} PincErrorCode_enum;
 
-typedef uint32_t PincReturnCode;
+typedef uint32_t PincErrorCode;
 
 typedef enum {
     PincObjectType_none = 0,
@@ -122,7 +121,7 @@ typedef enum {
 
 typedef uint32_t PincObjectType;
 
-// TODO: this needs better docs and clarification on semantics and exactly when these events are triggered.
+// TODO(bluesillybeard): this needs better docs and clarification on semantics and exactly when these events are triggered.
 typedef enum {
     /// A window was signalled to close.
     PincEventType_closeSignal,
@@ -281,10 +280,6 @@ typedef enum {
 
 typedef uint32_t PincKeyboardKey;
 
-PINC_EXTERN char const* PINC_CALL pincKeyboardKeyName(PincKeyboardKey key);
-
-PINC_EXTERN size_t PINC_CALL pincKeyboardKeyNameLen(PincKeyboardKey key);
-
 typedef enum {
     /// A basic color space with generally vague semantics. In general, bigger number = brighter output.
     PincColorSpace_basic,
@@ -334,9 +329,6 @@ typedef int32_t PincErrorType;
 /// @brief Error callback. message_buf will be null terminated. message_buf is temporary and a reference to it should not be kept.
 typedef void ( PINC_PROC_CALL * PincErrorCallback) (uint8_t const * message_buf, uintptr_t message_len, PincErrorType error_type);
 
-/// @brief Set the function for handling errors. This is optional, however Pinc just calls assert(0) if this is not set.
-PINC_EXTERN void PINC_CALL pincPreinitSetErrorCallback(PincErrorCallback callback);
-
 /// @brief Callback to allocate some memory. Aligned depending on platform such that any structure can be placed into this memory.
 ///     Identical to libc's malloc function.
 /// @param alloc_size_bytes Number of bytes to allocate.
@@ -361,12 +353,30 @@ typedef void* ( PINC_PROC_CALL * PincReallocCallback) (void* userPtr, void* ptr,
 /// @param alloc_size_bytes Number of bytes to free. Must be the exact size given to pAlloc, pAllocAligned, or pRealloc for the respective pointer.
 typedef void ( PINC_PROC_CALL * PincFreeCallback) (void* userPtr, void* ptr, size_t alloc_size_bytes);
 
+/// @section functions
+
+PINC_EXTERN char const* PINC_CALL pincKeyboardKeyName(PincKeyboardKey key);
+
+PINC_EXTERN size_t PINC_CALL pincKeyboardKeyNameLen(PincKeyboardKey key);
+
+/// @brief Set the function for handling errors. This is optional, however Pinc just calls assert(0) if this is not set.
+PINC_EXTERN void PINC_CALL pincPreinitSetErrorCallback(PincErrorCallback callback);
+
+PINC_EXTERN PincErrorCode PINC_CALL pincLastErrorCode(void);
+
+/// Null terminated and with a returned length
+/// Allocated on the temp allocator, which means two things:
+/// - the last error message must be cleared on pinc_step()
+/// - the caller must not keep the returned pointer between pinc steps
+/// The message may have multiple lines if there is additional information from down the callstack between the user and where the error occurred.
+PINC_EXTERN char const* PINC_CALL pincLastErrorMessage(size_t* out_len);
+
 /// @brief Set allocation callbacks. Must be called before incomplete_init, or never. The type of each proc has more information. They either must all be set, or all null.
 PINC_EXTERN void PINC_CALL pincPreinitSetAllocCallbacks(void* user_ptr, PincAllocCallback alloc, PincAllocAlignedCallback alloc_aligned, PincReallocCallback realloc, PincFreeCallback free);
 
 /// @brief Begin the initialization process
 /// @return the success or failure of this function call. Failures are likely caused by external factors (ex: no window backends) or a failed allocation.
-PINC_EXTERN PincReturnCode PINC_CALL pincInitIncomplete(void);
+PINC_EXTERN void PINC_CALL pincInitIncomplete(void);
 
 /// @subsection full initialization functions
 /// @brief The query functions work after initialization, although most of them are useless after the fact
@@ -418,7 +428,7 @@ PINC_EXTERN PincColorSpace PINC_CALL pincQueryFramebufferFormatColorSpace(PincFr
 PINC_EXTERN uint32_t PINC_CALL pincQueryMaxOpenWindows(PincWindowBackend window_backend);
 
 /// Null framebuffer format is a shortcut to use the default framebuffer format.
-PINC_EXTERN PincReturnCode PINC_CALL pincInitComplete(PincWindowBackend window_backend, PincGraphicsApi graphics_api, PincFramebufferFormatHandle framebuffer_format_id);
+PINC_EXTERN void PINC_CALL pincInitComplete(PincWindowBackend window_backend, PincGraphicsApi graphics_api, PincFramebufferFormatHandle framebuffer_format_id);
 
 /// @subsection post initialization related functions
 
@@ -442,7 +452,7 @@ PINC_EXTERN void* PINC_CALL pincGetObjectUserData(PincObjectHandle handle);
 
 PINC_EXTERN PincWindowHandle PINC_CALL pincWindowCreateIncomplete(void);
 
-PINC_EXTERN PincReturnCode PINC_CALL pincWindowComplete(PincWindowHandle incomplete_window_handle);
+PINC_EXTERN void PINC_CALL pincWindowComplete(PincWindowHandle incomplete_window_handle);
 
 /// Deinit / close / destroy a window object.
 PINC_EXTERN void PINC_CALL pincWindowDeinit(PincWindowHandle window_handle);
@@ -589,7 +599,7 @@ PINC_EXTERN bool PINC_CALL pincWindowGetHidden(PincWindowHandle window_handle);
 /// In general, call this function right after pinc_complete_init to be safe,
 /// and call it again before present_framebuffer in hopes that the underlying API supports modifying vsync at runtime.
 /// An error from this function just means vsync couldn't be changed, and is otherwise harmless.
-PINC_EXTERN PincReturnCode PINC_CALL pincSetVsync(bool sync);
+PINC_EXTERN void PINC_CALL pincSetVsync(bool sync);
 
 PINC_EXTERN bool PINC_CALL pincGetVsync(void);
 

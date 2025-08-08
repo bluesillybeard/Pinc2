@@ -96,15 +96,11 @@ bool makeContext(bool share_with_current, GlContext* out_ctx) {
     // This flag tells pinc that it should set up this context to share with the current context
     pincOpenglSetContextShareWithCurrent(gl_context, share_with_current);
     // This is when the context is shared - so, whatever context is current when CompleteContext is called is the one that will be shared with.
-    if(pincOpenglCompleteContext(gl_context) == PincReturnCode_error) {
-        return false;
-    }
+    pincOpenglCompleteContext(gl_context);
 
     // We need the context to be current, but it doesn't need to be bound to a window
     // pincOpenglCompleteContext does not guarantee that the context is current afterwards
-    if(pincOpenglMakeCurrent(0, gl_context) == PincReturnCode_error) {
-        return false;
-    }
+    pincOpenglMakeCurrent(0, gl_context);
 
     out_ctx->ctx = gl_context;
     out_ctx->Viewport = (PFN_glViewport)pincOpenglGetProc("glViewport");
@@ -128,10 +124,7 @@ int main(void) {
     pincInitIncomplete();
 
     // Init pinc with the opengl API.
-    if(pincInitComplete(PincWindowBackend_any, PincGraphicsApi_opengl, 0) == PincReturnCode_error) {
-        // Something went wrong. The error callback should have been called.
-        return 100;
-    }
+    pincInitComplete(PincWindowBackend_any, PincGraphicsApi_opengl, 0);
 
     if(pincQueryOpenglVersionSupported(PincWindowBackend_any, 2, 1, PincOpenglContextProfile_core) == PincOpenglSupportStatus_none) {
         fprintf(stderr, "Support for OpenGL 1.5 is required.\n");
@@ -141,10 +134,7 @@ int main(void) {
     PincWindowHandle window = pincWindowCreateIncomplete();
     // Enter 0 for length so pinc does the work of finding the length for us
     pincWindowSetTitle(window, "Pinc OpenGL Shared contexts example", 0);
-    if(pincWindowComplete(window) == PincReturnCode_error) {
-        // Something went wrong. The error callback should have been called.
-        return 100;
-    }
+    pincWindowComplete(window);
 
     GlContext gl1;
     GlContext gl2;
@@ -152,9 +142,7 @@ int main(void) {
         return 100;
     }
     // In case makeContext changes in the future such that the context is not current.
-    if(pincOpenglMakeCurrent(window, gl1.ctx) == PincReturnCode_error) {
-        return 100;
-    }
+    pincOpenglMakeCurrent(window, gl1.ctx);
     if(!makeContext(true, &gl2)) {
         return 100;
     }
@@ -162,9 +150,7 @@ int main(void) {
     // Create a vertex buffer in ctx1 and upload the data there, but actually use it in ctx2
     // Just to show that it's possible, we'll upload the data with "no" window
     // Pinc may still bind the context with a window for technical reasons, so don't be fooled when draw functions seem to mysteriously work.
-    if(pincOpenglMakeCurrent(0, gl1.ctx) == PincReturnCode_error) {
-        return 100;
-    }
+    pincOpenglMakeCurrent(0, gl1.ctx);
     unsigned int buffer;
     gl1.GenBuffers(1, &buffer);
     gl1.BindBuffer(GL_ARRAY_BUFFER, buffer);

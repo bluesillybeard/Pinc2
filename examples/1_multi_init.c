@@ -10,17 +10,11 @@ int main(void) {
         pincInitIncomplete();
         // We don't care what we get, so don't set anything.
         // Everything is left default.
-        if(pincInitComplete(PincWindowBackend_any, PincGraphicsApi_any, 0) == PincReturnCode_error) {
-            // Something went wrong. The error callback should have been called.
-            return 100;
-        }
+        pincInitComplete(PincWindowBackend_any, PincGraphicsApi_any, 0);
         PincWindowHandle window = pincWindowCreateIncomplete();
         // Enter 0 for length so pinc does the work of finding the length for us
         pincWindowSetTitle(window, "Minimal Pinc Window!", 0);
-        if(pincWindowComplete(window) == PincReturnCode_error) {
-            // Something went wrong. The error callback should have been called.
-            return 100;
-        }
+        pincWindowComplete(window);
         bool running = true;
         while(running) {
             pincStep();

@@ -7,22 +7,16 @@
 int main(void) { //NOLINT: I'm conflicted on the complexity of this example function, waiting for feedback.
     pincPreinitSetErrorCallback(exampleErrorCallback);
     pincInitIncomplete();
-    if(pincInitComplete(PincWindowBackend_any, PincGraphicsApi_any, 0) == PincReturnCode_error) {
-        return 100;
-    }
+    pincInitComplete(PincWindowBackend_any, PincGraphicsApi_any, 0);
     PincWindowHandle window1 = pincWindowCreateIncomplete();
-    if(pincWindowComplete(window1) == PincReturnCode_error) {
-        return 100;
-    }
+    pincWindowComplete(window1);
 
     // Actually, let's make a second window for the fun of it (if that is allowed)
     PincWindowHandle window2 = 0;
     uint32_t max_open_windows = pincQueryMaxOpenWindows(PincWindowBackend_any);
     if(max_open_windows > 1 || max_open_windows == 0) {
         window2 = pincWindowCreateIncomplete();
-        if(pincWindowComplete(window2) == PincReturnCode_error) {
-            return 100;
-        }
+        pincWindowComplete(window2);
     }
     bool running = true;
     while(running) {

@@ -26,7 +26,7 @@ struct WindowBackend;
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, PincGraphicsApi api), queryGraphicsApiSupport, (obj, api), false) \
     PINC_WINDOW_INTERFACE_FUNCTION(uint32_t, (struct WindowBackend* obj), queryMaxOpenWindows, (obj), 0) \
     /* The window backend is in charge of initializing the graphics api at this point */ \
-    PINC_WINDOW_INTERFACE_FUNCTION(PincReturnCode, (struct WindowBackend* obj, PincGraphicsApi graphicsApi, FramebufferFormat framebuffer), completeInit, (obj, graphicsApi, framebuffer), PincReturnCode_error) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincErrorCode, (struct WindowBackend* obj, PincGraphicsApi graphicsApi, FramebufferFormat framebuffer), completeInit, (obj, graphicsApi, framebuffer), PincErrorCode_assert) \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj), deinit, (obj)) \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj), step, (obj)) \
     /* ### Window Property Functions ## */ \
@@ -55,7 +55,7 @@ struct WindowBackend;
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, WindowHandle window), getWindowFocused, (obj, window), false) \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, WindowHandle window, bool hidden), setWindowHidden, (obj, window, hidden)) \
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, WindowHandle window), getWindowHidden, (obj, window), false) \
-    PINC_WINDOW_INTERFACE_FUNCTION(PincReturnCode, (struct WindowBackend* obj, bool vsync), setVsync, (obj, vsync), PincReturnCode_error) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincErrorCode, (struct WindowBackend* obj, bool vsync), setVsync, (obj, vsync), PincErrorCode_assert) \
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj), getVsync, (obj), false) \
     /* ### Other Window Functions ### */ \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, WindowHandle window), windowPresentFramebuffer, (obj, window)) \
@@ -81,7 +81,7 @@ struct WindowBackend;
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextDebug, (obj, context), false) \
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextRobustAccess, (obj, context), false) \
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, RawOpenglContextObject context), glGetContextResetIsolation, (obj, context), false) \
-    PINC_WINDOW_INTERFACE_FUNCTION(PincReturnCode, (struct WindowBackend* obj, WindowHandle window, RawOpenglContextHandle context), glMakeCurrent, (obj, window, context), PincReturnCode_error) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincErrorCode, (struct WindowBackend* obj, WindowHandle window, RawOpenglContextHandle context), glMakeCurrent, (obj, window, context), PincErrorCode_assert) \
     PINC_WINDOW_INTERFACE_FUNCTION(PincWindowHandle, (struct WindowBackend* obj), glGetCurrentWindow, (obj), 0) \
     PINC_WINDOW_INTERFACE_FUNCTION(PincOpenglContextHandle, (struct WindowBackend* obj), glGetCurrentContext, (obj), 0) \
     PINC_WINDOW_INTERFACE_FUNCTION(PincPfn, (struct WindowBackend* obj, char const* procname), glGetProc, (obj, procname), 0) \
