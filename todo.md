@@ -153,8 +153,10 @@
     - error propagation
     - mock window backend
     - validation window backend
-- Error refactor progress
+- Error management
     - error convenience function for validating objects and their types
     - error convenience function for null values
     - error convenience function for integer overflows
     - error convenience function for pinc state validity
+    - Go through all error propagation paths and improve them (probably contributor friendly)
+- Move this ever-growing list of TODOs into the github issues tracker
