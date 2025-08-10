@@ -137,7 +137,8 @@ void pincWin32Print(uint8_t const* message, size_t len, DWORD handle) {
     void* console = GetStdHandle(handle);
     DWORD charsWritten = 0;
     if(len > UINT32_MAX) {
-        PPANIC("Integer Overflow");
+        PincAssertAssert(false, "Integer Overflow", false, ;);
+        return;
     }
     // What if I told you WriteConsoleA indirectly requires wingdi.h?
     // We aren't doing any window or graphics stuff here, in theory this is just an IPC channel to another process,
