@@ -5,13 +5,16 @@
 int main(void) {
     pincPreinitSetErrorCallback(exampleErrorCallback);
     pincInitIncomplete();
+    if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
     // We don't care what we get, so don't set anything.
     // Everything is left default.
     pincInitComplete(PincWindowBackend_any, PincGraphicsApi_any, 0);
+    if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
     PincWindowHandle window = pincWindowCreateIncomplete();
     // Enter 0 for length so pinc does the work of finding the length for us
     pincWindowSetTitle(window, "Minimal Pinc Window!", 0);
     pincWindowComplete(window);
+    if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
     bool running = true;
     while(running) {
         // Over the course of a step, Pinc will collect all events for your application.
@@ -33,6 +36,7 @@ int main(void) {
             }
         }
         pincWindowPresentFramebuffer(window);
+        if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
     }
     pincWindowDeinit(window);
     pincDeinit();

@@ -151,6 +151,7 @@ int main(void) { //NOLINT: I'm conflicted on the complexity of this example func
         }
         pincWindowPresentFramebuffer(window1);
         if(window2) pincWindowPresentFramebuffer(window2);
+        if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
     }
     pincWindowDeinit(window1);
     if(window2) pincWindowDeinit(window2);

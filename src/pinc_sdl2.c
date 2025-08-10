@@ -354,7 +354,7 @@ static PincKeyboardKey pincSdl2ConvertSdlKeycode(SDL_Scancode code) {
         case SDL_SCANCODE_SOFTRIGHT: key = PincKeyboardKey_unknown; break; // what
         case SDL_SCANCODE_CALL: key = PincKeyboardKey_unknown; break; // what
         case SDL_SCANCODE_ENDCALL: key = PincKeyboardKey_unknown; break; // what
-        default: PErrorExternal(false, "Received invalid keyboard scancode"); key = PincKeyboardKey_unknown; break; // Maybe better as a simple log in case SDL2 adds new scancodes. With that said, SDL2 is ABI stable so this really shouldn't ever trigger.
+        default: PincAssertExternal(false, "Received invalid keyboard scancode", true, ;); key = PincKeyboardKey_unknown; break; // Maybe better as a simple log in case SDL2 adds new scancodes. With that said, SDL2 is ABI stable so this really shouldn't ever trigger.
     }
     // NOLINTEND(bugprone-branch-clone)
     return key;
@@ -454,7 +454,7 @@ static PincSdl2Window* pincSdl2GetDummyWindow(struct WindowBackend* obj) {
     // pincSdl2completeWindow sets this to true, under the assumption the user called it.
     // We are requesting the dummy window not for the user's direct use, so it's NOT in use.
     this->dummyWindowInUse = false;
-    PErrorAssert(this->dummyWindow, "SDL2 Backend: Could not create dummy window");
+    PincAssertAssert(this->dummyWindow, "SDL2 Backend: Could not create dummy window", false, return 0;);
     return this->dummyWindow;
 }
 
@@ -517,8 +517,8 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, pi
             pincString_makeDirect((char*)this->libsdl2.getError()),
         };
         pincString err = pincString_concat(sizeof(strings) / sizeof(pincString), strings, tempAllocator);
-        PErrorExternalStr(numDisplays > 0, err);
         *outNumFormats = 0;
+        PincAssertExternalStr(numDisplays > 0, err, false, return 0;);
         return NULL;
     }
     for(int displayIndex=0; displayIndex<numDisplays; ++displayIndex) {
@@ -529,7 +529,7 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, pi
                 pincString_makeDirect((char*)this->libsdl2.getError()),
             };
             pincString err = pincString_concat(sizeof(strings) / sizeof(pincString), strings, tempAllocator);
-            PErrorExternalStr(numDisplays > 0, err);
+            PincAssertExternalStr(numDisplays > 0, err, false, return 0;);
             *outNumFormats = 0;
             return NULL;
         }
@@ -629,7 +629,7 @@ PincErrorCode pincSdl2completeInit(struct WindowBackend* obj, PincGraphicsApi gr
         default:
             // We don't support this graphics api.
             // Technically this code should never run, because the user API frontend should have caught this
-            PErrorUser(false, "Attempt to use SDL2 backend with an unsupported graphics api");
+            PincAssertUser(false, "Attempt to use SDL2 backend with an unsupported graphics api", true, return PincErrorCode_user;);
             return PincErrorCode_assert;
     }
     return PincErrorCode_pass;
@@ -638,7 +638,7 @@ PincErrorCode pincSdl2completeInit(struct WindowBackend* obj, PincGraphicsApi gr
 void pincSdl2deinit(struct WindowBackend* obj) {
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     // Make sure the frontend deleted all of the windows already
-    PErrorAssert(this->windowsNum == 0, "Internal pinc error: the frontend didn't delete the windows before calling backend deinit");
+    PincAssertAssert(this->windowsNum == 0, "Internal pinc error: the frontend didn't delete the windows before calling backend deinit", false, return;);
     
     this->libsdl2.destroyWindow(this->dummyWindow->sdlWindow);
     pincAllocator_free(rootAllocator, this->dummyWindow, sizeof(PincSdl2Window));
@@ -648,7 +648,6 @@ void pincSdl2deinit(struct WindowBackend* obj) {
     pincAllocator_free(rootAllocator, this->windows, sizeof(PincSdl2Window*) * this->windowsCapacity);
     pincAllocator_free(rootAllocator, this, sizeof(PincSdl2WindowBackend));
 }
-
 
 void pincSdl2step(struct WindowBackend* obj) { //NOLINT: TODO: Fix this abominably massive function. I'm still undecided on the best way to do this.
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
@@ -664,10 +663,10 @@ void pincSdl2step(struct WindowBackend* obj) { //NOLINT: TODO: Fix this abominab
             case SDL_WINDOWEVENT: {
                 SDL_Window* sdlWin = this->libsdl2.getWindowFromId(event.window.windowID);
                 // External -> caused by SDL2 giving us events for nonexistent windows
-                PErrorExternal(sdlWin, "SDL2 window from WindowEvent is NULL!");
+                PincAssertExternal(sdlWin, "SDL2 window from WindowEvent is NULL!", true, return;);
                 PincSdl2Window* windowObj = (PincSdl2Window*)this->libsdl2.getWindowData(sdlWin, "pincSdl2Window");
                 // Assert -> caused by Pinc not setting the window event data (supposedly)
-                PErrorAssert(windowObj, "Pinc SDL2 window object from WindowEvent is NULL!");
+                PincAssertAssert(windowObj, "Pinc SDL2 window object from WindowEvent is NULL!", false, return;);
                 switch (event.window.event) {
                     case SDL_WINDOWEVENT_CLOSE:{
                         PincEventCloseSignal(timestamp, windowObj->frontHandle);
@@ -677,8 +676,8 @@ void pincSdl2step(struct WindowBackend* obj) { //NOLINT: TODO: Fix this abominab
                     // TODO(bluesillybeard): which one makes more sense to do? Pinc still needs to have the edge-case semantics of event triggers determined.
                     case SDL_WINDOWEVENT_SIZE_CHANGED: {
                         // Gotta love using variables named "data1" and "data2" with inappropriate signedness.
-                        PErrorAssert(event.window.data1 > 0, "Integer underflow");
-                        PErrorAssert(event.window.data2 > 0, "Integer underflow");
+                        PincAssertAssert(event.window.data1 > 0, "Integer underflow", true, return;);
+                        PincAssertAssert(event.window.data2 > 0, "Integer underflow", true, return;);
                         PincEventResize(timestamp, windowObj->frontHandle, windowObj->width, windowObj->height, (uint32_t)event.window.data1, (uint32_t)event.window.data2);
                         windowObj->width = (uint32_t)event.window.data1;
                         windowObj->height = (uint32_t)event.window.data2;
@@ -743,11 +742,11 @@ void pincSdl2step(struct WindowBackend* obj) { //NOLINT: TODO: Fix this abominab
                         case 4: buttonBit = 3; break;
                         case 5: buttonBit = 4; break;
                         // There are certainly more buttons, but for now I don't think they really exist.
-                        default: PErrorAssert(false, "Invalid button index!");
+                        default: PincAssertAssert(false, "Invalid button index!", true, return;);
                     }
                     uint32_t buttonBitMask = (uint32_t)1<<buttonBit;
                     // event.button.state is 1 when pressed, 0 when released. SDL2 is ABI stable, so this is safe.
-                    PErrorAssert(event.button.state < 2, "It appears SDL2's ABI has changed. The universe as we know it is broken!");
+                    PincAssertAssert(event.button.state < 2, "It appears SDL2's ABI has changed. The universe as we know it is broken!", false, return;);
                     // Cast here because for some reason the compiler thinks one of these is signed
                     uint32_t newState = (this->mouseState & ~buttonBitMask) | (((uint32_t)event.button.state)<<buttonBit);
                     PincEventMouseButton(timestamp, this->mouseState, newState);
@@ -758,10 +757,10 @@ void pincSdl2step(struct WindowBackend* obj) { //NOLINT: TODO: Fix this abominab
             case SDL_MOUSEMOTION: {
                 SDL_Window* sdlWin = this->libsdl2.getWindowFromId(event.window.windowID);
                 // External -> caused by SDL2 giving us events for nonexistent windows
-                PErrorExternal(sdlWin, "SDL2 window from WindowEvent is NULL!");
+                PincAssertExternal(sdlWin, "SDL2 window from WindowEvent is NULL!", true, return;);
                 PincSdl2Window* windowObj = (PincSdl2Window*)this->libsdl2.getWindowData(sdlWin, "pincSdl2Window");
                 // Assert -> caused by Pinc not setting the window event data (supposedly)
-                PErrorAssert(windowObj, "Pinc SDL2 window object from WindowEvent is NULL!");
+                PincAssertAssert(windowObj, "Pinc SDL2 window object from WindowEvent is NULL!", false, return;);
                 // TODO(bluesillybeard): make sure the window that has the cursor is actually the window that SDL2 gave us
                 int32_t motion_x = event.motion.x;
                 int32_t motion_y = event.motion.y;
@@ -809,7 +808,7 @@ void pincSdl2step(struct WindowBackend* obj) { //NOLINT: TODO: Fix this abominab
                 // It's an absolute non-issue, but something worth noting here.
                 if(this->libsdl2.hasClipboardText()) {
                     char* clipboardText = this->libsdl2.getClipboardText();
-                    PErrorExternal(clipboardText, "SDL2 clipboard is NULL");
+                    PincAssertExternal(clipboardText, "SDL2 clipboard is NULL", true, return;);
                     if(!clipboardText) { break; }
                     size_t clipboardTextLen = pincStringLen(clipboardText);
                     char* clipboardTextCopy = pincAllocator_allocate(tempAllocator, clipboardTextLen + 1);
@@ -1013,8 +1012,8 @@ void pincSdl2setWindowWidth(struct WindowBackend* obj, WindowHandle windowHandle
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     PincSdl2Window* window = (PincSdl2Window*)windowHandle;
     window->width = width;
-    PErrorAssert(window->width < INT32_MAX, "Integer Overflow");
-    PErrorAssert(window->height < INT32_MAX, "Integer Overflow");
+    PincAssertAssert(window->width < INT32_MAX, "Integer Overflow", false, return;);
+    PincAssertAssert(window->height < INT32_MAX, "Integer Overflow", false, return;);
     // TODO(bluesillybeard): what about the hacky HiDPI / scaling support in SDL2?
     // This function's documentation somehow manages to make the situation more confusing.
     // Really, I think we'll just have to abandon the idea of supporting scaling for the SDL2 backend
@@ -1040,8 +1039,8 @@ uint32_t pincSdl2getWindowWidth(struct WindowBackend* obj, WindowHandle window) 
         // Just assume the window size is equal to pixels. It's unlikely anyone is using an SDL2 version this old anyway.
         this->libsdl2.getWindowSize(windowObj->sdlWindow, &width, NULL);
     }
-    PErrorSanitize(width <= INT32_MAX && width > 0, "Integer overflow");
-    PErrorAssert((uint32_t)width == windowObj->width, "Window width and \"real\" width do not match!");
+    PincAssertAssert(width <= INT32_MAX && width > 0, "Integer overflow", false, return 0;);
+    PincAssertAssert((uint32_t)width == windowObj->width, "Window width and \"real\" width do not match!", false, return 0;);
     return (uint32_t)width;
 }
 
@@ -1049,8 +1048,8 @@ void pincSdl2setWindowHeight(struct WindowBackend* obj, WindowHandle windowHandl
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     PincSdl2Window* window = (PincSdl2Window*)windowHandle;
     window->height = height;
-    PErrorAssert(window->width < INT32_MAX, "Integer Overflow");
-    PErrorAssert(window->height < INT32_MAX, "Integer Overflow");
+    PincAssertAssert(window->width < INT32_MAX, "Integer Overflow", false, return;);
+    PincAssertAssert(window->height < INT32_MAX, "Integer Overflow", false, return;);
     // TODO(bluesillybeard): what about the hacky HiDPI / scaling support in SDL2?
     // This function's documentation somehow manages to make the situation more confusing.
     // Really, I think we'll just have to abandon the idea of supporting scaling for the SDL2 backend
@@ -1075,7 +1074,7 @@ uint32_t pincSdl2getWindowHeight(struct WindowBackend* obj, WindowHandle window)
         // Just assume the window size is equal to pixels. It's unlikely anyone is using an SDL2 version this old anyway.
         this->libsdl2.getWindowSize(windowObj->sdlWindow, NULL, &height);
     }
-    PErrorSanitize(height <= INT32_MAX && height > 0, "Integer overflow");
+    PincAssertAssert(height <= INT32_MAX && height > 0, "Integer overflow", false, return 0;);
     return (uint32_t)height;
 }
 
@@ -1296,7 +1295,7 @@ RawOpenglContextHandle pincSdl2glCompleteContext(struct WindowBackend* obj, Inco
             channel_bits[2] = fmt->channel_bits[2];
             break;
         default:
-            PPANIC("Invalid number of channels in framebuffer format");
+            PincAssertAssert(false, "Invalid number of channels in framebuffer format", false, return 0;);
     }
     channel_bits[3] = incompleteContext.alphaBits;
     this->libsdl2.glSetAttribute(SDL_GL_RED_SIZE, (int)channel_bits[0]);
@@ -1328,7 +1327,7 @@ RawOpenglContextHandle pincSdl2glCompleteContext(struct WindowBackend* obj, Inco
     int glFlags = 0;
     switch (incompleteContext.profile) {
         case PincOpenglContextProfile_legacy:
-            PErrorUser(false, "SDL2 does not support creating a legacy context");
+            PincAssertUser(false, "SDL2 does not support creating a legacy context", true, return 0;);
             return 0;
         case PincOpenglContextProfile_compatibility:
             this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
@@ -1365,7 +1364,7 @@ RawOpenglContextHandle pincSdl2glCompleteContext(struct WindowBackend* obj, Inco
             // const is not an issue, this string will not be modified
             pincString_makeDirect((char*)this->libsdl2.getError()),
         },tempAllocator);
-        PErrorExternalStr(false, errorMsg);
+        PincAssertExternalStr(false, errorMsg, true, return 0;);// Probably recoverable? Look into it.
         pincString_free(&errorMsg, tempAllocator);
         #endif
         return 0;
@@ -1468,7 +1467,7 @@ PincErrorCode pincSdl2glMakeCurrent(struct WindowBackend* obj, WindowHandle wind
             pincString_makeDirect((char*)"SDL2 backend: Could not make context current: "),
             pincString_makeDirect((char*)this->libsdl2.getError()),
         },tempAllocator);
-        PErrorExternalStr(false, errorMsg);
+        PincAssertExternalStr(false, errorMsg, true, return PincErrorCode_assert;);
         pincString_free(&errorMsg, tempAllocator);
         #endif
         return PincErrorCode_assert;
@@ -1513,7 +1512,7 @@ PincOpenglContextHandle pincSdl2glGetCurrentContext(struct WindowBackend* obj) {
 
 PincPfn pincSdl2glGetProc(struct WindowBackend* obj, char const* procname) {
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
-    PErrorUser(this->libsdl2.glGetCurrentContext(), "Cannot get proc address of an OpenGL function without a current context");
+    PincAssertUser(this->libsdl2.glGetCurrentContext(), "Cannot get proc address of an OpenGL function without a current context", true, return 0;);
     return this->libsdl2.glGetProcAddress(procname);
 }
 

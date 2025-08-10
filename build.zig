@@ -21,13 +21,9 @@
 //         // Assume SDL2 window backend - Note that these options are here for example, see settings.md for your options here
 //         "-DPINC_HAVE_WINDOW_SDL2=ON",
 //         // External errors are always useful to have
-//         "-DPINC_ENABLE_ERROR_EXTERNAL=ON",
+//         "-DPINC_ENABLE_ERROR_EXTERNAL=ON", "-DPINC_ENABLE_ERROR_ASSERT=ON",
 //         // Integrate Pinc's safety settings with Zig's own build safety configurations
-//         if(optimize != .Debug and optimize != .ReleaseSafe) "-DPINC_ENABLE_ERROR_ASSERT=OFF" else "-DPINC_ENABLE_ERROR_ASSERT=ON",
 //         if(optimize != .Debug and optimize != .ReleaseSafe) "-DPINC_ENABLE_ERROR_USER=OFF" else "-DPINC_ENABLE_ERROR_USER=ON",
-//         if(optimize != .Debug and optimize != .ReleaseSafe) "-DPINC_ENABLE_ERROR_SANITIZE=OFF" else "-DPINC_ENABLE_ERROR_SANITIZE=ON",
-//         // Validation errors are (theoretically) rather slow
-//         if(optimize != .Debug) "-DPINC_ENABLE_ERROR_VALIDATE=OFF" else "-DPINC_ENABLE_ERROR_VALIDATE=ON",
 //     },
 //     .files = &[_][]const u8 {
 //         // Pinc is rather small and you won't be editing it often so the unity build should not be a bottleneck
@@ -53,8 +49,6 @@ pub fn build(b: *std.Build) !void {
     const enable_error_external: ?bool = b.option(bool, "enable_error_external", "see settings.md");
     const enable_error_assert: ?bool = b.option(bool, "enable_error_assert", "see settings.md");
     const enable_error_user: ?bool = b.option(bool, "enable_error_user", "see settings.md");
-    const enable_error_sanitize: ?bool = b.option(bool, "enable_error_sanitize", "see settings.md");
-    const enable_error_validate: ?bool = b.option(bool, "enable_error_validate", "see settings.md");
     const use_custom_platform_implementation: ?bool = b.option(bool, "use_custom_platform_implementation", "see settings.md");
 
     const link_libc = switch (target.result.os.tag) {
@@ -84,12 +78,6 @@ pub fn build(b: *std.Build) !void {
     }
     if (enable_error_user) |enable| {
         try flags.append(if (enable) "-DPINC_ENABLE_ERROR_USER=ON" else "-DPINC_ENABLE_ERROR_USER=OFF");
-    }
-    if (enable_error_sanitize) |enable| {
-        try flags.append(if (enable) "-DPINC_ENABLE_ERROR_SANITIZE=ON" else "-DPINC_ENABLE_ERROR_SANITIZE=OFF");
-    }
-    if (enable_error_validate) |enable| {
-        try flags.append(if (enable) "-DPINC_ENABLE_ERROR_VALIDATE=ON" else "-DPINC_ENABLE_ERROR_VALIDATE=OFF");
     }
     if (use_custom_platform_implementation) |enable| {
         try flags.append(if (enable) "-DPINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=ON" else "-PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=OFF");

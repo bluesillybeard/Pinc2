@@ -116,6 +116,9 @@ bool makeContext(bool share_with_current, GlContext* out_ctx) {
     out_ctx->GenBuffers = (PFN_glGenBuffers)pincOpenglGetProc("glGenBuffers");
     out_ctx->BufferData = (PFN_glBufferData)pincOpenglGetProc("glBufferData");
     out_ctx->Finish = (PFN_glFinish)pincOpenglGetProc("glFinish");
+    // Pinc will generally collect errors over multiple function calls
+    // So we only need to check once to cover many functions (although checking more often can be nice for debugging)
+    if(pincLastErrorCode() != PincErrorCode_pass) return false;
     return true;
 }
 
@@ -139,11 +142,13 @@ int main(void) {
     GlContext gl1;
     GlContext gl2;
     if(!makeContext(false, &gl1)) {
+        pincDeinit();
         return 100;
     }
     // In case makeContext changes in the future such that the context is not current.
     pincOpenglMakeCurrent(window, gl1.ctx);
     if(!makeContext(true, &gl2)) {
+        pincDeinit();
         return 100;
     }
 
@@ -194,6 +199,7 @@ int main(void) {
         // draw
         gl2.DrawArrays(GL_TRIANGLES, 0, 3);
         pincWindowPresentFramebuffer(window);
+        if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
     }
     pincOpenglDeinitContext(gl1.ctx);
     pincOpenglDeinitContext(gl2.ctx);

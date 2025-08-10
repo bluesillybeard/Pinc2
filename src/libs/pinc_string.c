@@ -54,8 +54,8 @@ void pincString_marshalDirect(pincString str, char* dest, size_t capacity) {
 }
 
 pincString pincString_slice(pincString str, size_t start, size_t len) {
-    PErrorAssert(str.len > start, "Invalid slice operation: start index is out of bounds");
-    PErrorAssert(str.len >= len+start, "Invalid slice operation: slice extends beyond end of source string");
+    PincAssertAssert(str.len > start, "Invalid slice operation: start index is out of bounds", true, return (pincString){0, 0};);
+    PincAssertAssert(str.len >= len+start, "Invalid slice operation: slice extends beyond end of source string", true, return (pincString){0, 0};);
     return (pincString) {
         .str = str.str+start,
         .len = len,
@@ -94,7 +94,7 @@ pincString pincString_allocFormatUint32(uint32_t item, pincAllocator alloc) {
     pincString new;
     new.str = pincAllocator_allocate(alloc, len);
     pincMemCopy(buffer, new.str, len);
-    PErrorAssert(len, "Zero length string");
+    PincAssertAssert(len, "Zero length string", true, return (pincString){0, 0};);
     new.len = len;
     return new;
 }
@@ -118,7 +118,7 @@ pincString pincString_allocFormatInt32(int32_t value, pincAllocator alloc) {
         index += 1;
         buf[11 - index] = '-';
     }
-    PErrorSanitize(index <= 11, "");
+    PincAssertAssert(index <= 11, "", true, return (pincString){0, 0};);
     uint8_t* str = pincAllocator_allocate(alloc, index);
     pincMemCopy(&buf[11-index], str, index);
     return (pincString){
@@ -133,7 +133,7 @@ pincString pincString_allocFormatUint64(uint64_t item, pincAllocator alloc) {
     pincString new;
     new.str = pincAllocator_allocate(alloc, len);
     pincMemCopy(buffer, new.str, len);
-    PErrorAssert(len, "Zero length string");
+    PincAssertAssert(len, "Zero length string", true, return (pincString){0, 0};);
     new.len = len-1;
     return new;
 }

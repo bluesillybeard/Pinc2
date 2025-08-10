@@ -81,7 +81,7 @@ typedef struct {
 
 #define SDL_FUNC(type, name, realName, args)\
     functions->name = (PFN_##realName) pincLibrarySymbol(lib, (uint8_t*)#realName, pincStringLen(#realName));\
-    PErrorExternal(functions->name, "Unable to load SDL2 function " #realName);
+    PincAssertExternal(functions->name, "Unable to load SDL2 function " #realName, false, return;);
 
 #define SDL_FUNC_OPTIONAL(type, name, realName, args)\
     functions->name = (PFN_##realName) pincLibrarySymbol(lib, (uint8_t*)#realName, pincStringLen(#realName));\

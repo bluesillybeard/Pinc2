@@ -153,3 +153,8 @@
     - error propagation
     - mock window backend
     - validation window backend
+- Error refactor progress
+    - error convenience function for validating objects and their types
+    - error convenience function for null values
+    - error convenience function for integer overflows
+    - error convenience function for pinc state validity

@@ -21,10 +21,12 @@
 // 2. Pinc calls the user-defined error callback function (if it is defined).
 // 3. Pinc "safely" returns from the function call, with a (generally well-defined) default result.
 // 4. The program acts on the error. Or not, it's really on the caller to decide what to do (or not do) with errors.
-//     - If an error is ignored, there may be consequences. Recoverable errors are not always ignorable - for example, an error during the creation of an OpenGL context is recoverable, but the context is still broken!
 
-// More or less every Pinc function has a possibility of triggering an error, so it is best practice to check after every function call
-// Although most functions are unlikely to trigger anything assuming valid usage of the Pinc API
+// More or less every Pinc function has a possibility of triggering an error, so it is best practice to check after every function call.
+// Although most functions are unlikely to trigger anything assuming valid usage of the Pinc API.
+
+// If the error is recoverable, it should be as though the Pinc API call causing the error had not even been called.
+// Otherwise, the only good option is to crash / restart the application.
 
 // Memory policy: Ownership is never transferred between Pinc an the application. Pinc has its own allocation management system, and it should never mix with the applications.
 // This means that the application will always free its own allocations, and Pinc will never return a pointer for the user to keep unless it was previously created by the user.
@@ -313,21 +315,8 @@ typedef PincObjectHandle PincWindowHandle;
 
 /// @subsection preinit functions
 
-/// @brief See error policy at the top of pinc.h
-typedef enum {
-    /// @brief Unknown error type, this is something should almost never happen. Usually this is called when Pinc devs get lazy and forget to implement something.
-    PincErrorType_unknown = -1,
-    PincErrorType_external = 0,
-    PincErrorType_assert,
-    PincErrorType_user,
-    PincErrorType_sanitize,
-    PincErrorType_validate,
-} PincErrorTypeEnum;
-
-typedef int32_t PincErrorType;
-
 /// @brief Error callback. message_buf will be null terminated. message_buf is temporary and a reference to it should not be kept.
-typedef void ( PINC_PROC_CALL * PincErrorCallback) (uint8_t const * message_buf, uintptr_t message_len, PincErrorType error_type);
+typedef void ( PINC_PROC_CALL * PincErrorCallback) (uint8_t const * message_buf, uintptr_t message_len, PincErrorCode error_type, bool recoverable);
 
 /// @brief Callback to allocate some memory. Aligned depending on platform such that any structure can be placed into this memory.
 ///     Identical to libc's malloc function.
@@ -335,22 +324,16 @@ typedef void ( PINC_PROC_CALL * PincErrorCallback) (uint8_t const * message_buf,
 /// @return A pointer to the memory.
 typedef void* ( PINC_PROC_CALL * PincAllocCallback) (void* user_ptr, size_t alloc_size_bytes);
 
-/// @brief Callback to allocate some memory with explicit alignment.
-/// @param alloc_size_bytes Number of bytes to allocate. Must be a multiple of alignment.
-/// @param alignment Alignment requirement. Must be a power of 2.
-/// @return A pointer to the allocated memory.
-typedef void* ( PINC_PROC_CALL * PincAllocAlignedCallback) (void* user_ptr, size_t alloc_size_bytes, size_t alignment);
-
 /// @brief Reallocate some memory with a different size
-/// @param ptr Pointer to the memory to reallocate. Must exactly be a pointer returned by pAlloc, pAllocAligned, or pRealloc.
-/// @param old_alloc_size_bytes Old size of the allocation. Must be the exact size given to pAlloc, pAllocAligned, or pRealloc for the respective pointer.
+/// @param ptr Pointer to the memory to reallocate. Must exactly be a pointer returned by pAlloc, or pRealloc.
+/// @param old_alloc_size_bytes Old size of the allocation. Must be the exact size given to pAlloc, or pRealloc for the respective pointer.
 /// @param alloc_size_bytes The new size of the allocation
 /// @return A pointer to this memory. May be the same or different from pointer.
 typedef void* ( PINC_PROC_CALL * PincReallocCallback) (void* userPtr, void* ptr, size_t old_alloc_size_bytes, size_t alloc_size_bytes);
 
 /// @brief Free some memory
-/// @param ptr Pointer to free. Must exactly be a pointer returned by pAlloc, pAllocAligned, or pRealloc.
-/// @param alloc_size_bytes Number of bytes to free. Must be the exact size given to pAlloc, pAllocAligned, or pRealloc for the respective pointer.
+/// @param ptr Pointer to free. Must exactly be a pointer returned by pAlloc, or pRealloc.
+/// @param alloc_size_bytes Number of bytes to free. Must be the exact size given to pAlloc, or pRealloc for the respective pointer.
 typedef void ( PINC_PROC_CALL * PincFreeCallback) (void* userPtr, void* ptr, size_t alloc_size_bytes);
 
 /// @section functions
@@ -371,8 +354,11 @@ PINC_EXTERN PincErrorCode PINC_CALL pincLastErrorCode(void);
 /// The message may have multiple lines if there is additional information from down the callstack between the user and where the error occurred.
 PINC_EXTERN char const* PINC_CALL pincLastErrorMessage(size_t* out_len);
 
+/// If the last error was recoverable, it's as if the function call resulting in the error had no effect.
+PINC_EXTERN bool PINC_CALL pincLastErrorRecoverable(void);
+
 /// @brief Set allocation callbacks. Must be called before incomplete_init, or never. The type of each proc has more information. They either must all be set, or all null.
-PINC_EXTERN void PINC_CALL pincPreinitSetAllocCallbacks(void* user_ptr, PincAllocCallback alloc, PincAllocAlignedCallback alloc_aligned, PincReallocCallback realloc, PincFreeCallback free);
+PINC_EXTERN void PINC_CALL pincPreinitSetAllocCallbacks(void* user_ptr, PincAllocCallback alloc, PincReallocCallback realloc, PincFreeCallback free);
 
 /// @brief Begin the initialization process
 /// @return the success or failure of this function call. Failures are likely caused by external factors (ex: no window backends) or a failed allocation.

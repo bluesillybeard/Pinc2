@@ -13,48 +13,28 @@
 
 // Implementations of things in pinc_main.h
 
-void pinc_intern_callError(pincString message, PincErrorType type) {
+void pinc_intern_callError(pincString message, PincErrorCode type, bool recoverable) {
     if(rootAllocator.vtable == 0) {
         char* errString = "Pinc received an error before initialization of the root allocator - Did you forget to call InitComplete()?";
         size_t errStringLen = pincStringLen(errString);
         if(staticState.userCallError) {
-            staticState.userCallError((uint8_t const*) errString, errStringLen, PincErrorType_user);
+            staticState.userCallError((uint8_t const*) errString, errStringLen, PincErrorCode_user, false);
         } else {
             pincPrintErrorLine((uint8_t const*) errString, errStringLen);
         }
-        pincTriggerDebugger();
     }
     if(staticState.userCallError) {
         // Let's be nice and let the user have their null terminator
         uint8_t* msgNullTerm = (uint8_t*)pincString_marshalAlloc(message, tempAllocator);
-        staticState.userCallError(msgNullTerm, message.len, type);
+        staticState.userCallError(msgNullTerm, message.len, type, recoverable);
         pincAllocator_free(tempAllocator, msgNullTerm, message.len+1);
     } else {
         pincPrintErrorLine(message.str, message.len);
     }
-    pincTriggerDebugger();
-}
 
-P_NORETURN void pinc_intern_callFatalError(pincString message, PincErrorType type) {
-    if(rootAllocator.vtable == 0) {
-        char* errString = "Pinc received a fatal error before initialization of the root allocator - Did you forget to call InitComplete()?";
-        size_t errStringLen = pincStringLen(errString);
-        if(staticState.userCallError) {
-            staticState.userCallError((uint8_t const*) errString, errStringLen, type);
-        } else {
-            pincPrintErrorLine((uint8_t const*) errString, errStringLen);
-        }
-        pincAssertFail();
-    }
-    if(staticState.userCallError) {
-        // Let's be nice and let the user have their null terminator
-        uint8_t* msgNullTerm = (uint8_t*)pincString_marshalAlloc(message, tempAllocator);
-        staticState.userCallError(msgNullTerm, message.len, type);
-        pincAllocator_free(tempAllocator, msgNullTerm, message.len+1);
-    } else {
-        pincPrintErrorLine(message.str, message.len);
-    }
-    pincAssertFail();
+    staticState.lastErrorCode = type;
+    staticState.lastErrorMessage = message; //TODO(important): make this null terminated!!!
+    staticState.lastErrorRecoverable = recoverable;
 }
 
 PincStaticState pinc_intern_staticState = PINC_PREINIT_STATE; //NOLINT // This is the ONLY place where non-const globals are allowed. Hence: nolint
@@ -63,11 +43,6 @@ PincStaticState pinc_intern_staticState = PINC_PREINIT_STATE; //NOLINT // This i
 static void* pinc_root_platform_allocate(void* obj, size_t size) {
     P_UNUSED(obj);
     return pincAlloc(size);
-}
-
-static void* pinc_root_platform_allocateAligned(void* obj, size_t size, size_t alignment) {
-    P_UNUSED(obj);
-    return pincAllocAligned(size, alignment);
 }
 
 static void* pinc_root_platform_reallocate(void* obj, void* ptr, size_t oldSize, size_t newSize) {
@@ -82,7 +57,6 @@ static void pinc_root_platform_free(void* obj, void* ptr, size_t size) {
 
 static const pincAllocatorVtable pinc_platform_alloc_vtable = {
     .allocate = &pinc_root_platform_allocate,
-    .allocateAligned = &pinc_root_platform_allocateAligned,
     .reallocate = &pinc_root_platform_reallocate,
     .free = &pinc_root_platform_free,
 };
@@ -92,10 +66,6 @@ static const pincAllocatorVtable pinc_platform_alloc_vtable = {
 // the object can be set to the user pointer though
 static void* pinc_root_user_allocate(void* obj, size_t size) {
     return staticState.userAllocFn(obj, size);
-}
-
-static void* pinc_root_user_allocateAligned(void* obj, size_t size, size_t alignment) {
-    return staticState.userAllocAlignedFn(obj, size, alignment);
 }
 
 static void* pinc_root_user_reallocate(void* obj, void* ptr, size_t oldSize, size_t newSize) {
@@ -108,7 +78,6 @@ static void pinc_root_user_free(void* obj, void* ptr, size_t size) {
 
 static const pincAllocatorVtable pinc_user_alloc_vtable = {
     .allocate = &pinc_root_user_allocate,
-    .allocateAligned = &pinc_root_user_allocateAligned,
     .reallocate = &pinc_root_user_reallocate,
     .free = &pinc_root_user_free,
 };
@@ -117,15 +86,6 @@ static const pincAllocatorVtable pinc_user_alloc_vtable = {
 static void* pinc_temp_allocate(void* obj, size_t size) {
     P_UNUSED(obj);
     return arena_alloc(&staticState.arenaAllocatorObject, size);
-}
-
-static void* pinc_temp_allocateAligned(void* obj, size_t size, size_t alignment) {
-    P_UNUSED(obj);
-    P_UNUSED(size);
-    P_UNUSED(alignment);
-    // TODO(bluesillybeard): implement this? Do we even need it?
-    PErrorAssert(false, "Cannot allocate an aligned buffer on the temp allocator.");
-    return 0;
 }
 
 static void* pinc_temp_reallocate(void* obj, void* ptr, size_t oldSize, size_t newSize) {
@@ -142,7 +102,6 @@ static void pinc_temp_free(void* obj, void* ptr, size_t size) {
 
 static const pincAllocatorVtable PincTempAllocatorVtable = {
     .allocate = &pinc_temp_allocate,
-    .allocateAligned = &pinc_temp_allocateAligned,
     .reallocate = &pinc_temp_reallocate,
     .free = &pinc_temp_free,
 };
@@ -199,7 +158,7 @@ void PincPool_deinit(PincPool* pool, size_t elementSize) {
 static uint32_t PincObject_allocateInternal(PincObjectDiscriminator discriminator) {
     switch(discriminator) {
         case PincObjectDiscriminator_none:{
-            PPANIC("Cannot allocate object of no type");
+            PincAssertAssert(false, "Cannot allocate object of no type", true, {});
             break;
         }
         case PincObjectDiscriminator_incompleteWindow: {
@@ -230,7 +189,7 @@ static void PincObject_freeInternal(PincObjectDiscriminator discriminator, uint3
     switch (discriminator)
     {
         case PincObjectDiscriminator_none: {
-            PErrorAssert(false, "Not a valid object to reallocate");
+            PincAssertAssert(false, "Not a valid object to deallocate", true, {});
             break;
         }
         case PincObjectDiscriminator_incompleteWindow:{
@@ -259,7 +218,6 @@ static void PincObject_freeInternal(PincObjectDiscriminator discriminator, uint3
 PincObjectHandle PincObject_allocate(PincObjectDiscriminator discriminator) {
     PincObjectHandle object_index = PincPool_alloc(&staticState.objects, sizeof(PincObject));
     PincObject *obj = &((PincObject*)staticState.objects.objectsArray)[object_index];
-    PErrorSanitize(staticState.objects.objectsNum < UINT32_MAX, "Integer overflow");
     obj->discriminator = discriminator;
     obj->internalIndex = PincObject_allocateInternal(discriminator);
     obj->userData = 0;
@@ -267,7 +225,7 @@ PincObjectHandle PincObject_allocate(PincObjectDiscriminator discriminator) {
 }
 
 void PincObject_reallocate(PincObjectHandle handle, PincObjectDiscriminator discriminator) {
-    PErrorAssert(staticState.objects.objectsNum >= handle, "Object ID out of bounds");
+    PincAssertAssert(staticState.objects.objectsNum >= handle, "Object ID out of bounds", true, return;);
     PincObject *obj = &((PincObject*)staticState.objects.objectsArray)[handle-1];
     PincObject_freeInternal(obj->discriminator, obj->internalIndex);
     obj->discriminator = discriminator;
@@ -276,7 +234,7 @@ void PincObject_reallocate(PincObjectHandle handle, PincObjectDiscriminator disc
 }
 
 void PincObject_free(PincObjectHandle handle) {
-    PErrorAssert(staticState.objects.objectsNum >= handle, "Object ID out of bounds");
+    PincAssertAssert(staticState.objects.objectsNum >= handle, "Object ID out of bounds", true, return;);
     PincObject *obj = &((PincObject*)staticState.objects.objectsArray)[handle-1];
     PincObject_freeInternal(obj->discriminator, obj->internalIndex);
     obj->discriminator = PincObjectDiscriminator_none;
@@ -494,17 +452,17 @@ static void PincValidateForState(PincState state) {
     switch (state) {
         case PincState_preinit: {
             // Nothing to validate, other than this is Pinc's actual state
-            PErrorAssert(staticState.initState == PincState_preinit, "Pinc state is not preinit: The user may have called a preinit function after initialization");
+            PincAssertAssert(staticState.initState == PincState_preinit, "Pinc state is not preinit: The user may have called a preinit function after initialization", true, {});
             break;
         }
         case PincState_incomplete: {
-            PErrorAssert(staticState.initState == PincState_incomplete, "Pinc state is not incomplete: The user may have called a function at the wrong time");
-            PErrorAssert(PincStateValidForIncomplete(), "Pinc state is invalid! See error log for details.");
+            PincAssertAssert(staticState.initState == PincState_incomplete, "Pinc state is not incomplete: The user may have called a function at the wrong time", true, {});
+            PincAssertAssert(PincStateValidForIncomplete(), "Pinc state is invalid! See error log for details.", false, {});
             break;
         }
         case PincState_init: {
-            PErrorAssert(staticState.initState == PincState_init, "Pinc state is not complete: The user may have called a function before complete initialization");
-            PErrorAssert(PincStateValidForComplete(), "Pinc state is invalid! See error log for details.");
+            PincAssertAssert(staticState.initState == PincState_init, "Pinc state is not complete: The user may have called a function before complete initialization", true, {});
+            PincAssertAssert(PincStateValidForComplete(), "Pinc state is invalid! See error log for details.", false, {});
             break;
         }
     }
@@ -520,7 +478,7 @@ static void PincValidateForStates(PincState st1, PincState st2) {
     PincValidateForState(realState);
 }
 
-// Below are the actual implementations of the Pinc API functions.
+// Below are the actual implementations of the Pinc API functions. MARK: impl
 
 PINC_EXPORT char const* PINC_CALL pincKeyboardKeyName(PincKeyboardKey key) {
     switch(key){
@@ -657,22 +615,35 @@ PINC_EXPORT void PINC_CALL pincPreinitSetErrorCallback(PincErrorCallback callbac
     staticState.userCallError = callback;
 }
 
-PINC_EXPORT void PINC_CALL pincPreinitSetAllocCallbacks(void* user_ptr, PincAllocCallback alloc, PincAllocAlignedCallback alloc_aligned, PincReallocCallback realloc, PincFreeCallback free) {
+PINC_EXPORT PincErrorCode PINC_CALL pincLastErrorCode(void) {
+    return staticState.lastErrorCode;
+}
+
+PINC_EXPORT char const* PINC_CALL pincLastErrorMessage(size_t* out_len) {
+    if(out_len) { *out_len = staticState.lastErrorMessage.len; }
+    return (char const*) staticState.lastErrorMessage.str;
+}
+
+PINC_EXPORT bool PINC_CALL pincLastErrorRecoverable(void) {
+    return staticState.lastErrorRecoverable;
+}
+
+PINC_EXPORT void PINC_CALL pincPreinitSetAllocCallbacks(void* user_ptr, PincAllocCallback alloc, PincReallocCallback realloc, PincFreeCallback free) {
     PincValidateForState(PincState_preinit);
+    PincAssertUser(
+        (alloc && realloc && free)
+        || !(alloc || realloc || free),
+        "Pinc allocator callbacks must either be all set or all null!", true, return;);
     staticState.userAllocObj = user_ptr;
     staticState.userAllocFn = alloc;
-    staticState.userAllocAlignedFn = alloc_aligned;
     staticState.userReallocFn = realloc;
     staticState.userFreeFn = free;
+    
 }
 
 PINC_EXPORT void PINC_CALL pincInitIncomplete(void) {
     PincValidateForState(PincState_preinit);
     // First up, allocator needs set up
-    PErrorUser(
-        (staticState.userAllocFn && staticState.userAllocAlignedFn && staticState.userReallocFn && staticState.userFreeFn)
-        || !(staticState.userAllocFn || staticState.userAllocAlignedFn || staticState.userReallocFn || staticState.userFreeFn), 
-        "Pinc allocator callbacks must either be all set or all null!");
     
     if(staticState.userAllocFn) {
         // User callbacks are set
@@ -700,10 +671,7 @@ PINC_EXPORT void PINC_CALL pincInitIncomplete(void) {
 
     bool sdl2InitRes = pincSdl2Init(&staticState.sdl2WindowBackend);
 
-    if(!sdl2InitRes) {
-        PErrorExternal(false, "No supported window backends available!");
-        // return PincErrorCode_assert; // TODO(error)
-    }
+    PincAssertExternal(sdl2InitRes, "No supported window backends available!", false, return;);
 
     // Query collective information from window backends
     // Again, SDL2 is the only window backend, so some shortcuts can be taken
@@ -761,7 +729,7 @@ PINC_EXPORT PincFramebufferFormatHandle pincQueryFramebufferFormatDefault(PincWi
     }
     // Use the front-end API to do what a user would effectively do
     uint32_t numFramebufferFormats = pincQueryFramebufferFormats(window_backend, graphics_api, 0, 0);
-    PErrorExternal(numFramebufferFormats, "No framebuffer formats available");
+    PincAssertExternal(numFramebufferFormats, "No framebuffer formats available", true, {}); // Recoverable, although dubiously, because the Pinc state remains as if this function had never been called.
     uint32_t* ids = pincAllocator_allocate(tempAllocator, numFramebufferFormats * sizeof(uint32_t));
     pincQueryFramebufferFormats(window_backend, graphics_api, ids, numFramebufferFormats);
     
@@ -775,7 +743,7 @@ PINC_EXPORT PincFramebufferFormatHandle pincQueryFramebufferFormatDefault(PincWi
     for(uint32_t i=1; i<numFramebufferFormats; ++i) {
         PincFramebufferFormatHandle fmt = ids[i];
         uint32_t channels = pincQueryFramebufferFormatChannels(fmt);
-        PErrorAssert(channels <= 4, "Invalid number of channels");
+        PincAssertAssert(channels <= 4, "Invalid number of channels", false, return 0;);
         uint32_t score = channels * score_per_channel;
         for(uint32_t channel_index=0; channel_index<channels; ++channel_index) {
             score += pincQueryFramebufferFormatChannelBits(fmt, channel_index) * score_per_bit;
@@ -824,7 +792,7 @@ PINC_EXPORT uint32_t PINC_CALL pincQueryFramebufferFormatChannelBits(PincFramebu
     PincValidateForStates(PincState_init, PincState_incomplete);
     FramebufferFormat* obj = PincObject_ref_framebufferFormat(handle);
 
-    PErrorUser(channel < obj->channels, "channel index out of bounds - did you make sure it's less than what pincQueryFramebufferFormatChannels returns for this format?");
+    PincAssertUser(channel < obj->channels, "channel index out of bounds - did you make sure it's less than what pincQueryFramebufferFormatChannels returns for this format?", true, return 0;);
     return obj->channel_bits[channel];
 }
 
@@ -842,24 +810,29 @@ PINC_EXPORT uint32_t PINC_CALL pincQueryMaxOpenWindows(PincWindowBackend window_
 
 PINC_EXPORT void PINC_CALL pincInitComplete(PincWindowBackend window_backend, PincGraphicsApi graphics_api, PincFramebufferFormatHandle framebuffer_format_id) {
     if(staticState.initState == PincState_preinit) { pincInitIncomplete(); }
-    PincValidateForState(PincState_incomplete);
+    PincValidateForState(PincState_incomplete); PincForwardErrorVoid();
     if(window_backend == PincWindowBackend_any) {
         // TODO(bluesillybeard): only window backend is SDL2, shortcuts are taken
         window_backend = PincWindowBackend_sdl2;
     }
-    PErrorUser(pincQueryWindowBackendSupport(window_backend), "Unsupported window backend");
+    PincAssertUser(pincQueryWindowBackendSupport(window_backend), "Unsupported window backend", true, return;);
     if(graphics_api == PincGraphicsApi_any) {
         graphics_api = pincQueryGraphicsApiDefault(window_backend);
     }
-    PErrorUser(pincQueryGraphicsApiSupport(window_backend, graphics_api), "Unsupported graphics api");
+    PincForwardErrorVoid();
+    PincAssertUser(pincQueryGraphicsApiSupport(window_backend, graphics_api), "Unsupported graphics api", true, return;);
     if(framebuffer_format_id == 0) {
         framebuffer_format_id = pincQueryFramebufferFormatDefault(window_backend, graphics_api);
     }
+    PincForwardErrorVoid();
     FramebufferFormat* framebuffer = PincObject_ref_framebufferFormat(framebuffer_format_id);
     staticState.framebufferFormat = framebuffer_format_id;
     PincErrorCode result = pincWindowBackend_completeInit(&staticState.sdl2WindowBackend, graphics_api, *framebuffer);
-    if(result == PincErrorCode_assert) {
-        // return PincErrorCode_assert; // TODO(error)
+    if(result != PincErrorCode_pass) {
+        // REFACTOR ME
+        // completeInit should have called an error
+        PincAssertAssert(pincLastErrorCode() != PincErrorCode_pass, "Got an unknown error from pincWindowBackend_completeInit()", false, return;)
+        return;
     }
     staticState.windowBackend = staticState.sdl2WindowBackend;
     staticState.windowBackendSet = true;
@@ -952,7 +925,7 @@ PINC_EXPORT PincFramebufferFormatHandle PINC_CALL pincQuerySetFramebufferFormat(
 
 PINC_EXPORT PincObjectType PINC_CALL pincGetObjectType(PincObjectHandle handle) {
     PincValidateForState(PincState_init);
-    PErrorUser(handle <= staticState.objects.objectsNum, "Invalid object id");
+    PincAssertUser(handle <= staticState.objects.objectsNum, "Invalid object id", true, return PincObjectType_none;);
     PincObject obj = ((PincObject*)staticState.objects.objectsArray)[handle-1];
     // TODO(bluesillybeard) Looking at this switch again, it seems we really need to fix the PincObjectType enum
     switch (obj.discriminator)
@@ -972,7 +945,7 @@ PINC_EXPORT PincObjectType PINC_CALL pincGetObjectType(PincObjectHandle handle) 
 
 PINC_EXPORT bool PINC_CALL pincGetObjectComplete(PincObjectHandle handle) {
     PincValidateForState(PincState_init);
-    PErrorUser(handle <= staticState.objects.objectsNum, "Invalid object id");
+    PincAssertUser(handle <= staticState.objects.objectsNum, "Invalid object id", true, return false;);
     PincObject obj = ((PincObject*)staticState.objects.objectsArray)[handle-1];
     switch (obj.discriminator)
     {
@@ -991,23 +964,23 @@ PINC_EXPORT bool PINC_CALL pincGetObjectComplete(PincObjectHandle handle) {
 
 PINC_EXPORT void PINC_CALL pincSetObjectUserData(PincObjectHandle handle, void* user_data) {
     PincValidateForState(PincState_init);
-    PErrorUser(handle <= staticState.objects.objectsNum, "Invalid object ID");
+    PincAssertUser(handle <= staticState.objects.objectsNum, "Invalid object ID", true, return;);
     PincObject* object = &((PincObject*)staticState.objects.objectsArray)[handle-1];
-    PErrorUser(object->discriminator != PincObjectDiscriminator_none, "Cannot set user data of empty object");
+    PincAssertUser(object->discriminator != PincObjectDiscriminator_none, "Cannot set user data of empty object", true, return;);
     object->userData = user_data;
 }
 
 PINC_EXPORT void* PINC_CALL pincGetObjectUserData(PincObjectHandle handle) {
     PincValidateForState(PincState_init);
-    PErrorUser(handle <= staticState.objects.objectsNum, "Invalid object ID");
+    PincAssertUser(handle <= staticState.objects.objectsNum, "Invalid object ID", true, return 0;);
     PincObject* object = &((PincObject*)staticState.objects.objectsArray)[handle-1];
-    PErrorUser(object->discriminator != PincObjectDiscriminator_none, "Cannot get user data of empty object");
+    PincAssertUser(object->discriminator != PincObjectDiscriminator_none, "Cannot get user data of empty object", true, return 0;);
     return object->userData;
 }
 
 PINC_EXPORT PincWindowHandle PINC_CALL pincWindowCreateIncomplete(void) {
     PincValidateForState(PincState_init);
-    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pincInitComplete?");
+    PincAssertUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pincInitComplete?", true, return 0;);
     PincWindowHandle handle = PincObject_allocate(PincObjectDiscriminator_incompleteWindow);
     IncompleteWindow* window = PincObject_ref_incompleteWindow(handle);
     pincString strings[] = {
@@ -1034,9 +1007,11 @@ PINC_EXPORT PincWindowHandle PINC_CALL pincWindowCreateIncomplete(void) {
 PINC_EXPORT void PINC_CALL pincWindowComplete(PincWindowHandle incomplete_window_handle) {
     PincValidateForState(PincState_init);
     IncompleteWindow* object = PincObject_ref_incompleteWindow(incomplete_window_handle);
+    PincForwardErrorVoid();
     WindowHandle handle = pincWindowBackend_completeWindow(&staticState.windowBackend, object, incomplete_window_handle);
     if(!handle) {
-        // return PincErrorCode_assert; //TODO(error)
+        PincAssertAssert(pincLastErrorCode() != PincErrorCode_pass, "Received unknown error from pincWindowBackend_completeWindow", false, return;)
+        return;
     }
     PincObject_reallocate(incomplete_window_handle, PincObjectDiscriminator_window);
     WindowHandle* object2 = PincObject_ref_window(incomplete_window_handle);
@@ -1058,7 +1033,7 @@ PINC_EXPORT void PINC_CALL pincWindowDeinit(PincWindowHandle window) {
             break;
         }
         default:{
-            PErrorUser(false, "Window is not a window object");
+            PincAssertUser(false, "Window is not a window object", true, return;);
             break;
         }
     }
@@ -1068,13 +1043,15 @@ PINC_EXPORT void PINC_CALL pincWindowSetTitle(PincWindowHandle window, const cha
     PincValidateForState(PincState_init);
     if(title_len == 0) {
         size_t realTitleLen = pincStringLen(title_buf);
-        PErrorSanitize(realTitleLen <= UINT32_MAX, "Integer overflow");
+        // User defined string is too long -> error
+        PincAssertUser(realTitleLen <= UINT32_MAX, "Title string is too long", true, return;);
         title_len = (uint32_t)realTitleLen;
     }
     switch (PincObject_discriminator(window))
     {
         case PincObjectDiscriminator_incompleteWindow:{
             IncompleteWindow* object = PincObject_ref_incompleteWindow(window);
+            PincForwardErrorVoid();
             if(title_len == object->title.len) {
                 pincMemCopy(title_buf, object->title.str, title_len);
             } else {
@@ -1085,14 +1062,16 @@ PINC_EXPORT void PINC_CALL pincWindowSetTitle(PincWindowHandle window, const cha
         }
         case PincObjectDiscriminator_window:{
             WindowHandle* object = PincObject_ref_window(window);
+            PincForwardErrorVoid();
             // Window takes ownership of the pointer, but we don't have ownership of title_buf
             uint8_t* titlePtr = (uint8_t*)pincAllocator_allocate(rootAllocator, title_len);
             pincMemCopy(title_buf, titlePtr, title_len);
             pincWindowBackend_setWindowTitle(&staticState.windowBackend, *object, titlePtr, title_len);
+            PincForwardErrorVoid();
             break;
         }
         default:
-            PErrorUser(false, "Window is not a window object");
+            PincAssertUser(false, "Window is not a window object", true, return;);
             break;
     }
 }
@@ -1102,7 +1081,7 @@ PINC_EXPORT uint32_t PINC_CALL pincWindowGetTitle(PincWindowHandle window, char*
     WindowHandle* win = PincObject_ref_window(window);
     size_t len = 0;
     uint8_t const* title = pincWindowBackend_getWindowTitle(&staticState.windowBackend, *win, &len);
-    PErrorAssert(len > UINT32_MAX, "Integer Overflow");
+    PincAssertAssert(len <= UINT32_MAX, "Integer Overflow", false, return 0;); // Not recoverable, because how in the heck did a window manage to get such a long title anyway?
     if(title_buf) {
         uint32_t amountToWrite = title_capacity;
         if(title_capacity > len) {
@@ -1115,9 +1094,12 @@ PINC_EXPORT uint32_t PINC_CALL pincWindowGetTitle(PincWindowHandle window, char*
 
 PINC_EXPORT void PINC_CALL pincWindowSetWidth(PincWindowHandle window, uint32_t width) {
     PincValidateForState(PincState_init);
-    switch (PincObject_discriminator(window)) {
+    PincObjectDiscriminator discrim = PincObject_discriminator(window);
+    PincForwardErrorVoid();
+    switch (discrim) {
         case PincObjectDiscriminator_incompleteWindow:{
             IncompleteWindow* window_object = PincObject_ref_incompleteWindow(window);
+            PincForwardErrorVoid();
             window_object->width = width;
             window_object->hasWidth = true;
             break;
@@ -1125,10 +1107,11 @@ PINC_EXPORT void PINC_CALL pincWindowSetWidth(PincWindowHandle window, uint32_t 
         case PincObjectDiscriminator_window: {
             WindowHandle* window_backend_handle = PincObject_ref_window(window);
             pincWindowBackend_setWindowWidth(&staticState.windowBackend, *window_backend_handle, width);
+            PincForwardErrorVoid();
             break;
         }
         default: {
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return; );
         }
     }
 }
@@ -1138,15 +1121,15 @@ PINC_EXPORT uint32_t PINC_CALL pincWindowGetWidth(PincWindowHandle window) {
         switch (PincObject_discriminator(window)) {
         case PincObjectDiscriminator_incompleteWindow:{
             IncompleteWindow* window_object = PincObject_ref_incompleteWindow(window);
-            PErrorUser(window_object->hasWidth, "Window does not have its width set");
+            PincAssertUser(window_object->hasWidth, "Window does not have its width set", true, return 0; );
             return window_object->width;
         }
         case PincObjectDiscriminator_window: {
             WindowHandle* window_backend_handle = PincObject_ref_window(window);
-            return pincWindowBackend_getWindowWidth(&staticState.windowBackend, *window_backend_handle);
+            return pincWindowBackend_getWindowWidth(&staticState.windowBackend, *window_backend_handle); // No need to propagate error
         }
         default: {
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return 0;);
         }
     }
     return 0;
@@ -1163,7 +1146,7 @@ PINC_EXPORT bool PINC_CALL pincWindowHasWidth(PincWindowHandle window) {
             return true;
         }
         default: {
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return false; );
         }
     }
     return 0;
@@ -1171,7 +1154,9 @@ PINC_EXPORT bool PINC_CALL pincWindowHasWidth(PincWindowHandle window) {
 
 PINC_EXPORT void PINC_CALL pincWindowSetHeight(PincWindowHandle window, uint32_t height) {
     PincValidateForState(PincState_init);
-    switch (PincObject_discriminator(window)) {
+    PincObjectDiscriminator discrim = PincObject_discriminator(window);
+    PincForwardErrorVoid();
+    switch (discrim) {
         case PincObjectDiscriminator_incompleteWindow:{
             IncompleteWindow* window_object = PincObject_ref_incompleteWindow(window);
             window_object->height = height;
@@ -1184,17 +1169,17 @@ PINC_EXPORT void PINC_CALL pincWindowSetHeight(PincWindowHandle window, uint32_t
             break;
         }
         default: {
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return; );
         }
     }
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincWindowGetHeight(PincWindowHandle window) {
     PincValidateForState(PincState_init);
-        switch (PincObject_discriminator(window)) {
+    switch (PincObject_discriminator(window)) {
         case PincObjectDiscriminator_incompleteWindow:{
             IncompleteWindow* window_object = PincObject_ref_incompleteWindow(window);
-            PErrorUser(window_object->hasHeight, "Window does not have its height set");
+            PincAssertUser(window_object->hasHeight, "Window does not have its height set", true, return 0;);
             return window_object->height;
         }
         case PincObjectDiscriminator_window: {
@@ -1202,7 +1187,7 @@ PINC_EXPORT uint32_t PINC_CALL pincWindowGetHeight(PincWindowHandle window) {
             return pincWindowBackend_getWindowHeight(&staticState.windowBackend, *window_backend_handle);
         }
         default: {
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return 0;);
         }
     }
     return 0;
@@ -1219,7 +1204,7 @@ PINC_EXPORT bool PINC_CALL pincWindowHasHeight(PincWindowHandle window) {
             return true;
         }
         default: {
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return false;);
         }
     }
     return 0;
@@ -1253,7 +1238,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetResizable(PincWindowHandle window, bool 
             break;
         }
         default:{
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return;);
         }
     }
 }
@@ -1270,7 +1255,7 @@ PINC_EXPORT bool PINC_CALL pincWindowGetResizable(PincWindowHandle window) {
             return pincWindowBackend_getWindowResizable(&staticState.windowBackend, *window_backend_handle);
         }
         default:{
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return false;);
         }
     }
     return 0;
@@ -1290,7 +1275,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetMinimized(PincWindowHandle window, bool 
             break;
         }
         default:{
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return;);
         }
     }
 }
@@ -1307,7 +1292,7 @@ PINC_EXPORT bool PINC_CALL pincWindowGetMinimized(PincWindowHandle window) {
             return pincWindowBackend_getWindowMinimized(&staticState.windowBackend, *window_backend_handle);
         }
         default:{
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return false;);
         }
     }
     return 0;
@@ -1327,7 +1312,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetMaximized(PincWindowHandle window, bool 
             break;
         }
         default:{
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return;);
         }
     }
 }
@@ -1344,7 +1329,7 @@ PINC_EXPORT bool PINC_CALL pincWindowGetMaximized(PincWindowHandle window) {
             return pincWindowBackend_getWindowMaximized(&staticState.windowBackend, *window_backend_handle);
         }
         default:{
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return false;);
         }
     }
     return 0;
@@ -1364,7 +1349,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetFullscreen(PincWindowHandle window, bool
             break;
         }
         default:{
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return;);
         }
     }
 }
@@ -1381,7 +1366,7 @@ PINC_EXPORT bool PINC_CALL pincWindowGetFullscreen(PincWindowHandle window) {
             return pincWindowBackend_getWindowFullscreen(&staticState.windowBackend, *window_backend_handle);
         }
         default:{
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return false;);
         }
     }
     return 0;
@@ -1403,7 +1388,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetFocused(PincWindowHandle window, bool fo
             break;
         }
         default:{
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return;);
         }
     }
 }
@@ -1420,7 +1405,7 @@ PINC_EXPORT bool PINC_CALL pincWindowGetFocused(PincWindowHandle window) {
             return pincWindowBackend_getWindowResizable(&staticState.windowBackend, *window_backend_handle);
         }
         default:{
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return false;);
         }
     }
     return 0;
@@ -1440,7 +1425,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetHidden(PincWindowHandle window, bool hid
             break;
         }
         default:{
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return;);
         }
     }
 }
@@ -1457,7 +1442,7 @@ PINC_EXPORT bool PINC_CALL pincWindowGetHidden(PincWindowHandle window) {
             return pincWindowBackend_getWindowHidden(&staticState.windowBackend, *window_backend_handle);
         }
         default:{
-            PErrorUser(false, "Not a window object");
+            PincAssertUser(false, "Not a window object", true, return false;);
         }
     }
     return 0;
@@ -1478,12 +1463,13 @@ PINC_EXPORT void PINC_CALL pincWindowPresentFramebuffer(PincWindowHandle complet
     PincValidateForState(PincState_init);
     // TODO(bluesillybeard): validate that the object is what it says it is, throw a user error if not
     WindowHandle* object = PincObject_ref_window(complete_window_handle);
+    PincForwardErrorVoid();
     pincWindowBackend_windowPresentFramebuffer(&staticState.windowBackend, *object);
 }
 
 PINC_EXPORT void PINC_CALL pincStep(void) {
     PincValidateForState(PincState_init);
-    PErrorUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pincInitComplete?");
+    PincAssertUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pincInitComplete?", true, return;);
     arena_reset(&staticState.arenaAllocatorObject);
     pincWindowBackend_step(&staticState.windowBackend);
     // Event buffer swap
@@ -1506,264 +1492,264 @@ PINC_EXPORT uint32_t PINC_CALL pincEventGetNum(void) {
 
 PINC_EXPORT PincEventType PINC_CALL pincEventGetType(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
     return staticState.eventsBuffer[event_index].type;
 }
 
 PINC_EXPORT PincWindowHandle PINC_CALL pincEventGetWindow(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
     return staticState.eventsBuffer[event_index].currentWindow;
 }
 
 PINC_EXPORT int64_t PINC_CALL pincEventGetTimestampUnixMillis(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
     return staticState.eventsBuffer[event_index].timeUnixMillis;
 }
 
 PINC_EXPORT PincWindowHandle PINC_CALL pincEventCloseSignalWindow(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_closeSignal, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_closeSignal, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.closeSignal.window;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventMouseButtonOldState(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_mouseButton, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_mouseButton, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.mouseButton.oldState;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventMouseButtonState(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_mouseButton, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_mouseButton, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.mouseButton.state;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventResizeOldWidth(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_resize, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_resize, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.resize.oldWidth;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventResizeOldHeight(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_resize, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_resize, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.resize.oldHeight;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventResizeWidth(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_resize, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_resize, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.resize.width;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventResizeHeight(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_resize, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_resize, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.resize.height;
 }
 
 PINC_EXPORT PincWindowHandle PINC_CALL pincEventResizeWindow(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_resize, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_resize, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.resize.window;
 }
 
 PINC_EXPORT PincWindowHandle PINC_CALL pincEventFocusOldWindow(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_focus, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_focus, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].currentWindow;
 }
 
 PINC_EXPORT PincWindowHandle PINC_CALL pincEventFocusWindow(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_focus, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_focus, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.focus.newWindow;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventExposureX(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_exposure, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_exposure, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.exposure.x;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventExposureY(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_exposure, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_exposure, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.exposure.y;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventExposureWidth(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_exposure, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_exposure, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.exposure.width;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventExposureHeight(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_exposure, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_exposure, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.exposure.height;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventExposureWindow(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_exposure, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_exposure, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.exposure.window;
 }
 
 PINC_EXPORT PincKeyboardKey PINC_CALL pincEventKeyboardButtonKey(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_keyboardButton, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_keyboardButton, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.keyboardButton.key;
 }
 
 PINC_EXPORT bool PINC_CALL pincEventKeyboardButtonState(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_keyboardButton, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_keyboardButton, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.keyboardButton.state;
 }
 
 PINC_EXPORT bool PINC_CALL pincEventKeyboardButtonRepeat(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_keyboardButton, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_keyboardButton, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.keyboardButton.repeat;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventCursorMoveOldX(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorMove, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorMove, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.cursorMove.oldX;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventCursorMoveOldY(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorMove, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorMove, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.cursorMove.oldY;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventCursorMoveX(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorMove, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorMove, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.cursorMove.x;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventCursorMoveY(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorMove, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorMove, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.cursorMove.y;
 }
 
 PINC_EXPORT PincWindowHandle PINC_CALL pincEventCursorMoveWindow(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorMove, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorMove, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.cursorMove.window;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventCursorTransitionOldX(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorTransition, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorTransition, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.cursorTransition.oldX;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventCursorTransitionOldY(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorTransition, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorTransition, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.cursorTransition.oldY;
 }
 
 PINC_EXPORT PincWindowHandle PINC_CALL pincEventCursorTransitionOldWindow(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorTransition, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorTransition, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.cursorTransition.oldWindow;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventCursorTransitionX(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorTransition, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorTransition, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.cursorTransition.x;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventCursorTransitionY(uint32_t event_index){
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorTransition, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorTransition, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.cursorTransition.y;
 }
 
 PINC_EXPORT PincWindowHandle PINC_CALL pincEventCursorTransitionWindow(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorTransition, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_cursorTransition, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.cursorTransition.window;
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincEventTextInputCodepoint(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_textInput, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_textInput, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.textInput.codepoint;
 }
 
 PINC_EXPORT float PINC_CALL pincEventScrollVertical(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_scroll, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_scroll, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.scroll.vertical;
 }
 
 PINC_EXPORT float PINC_CALL pincEventScrollHorizontal(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_scroll, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_scroll, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.scroll.horizontal;
 }
 
 PINC_EXPORT PincMediaType PINC_CALL pincEventClipboardChangedMediaType(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_clipboardChanged, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_clipboardChanged, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.clipboard.type;
 }
 
 PINC_EXPORT char const* PINC_CALL pincEventClipboardChangedData(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_clipboardChanged, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_clipboardChanged, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.clipboard.data;
 }
 
 PINC_EXPORT size_t PINC_CALL pincEventClipboardChangedDataSize(uint32_t event_index) {
     PincValidateForState(PincState_init);
-    PErrorUser(event_index < staticState.eventsBufferNum, "Event index out of bounds");
-    PErrorUser(staticState.eventsBuffer[event_index].type == PincEventType_clipboardChanged, "Wrong event type");
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_clipboardChanged, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.clipboard.dataSize;
 }
 
@@ -1776,8 +1762,8 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglVersionSupported(Pi
     if(backend == PincWindowBackend_any) {
         backend = PincWindowBackend_sdl2;
     }
-    PErrorUser(backend == PincWindowBackend_sdl2, "Unsupported window backend");
-    PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
+    PincAssertUser(backend == PincWindowBackend_sdl2, "Unsupported window backend", true, return PincOpenglSupportStatus_maybe;);
+    PincAssertUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?", true, return PincOpenglSupportStatus_maybe;);
 
     return pincWindowBackend_queryGlVersionSupported(&staticState.sdl2WindowBackend, major, minor, profile);
 }
@@ -1866,8 +1852,8 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglContextDebug(PincWi
     if(backend == PincWindowBackend_any) {
         backend = PincWindowBackend_sdl2;
     }
-    PErrorUser(backend == PincWindowBackend_sdl2, "Unsupported window backend");
-    PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
+    PincAssertUser(backend == PincWindowBackend_sdl2, "Unsupported window backend", true, return PincOpenglSupportStatus_maybe;);
+    PincAssertUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?", true, return PincOpenglSupportStatus_maybe;);
     return pincWindowBackend_queryGlContextDebug(&staticState.sdl2WindowBackend);
 }
 
@@ -1877,8 +1863,8 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglRobustAccess(PincWi
     if(backend == PincWindowBackend_any) {
         backend = PincWindowBackend_sdl2;
     }
-    PErrorUser(backend == PincWindowBackend_sdl2, "Unsupported window backend");
-    PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
+    PincAssertUser(backend == PincWindowBackend_sdl2, "Unsupported window backend", true, return PincOpenglSupportStatus_maybe;);
+    PincAssertUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?", true, return PincOpenglSupportStatus_maybe;);
     return pincWindowBackend_queryGlRobustAccess(&staticState.sdl2WindowBackend);
 }
 
@@ -1888,8 +1874,8 @@ PINC_EXPORT PincOpenglSupportStatus PINC_CALL pincQueryOpenglResetIsolation(Pinc
     if(backend == PincWindowBackend_any) {
         backend = PincWindowBackend_sdl2;
     }
-    PErrorUser(backend == PincWindowBackend_sdl2, "Unsupported window backend");
-    PErrorUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?");
+    PincAssertUser(backend == PincWindowBackend_sdl2, "Unsupported window backend", true, return PincOpenglSupportStatus_maybe;);
+    PincAssertUser(staticState.sdl2WindowBackend.obj, "No backends initialized - did you forget to call pinc_incomplete_init?", true, return PincOpenglSupportStatus_maybe;);
     return pincWindowBackend_queryGlResetIsolation(&staticState.sdl2WindowBackend);
 }
 
@@ -1916,112 +1902,103 @@ PINC_EXPORT PincOpenglContextHandle PINC_CALL pincOpenglCreateContextIncomplete(
     return handle;
 }
 
-PINC_EXPORT PincErrorCode PINC_CALL pincOpenglSetContextAccumulatorBits(PincOpenglContextHandle incomplete_context, uint32_t channel, uint32_t bits) {
+PINC_EXPORT void PINC_CALL pincOpenglSetContextAccumulatorBits(PincOpenglContextHandle incomplete_context, uint32_t channel, uint32_t bits) {
     PincValidateForState(PincState_init);
-    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    PincAssertUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context", true, return; );
+    PincAssertUser(channel < 4, "Invalid channel index: must be less than 4", true, return; );
     IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
-    PErrorUser(channel < 4, "Invalid channel index: must be less than 4");
+    PincForwardErrorVoid();
     contextObject->accumulatorBits[channel] = bits;
-    return PincErrorCode_pass;
 }
 
-PINC_EXPORT PincErrorCode PINC_CALL pincOpenglSetContextAlphaBits(PincOpenglContextHandle incomplete_context, uint32_t bits) {
+PINC_EXPORT void PINC_CALL pincOpenglSetContextAlphaBits(PincOpenglContextHandle incomplete_context, uint32_t bits) {
     PincValidateForState(PincState_init);
-    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    PincAssertUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context", true, return; );
     IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
     contextObject->alphaBits = bits;
-    return PincErrorCode_assert;
 }
 
-PINC_EXPORT PincErrorCode PINC_CALL pincOpenglSetContextDepthBits(PincOpenglContextHandle incomplete_context, uint32_t bits) {
+PINC_EXPORT void PINC_CALL pincOpenglSetContextDepthBits(PincOpenglContextHandle incomplete_context, uint32_t bits) {
     PincValidateForState(PincState_init);
-    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    PincAssertUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context", true, return; );
     IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
     contextObject->depthBits = bits;
-    return PincErrorCode_assert;
 }
 
-PINC_EXPORT PincErrorCode PINC_CALL pincOpenglSetContextStencilBits(PincOpenglContextHandle incomplete_context, uint32_t bits) {
+PINC_EXPORT void PINC_CALL pincOpenglSetContextStencilBits(PincOpenglContextHandle incomplete_context, uint32_t bits) {
     PincValidateForState(PincState_init);
-    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    PincAssertUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context", true, return; );
     IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
     contextObject->stencilBits = bits;
-    return PincErrorCode_assert;
 }
 
-PINC_EXPORT PincErrorCode PINC_CALL pincOpenglSetContextSamples(PincOpenglContextHandle incomplete_context, uint32_t samples) {
+PINC_EXPORT void PINC_CALL pincOpenglSetContextSamples(PincOpenglContextHandle incomplete_context, uint32_t samples) {
     PincValidateForState(PincState_init);
-    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    PincAssertUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context", true, return; );
     IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
     contextObject->samples = samples;
-    return PincErrorCode_assert;
 }
 
-PINC_EXPORT PincErrorCode PINC_CALL pincOpenglSetContextStereoBuffer(PincOpenglContextHandle incomplete_context, bool stereo) {
+PINC_EXPORT void PINC_CALL pincOpenglSetContextStereoBuffer(PincOpenglContextHandle incomplete_context, bool stereo) {
     PincValidateForState(PincState_init);
-    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    PincAssertUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context", true, return; );
     IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
     contextObject->stereo = stereo;
-    return PincErrorCode_assert;
 }
 
-PINC_EXPORT PincErrorCode PINC_CALL pincOpenglSetContextDebug(PincOpenglContextHandle incomplete_context, bool debug) {
+PINC_EXPORT void PINC_CALL pincOpenglSetContextDebug(PincOpenglContextHandle incomplete_context, bool debug) {
     PincValidateForState(PincState_init);
-    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    PincAssertUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context", true, return; );
     IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
     contextObject->debug = debug;
-    return PincErrorCode_assert;
 }
 
-PINC_EXPORT PincErrorCode PINC_CALL pincOpenglSetContextRobustAccess(PincOpenglContextHandle incomplete_context, bool robust) {
+PINC_EXPORT void PINC_CALL pincOpenglSetContextRobustAccess(PincOpenglContextHandle incomplete_context, bool robust) {
     PincValidateForState(PincState_init);
-    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    PincAssertUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context", true, return; );
     IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
     contextObject->robustAccess = robust;
-    return PincErrorCode_assert;
 }
 
-PINC_EXPORT PincErrorCode PINC_CALL pincOpenglSetContextResetIsolation(PincOpenglContextHandle incomplete_context, bool isolation) {
+PINC_EXPORT void PINC_CALL pincOpenglSetContextResetIsolation(PincOpenglContextHandle incomplete_context, bool isolation) {
     PincValidateForState(PincState_init);
-    PErrorUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context");
+    PincAssertUser(PincObject_discriminator(incomplete_context) == PincObjectDiscriminator_incompleteGlContext, "Object must be an incomplete OpenGL context", true, return; );
     IncompleteGlContext* contextObject = PincObject_ref_incompleteGlContext(incomplete_context);
+    PincForwardErrorVoid();
     contextObject->resetIsolation = isolation;
-    return PincErrorCode_assert;
 }
 
-PINC_EXPORT PincErrorCode PINC_CALL pincOpenglSetContextVersion(PincOpenglContextHandle incomplete_context, uint32_t major, uint32_t minor, PincOpenglContextProfile profile) {
+PINC_EXPORT void PINC_CALL pincOpenglSetContextVersion(PincOpenglContextHandle incomplete_context, uint32_t major, uint32_t minor, PincOpenglContextProfile profile) {
     PincValidateForState(PincState_init);
     if(pincQueryOpenglVersionSupported(PincWindowBackend_any, major, minor, profile) == PincOpenglSupportStatus_none) {
-        PErrorExternal(false, "Opengl version not supported");
-        return PincErrorCode_assert;
+        PincAssertUser(false, "Opengl version not supported", true, return;);
     }
 
     IncompleteGlContext* contextObj = PincObject_ref_incompleteGlContext(incomplete_context);
+    PincForwardErrorVoid();
     contextObj->versionMajor = major;
     contextObj->versionMinor = minor;
     contextObj->profile = profile;
-    return PincErrorCode_pass;
 }
 
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglSetContextShareWithCurrent(PincOpenglContextHandle incomplete_context_handle, bool share) {
+PINC_EXTERN void PINC_CALL pincOpenglSetContextShareWithCurrent(PincOpenglContextHandle incomplete_context_handle, bool share) {
     PincValidateForState(PincState_init);
     IncompleteGlContext* contextObj = PincObject_ref_incompleteGlContext(incomplete_context_handle);
+    PincForwardErrorVoid();
     contextObj->shareWithCurrent = share;
-    return PincErrorCode_pass;
 }
 
-PINC_EXPORT PincErrorCode PINC_CALL pincOpenglCompleteContext(PincOpenglContextHandle incomplete_context) {
+PINC_EXPORT void PINC_CALL pincOpenglCompleteContext(PincOpenglContextHandle incomplete_context) {
     PincValidateForState(PincState_init);
     IncompleteGlContext* contextObj = PincObject_ref_incompleteGlContext(incomplete_context);
     RawOpenglContextHandle contextHandle = pincWindowBackend_glCompleteContext(&staticState.windowBackend, *contextObj);
     if(contextHandle == 0) {
-        return PincErrorCode_assert;
+        // ERROR return PincErrorCode_assert;
     }
     PincObject_reallocate(incomplete_context, PincObjectDiscriminator_glContext);
     RawOpenglContextObject* handleObject = PincObject_ref_glContext(incomplete_context);
     handleObject->handle = contextHandle;
     handleObject->front_handle = incomplete_context;
-    return PincErrorCode_pass;
 }
 
 PINC_EXPORT void PINC_CALL pincOpenglDeinitContext(PincOpenglContextHandle context) {
@@ -2038,13 +2015,13 @@ PINC_EXPORT void PINC_CALL pincOpenglDeinitContext(PincOpenglContextHandle conte
             break;
         }
         default:
-            PErrorUser(false, "Object must be an opengl context");
+            PincAssertUser(false, "Object must be an opengl context", true, return;);
     }
 }
 
 PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextAccumulatorBits(PincOpenglContextHandle context, uint32_t channel) {
     PincValidateForState(PincState_init);
-    PErrorUser(channel < 4, "Invalid channel index: must be less than 4");
+    PincAssertUser(channel < 4, "Invalid channel index: must be less than 4", true, return 0;);
     switch(PincObject_discriminator(context)) {
         case PincObjectDiscriminator_incompleteGlContext: {
             IncompleteGlContext* object = PincObject_ref_incompleteGlContext(context);
@@ -2055,7 +2032,7 @@ PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextAccumulatorBits(PincOpenglCon
             return pincWindowBackend_glGetContextAccumulatorBits(&staticState.windowBackend, *object, channel);
         }
         default:
-            PErrorUser(false, "Object must be an OpenGL context");
+            PincAssertUser(false, "Object must be an OpenGL context", true, return 0;);
             return 0;
     }
 }
@@ -2072,7 +2049,7 @@ PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextAlphaBits(PincOpenglContextHa
             return pincWindowBackend_glGetContextAlphaBits(&staticState.windowBackend, *object);
         }
         default:
-            PErrorUser(false, "Object must be an OpenGL context");
+            PincAssertUser(false, "Object must be an OpenGL context", true, return 0;);
             return 0;
     }
 }
@@ -2089,7 +2066,7 @@ PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextDepthBits(PincOpenglContextHa
             return pincWindowBackend_glGetContextDepthBits(&staticState.windowBackend, *object);
         }
         default:
-            PErrorUser(false, "Object must be an OpenGL context");
+            PincAssertUser(false, "Object must be an OpenGL context", true, return 0;);
             return 0;
     }
 }
@@ -2106,7 +2083,7 @@ PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextStencilBits(PincOpenglContext
             return pincWindowBackend_glGetContextStencilBits(&staticState.windowBackend, *object);
         }
         default:
-            PErrorUser(false, "Object must be an OpenGL context");
+            PincAssertUser(false, "Object must be an OpenGL context", true, return 0;);
             return 0;
     }
 }
@@ -2123,7 +2100,7 @@ PINC_EXPORT uint32_t PINC_CALL pincOpenglGetContextSamples(PincOpenglContextHand
             return pincWindowBackend_glGetContextSamples(&staticState.windowBackend, *object);
         }
         default:
-            PErrorUser(false, "Object must be an OpenGL context");
+            PincAssertUser(false, "Object must be an OpenGL context", true, return 0;);
             return 0;
     }
 }
@@ -2140,7 +2117,7 @@ PINC_EXPORT bool PINC_CALL pincOpenglGetContextStereoBuffer(PincOpenglContextHan
             return pincWindowBackend_glGetContextStereoBuffer(&staticState.windowBackend, *object);
         }
         default:
-            PErrorUser(false, "Object must be an OpenGL context");
+            PincAssertUser(false, "Object must be an OpenGL context", true, return false;);
             return 0;
     }
 }
@@ -2157,7 +2134,7 @@ PINC_EXPORT bool PINC_CALL pincOpenglGetContextDebug(PincOpenglContextHandle con
             return pincWindowBackend_glGetContextDebug(&staticState.windowBackend, *object);
         }
         default:
-            PErrorUser(false, "Object must be an OpenGL context");
+            PincAssertUser(false, "Object must be an OpenGL context", true, return false;);
             return 0;
     }
 }
@@ -2174,7 +2151,7 @@ PINC_EXPORT bool PINC_CALL pincOpenglGetContextRobustAccess(PincOpenglContextHan
             return pincWindowBackend_glGetContextRobustAccess(&staticState.windowBackend, *object);
         }
         default:
-            PErrorUser(false, "Object must be an OpenGL context");
+            PincAssertUser(false, "Object must be an OpenGL context", true, return false;);
             return 0;
     }
 }
@@ -2191,12 +2168,12 @@ PINC_EXPORT bool PINC_CALL pincOpenglGetContextResetIsolation(PincOpenglContextH
             return pincWindowBackend_glGetContextResetIsolation(&staticState.windowBackend, *object);
         }
         default:
-            PErrorUser(false, "Object must be an OpenGL context");
+            PincAssertUser(false, "Object must be an OpenGL context", true, return false;);
             return 0;
     }
 }
 
-PINC_EXPORT PincErrorCode PINC_CALL pincOpenglMakeCurrent(PincWindowHandle window, PincOpenglContextHandle complete_context_handle) {
+PINC_EXPORT void PINC_CALL pincOpenglMakeCurrent(PincWindowHandle window, PincOpenglContextHandle complete_context_handle) {
     PincValidateForState(PincState_init);
     WindowHandle windowObj = 0;
     if(window != 0) {
@@ -2208,7 +2185,9 @@ PINC_EXPORT PincErrorCode PINC_CALL pincOpenglMakeCurrent(PincWindowHandle windo
         // TODO(bluesillybeard): user error if not a complete context
         contextObj = *PincObject_ref_glContext(complete_context_handle);
     }
-    return pincWindowBackend_glMakeCurrent(&staticState.windowBackend, windowObj, contextObj.handle);
+    PincErrorCode error = pincWindowBackend_glMakeCurrent(&staticState.windowBackend, windowObj, contextObj.handle);
+    PincForwardErrorVoid();
+    PincAssertAssert(error == PincErrorCode_pass, "Received unknown error from pincWindowBackend_glMakeCurrent", false, return;)
 }
 
 PINC_EXPORT PincWindowHandle PINC_CALL pincOpenglGetCurrentWindow(void) {

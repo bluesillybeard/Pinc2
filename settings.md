@@ -24,19 +24,13 @@ Boolean options can use "1", and "ON" for enable. Nearly any other value is trea
     - whether pinc with support for SDL2 window backend. 1 for enabled, 0 for disabled. Defaults to 1.
     - this is currently the *only* window backend, so disabling it is not a good idea
 - `PINC_ENABLE_ERROR_EXTERNAL`
-    - Compile with external error checking. Defaults to 1.
+    - Compile with external error checking. Defaults to 1. In general, you should really just leave this on.
     - See pinc.h for error policy
 - `PINC_ENABLE_ERROR_ASSERT`
-    - Compile with assert error checking. Defaults to 1.
+    - Compile with assert error checking. Defaults to 1. In general, you should really just leave this on.
     - See pinc.h for error policy
 - `PINC_ENABLE_ERROR_USER`
-    - Compile with user error checking. Defaults to 1.
-    - See pinc.h for error policy
-- `PINC_ENABLE_ERROR_SANITIZE`
-    - Compile with sanitize error checking. Defaults to 0.
-    - See pinc.h for error policy
-- `PINC_ENABLE_ERROR_VALIDATE`
-    - Compile with validate error checking. Defaults to 0.
+    - Compile with user error checking. Defaults to 1. This may be disabled in release builds, if the performance impact is significant enough.
     - See pinc.h for error policy
 - `PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION`
     - Disables Pinc's internal platform implementation and expects the user to define it. Defaults to 0.

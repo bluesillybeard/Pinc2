@@ -91,23 +91,23 @@ PINC_EXTERN PincOpenglContextHandle PINC_CALL pincOpenglCreateContextIncomplete(
 
 /// These fail when the exact configuration is definitely not supported. When it fails, the property is not set, and an error is not triggered.
 /// If it does not fail, then it means Pinc could not determine that the feature is not supported.
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglSetContextAccumulatorBits(PincOpenglContextHandle incomplete_context_handle, uint32_t channel, uint32_t bits);
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglSetContextAlphaBits(PincOpenglContextHandle incomplete_context_handle, uint32_t bits);
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglSetContextDepthBits(PincOpenglContextHandle incomplete_context_handle, uint32_t bits);
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglSetContextStencilBits(PincOpenglContextHandle incomplete_context_handle, uint32_t bits);
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglSetContextSamples(PincOpenglContextHandle incomplete_context_handle, uint32_t samples);
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglSetContextStereoBuffer(PincOpenglContextHandle incomplete_context_handle, bool stereo);
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglSetContextDebug(PincOpenglContextHandle incomplete_context_handle, bool debug);
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglSetContextRobustAccess(PincOpenglContextHandle incomplete_context_handle, bool robust);
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglSetContextResetIsolation(PincOpenglContextHandle incomplete_context_handle, bool isolation);
+PINC_EXTERN void PINC_CALL pincOpenglSetContextAccumulatorBits(PincOpenglContextHandle incomplete_context_handle, uint32_t channel, uint32_t bits);
+PINC_EXTERN void PINC_CALL pincOpenglSetContextAlphaBits(PincOpenglContextHandle incomplete_context_handle, uint32_t bits);
+PINC_EXTERN void PINC_CALL pincOpenglSetContextDepthBits(PincOpenglContextHandle incomplete_context_handle, uint32_t bits);
+PINC_EXTERN void PINC_CALL pincOpenglSetContextStencilBits(PincOpenglContextHandle incomplete_context_handle, uint32_t bits);
+PINC_EXTERN void PINC_CALL pincOpenglSetContextSamples(PincOpenglContextHandle incomplete_context_handle, uint32_t samples);
+PINC_EXTERN void PINC_CALL pincOpenglSetContextStereoBuffer(PincOpenglContextHandle incomplete_context_handle, bool stereo);
+PINC_EXTERN void PINC_CALL pincOpenglSetContextDebug(PincOpenglContextHandle incomplete_context_handle, bool debug);
+PINC_EXTERN void PINC_CALL pincOpenglSetContextRobustAccess(PincOpenglContextHandle incomplete_context_handle, bool robust);
+PINC_EXTERN void PINC_CALL pincOpenglSetContextResetIsolation(PincOpenglContextHandle incomplete_context_handle, bool isolation);
 /// true -> flush when made unavailable, false -> don't flush when made unavailable
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglSetContextReleaseBehavior(PincOpenglContextHandle incomplete_context_handle, bool flush_on_release);
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglSetContextVersion(PincOpenglContextHandle incomplete_context_handle, uint32_t major, uint32_t minor, PincOpenglContextProfile profile);
+PINC_EXTERN void PINC_CALL pincOpenglSetContextReleaseBehavior(PincOpenglContextHandle incomplete_context_handle, bool flush_on_release);
+PINC_EXTERN void PINC_CALL pincOpenglSetContextVersion(PincOpenglContextHandle incomplete_context_handle, uint32_t major, uint32_t minor, PincOpenglContextProfile profile);
 /// the context to be shared with is determined when this context is complete, not when this function is called.
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglSetContextShareWithCurrent(PincOpenglContextHandle incomplete_context_handle, bool share);
+PINC_EXTERN void PINC_CALL pincOpenglSetContextShareWithCurrent(PincOpenglContextHandle incomplete_context_handle, bool share);
 
 /// Pinc will try its best to apply the given settings for the context, but they may be different from the requested ones.
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglCompleteContext(PincOpenglContextHandle incomplete_context_handle);
+PINC_EXTERN void PINC_CALL pincOpenglCompleteContext(PincOpenglContextHandle incomplete_context_handle);
 PINC_EXTERN void PINC_CALL pincOpenglDeinitContext(PincOpenglContextHandle context_handle);
 
 PINC_EXTERN uint32_t PINC_CALL pincOpenglGetContextAccumulatorBits(PincOpenglContextHandle context_handle, uint32_t channel);
@@ -126,7 +126,7 @@ PINC_EXTERN bool PINC_CALL pincOpenglGetContextShareWithCurrent(PincOpenglContex
 /// @param window the window whose framebuffer to bind to the opengl context, or 0 if it doesn't matter.
 /// @param complete_context_handle the opengl context to bind with. Must be a complete context.
 /// @return a pinc return code indicating the success of this function
-PINC_EXTERN PincErrorCode PINC_CALL pincOpenglMakeCurrent(PincWindowHandle window, PincOpenglContextHandle complete_context_handle);
+PINC_EXTERN void PINC_CALL pincOpenglMakeCurrent(PincWindowHandle window, PincOpenglContextHandle complete_context_handle);
 
 PINC_EXTERN PincWindowHandle PINC_CALL pincOpenglGetCurrentWindow(void);
 PINC_EXTERN PincOpenglContextHandle PINC_CALL pincOpenglGetCurrentContext(void);

@@ -112,7 +112,7 @@ typedef struct WindowBackend {
 #define PINC_WINDOW_INTERFACE_FUNCTION(type, arguments, name, argumentsNames, defaultReturn)\
     static type pincWindowBackend_##name arguments { \
         if(obj -> vt.name == 0) { \
-            PErrorExternal(false, "Function " #name " Is not implemented for this window backend!"); \
+            PincAssertExternal(false, "Function " #name " Is not implemented for this window backend!", true, ;); \
             return (defaultReturn); \
         } \
         return obj -> vt.name argumentsNames;\
@@ -121,7 +121,7 @@ typedef struct WindowBackend {
 #define PINC_WINDOW_INTERFACE_PROCEDURE(arguments, name, argumentsNames)\
     static void pincWindowBackend_##name arguments { \
         if(obj -> vt.name == 0) { \
-            PErrorExternal(false, "Function " #name " Is not implemented for this window backend!"); \
+            PincAssertExternal(false, "Function " #name " Is not implemented for this window backend!", true, ;); \
             return; \
         } \
         obj -> vt.name argumentsNames;\
