@@ -1,0 +1,36 @@
+# Next Steps / Roadmap
+- implement the rest of SDL2 + OpenGl backend
+- Make sure all of the important TODOs are handled
+- create pinc graphics
+    - Just base it off the original one.
+    - Changes I want to make:
+        - split into separate module rather than be part of the main API
+        - move the texture sampling properties from the uniform to the pipeline
+        - More dynamic pipeline state
+        - Remove GLSL and use a custom shader definition compatible with fixed function rendering (aim for minimal features like OpenGL 1.0 or the N64)
+        - Add GLSL as an optional feature that a graphics backend may or may not have
+        - Add indexed framebuffer / texture (where colors are an enum instead of brightness values)
+            - This may be as simple as adding a new color space and some query functions.
+            - Note: Modern APIs don't support this directly (lol I wonder why), so this capability needs to be queryable
+            - SDL2 supports this! I'm genuinely not quite sure why they would, seeing as they only target platforms of the last ~20 years, but still neat.
+        - scissor rectangle
+        - add framebuffer objects / arbitrary draw surfaces
+            - many APIs do not support these so they must be optional to implement
+            - With that said, on the OpenGL 1.1 - 2.1 side, ARB_framebuffer_object or EXT_framebuffer_object are apparently widely supported, and almost guaranteed on 2.x hardware.
+        - queue based rendering - the user makes a queue, submits all of it at once, and can query if it's finished or not.
+            - Not so nice in OpenGL land, which does all of the sync automatically, but this is a nice abstraction that many other APIs can benefit from.
+                - Note: Look at OpenGL sync objects, ARB_sync, NV_fence.
+                - Note: Look into NV_command_list, also ARB_shader_draw_parameters may be useful
+        - cross-api shader programming?
+    - implement opengl 2.1 backend
+- implement the rest of the examples from the original project
+    - Remove the link to the old Zig version
+- Celebrate! we've made it back to where we left off in the original Zig version of Pinc.
+    - And in fact, with some new things that the original prototype-like thing did not have
+- implement many examples, inspired from the likes of SDL and GLFW
+- proper documentation to guide users on how to use this library
+
+# Other things
+- Don't forget the issue tracker!
+- Don't forget the infinite sea of TODOs in the sources!
+    - Last count: 147 TODOs
