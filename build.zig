@@ -91,6 +91,7 @@ pub fn build(b: *std.Build) !void {
             "src/pinc_sdl2.c",
             "src/pinc_arena.c",
             "src/libs/pinc_string.c",
+            "src/libs/pinc_utf8.c",
         },
         .flags = try flags.toOwnedSlice(),
     });
