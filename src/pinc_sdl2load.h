@@ -55,7 +55,8 @@
     SDL_FUNC(SDL_bool, pixelFormatEnumToMasks, SDL_PixelFormatEnumToMasks, (uint32_t format, int* bpp, uint32_t* Rmask, uint32_t* Gmask, uint32_t* Bmask, uint32_t* Amask)) \
     SDL_FUNC(char*, getClipboardText, SDL_GetClipboardText, (void)) \
     SDL_FUNC(SDL_bool, hasClipboardText, SDL_HasClipboardText, (void)) \
-    SDL_FUNC(void, SDL_free, free, (void *mem)) \
+    SDL_FUNC(void, free, SDL_free, (void *mem)) \
+    SDL_FUNC(void, startTextInput, SDL_StartTextInput, (void)) \
 
 
 #undef SDL_FUNC

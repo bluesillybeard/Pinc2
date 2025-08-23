@@ -131,7 +131,7 @@ int main(void) { //NOLINT: I'm conflicted on the complexity of this example func
                     break;
                 }
                 case PincEventType_textInput: {
-                    printf("User typed %c", pincEventTextInputCodepoint(i));
+                    printf("User typed %c\n", pincEventTextInputCodepoint(i));
                     break;
                 }
                 case PincEventType_scroll: {

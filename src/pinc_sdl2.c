@@ -1,10 +1,11 @@
 // To make the build system as simple as possible, backend source files must remove themselves rather than rely on the build system
-#include "SDL2/SDL_events.h"
-#include "SDL2/SDL_keyboard.h"
-#include "SDL2/SDL_mouse.h"
-#include "SDL2/SDL_scancode.h"
 #include "pinc_options.h"
 #if PINC_HAVE_WINDOW_SDL2
+
+#include <SDL2/SDL_events.h>
+#include <SDL2/SDL_keyboard.h>
+#include <SDL2/SDL_mouse.h>
+#include <SDL2/SDL_scancode.h>
 
 #include <SDL2/SDL_stdinc.h>
 #include <SDL2/SDL_video.h>
@@ -12,14 +13,15 @@
 #include <pinc.h>
 #include <pinc_opengl.h>
 
-#include "libs/pinc_allocator.h"
-#include "libs/pinc_string.h"
 #include "pinc_error.h"
 #include "pinc_main.h"
 #include "pinc_sdl2load.h"
 #include "pinc_types.h"
 #include "pinc_window.h"
 #include "platform/pinc_platform.h"
+#include <libs/pinc_allocator.h>
+#include <libs/pinc_string.h>
+#include <libs/pinc_utf8.h>
 
 typedef struct {
     SDL_Window* sdlWindow;
@@ -619,7 +621,8 @@ uint32_t pincSdl2queryMaxOpenWindows(struct WindowBackend* obj) {
 }
 
 PincErrorCode pincSdl2completeInit(struct WindowBackend* obj, PincGraphicsApi graphicsBackend, FramebufferFormat framebuffer) {
-    P_UNUSED(obj);
+    PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
+    this->libsdl2.startTextInput();
     P_UNUSED(framebuffer);
     switch (graphicsBackend) //NOLINT: more cases will be added over time
     {
@@ -824,10 +827,23 @@ void pincSdl2step(struct WindowBackend* obj) { //NOLINT: TODO: Fix this abominab
                 PincEventKeyboardButton(timestamp, key, event.key.state == SDL_PRESSED, event.key.repeat != 0);
                 break;
             }
-            case SDL_TEXTEDITING: {
-                // TODO(bluesillybeard): Pinc needs utf8 decode before this can be implemented
+            case SDL_TEXTINPUT: {
+                uint32_t buffer[32];
+                size_t text_size = pincStringLen(event.text.text);
+                PincAssertAssert(text_size < 32, "32 byte buffer produced >32 bytes", false, return; );
+                size_t num_codepoints = pincDecodeUTF8String(event.text.text, text_size, buffer, 32);
+                PincAssertAssert(num_codepoints < 32, "32 bytes of utf8 produced >32 unicode codepoints", false, return; );
+                for(size_t index = 0; index < num_codepoints; ++index) {
+                    // TODO(bluesillybeard) text input should account for which window was typed into?
+                    // Or will it always be the focused window under all circumstances?
+                    // I can imagine automation macros typing into windows that aren't focused.
+                    PincEventTextInput(timestamp, buffer[index]);
+                }
+                break;
             }
+            // TODO(bluesillybeard): text edit event
             // TODO(bluesillybeard): text edit extended event
+            // It apparently has a selection cursor...? What is that about?
             default:{
                 // TODO(bluesillybeard): Once all SDL events are handled, assert.
                 break;
