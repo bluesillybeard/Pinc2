@@ -47,7 +47,6 @@ void* pincLoadLibrary(uint8_t const* nameUtf8, size_t nameSize) {
     pincMemCopy("lib", nameUtf8NullTerm, 3);
     pincMemCopy(nameUtf8, nameUtf8NullTerm+3, nameSize);
     pincMemCopy(".so\0", nameUtf8NullTerm+3+nameSize, 4);
-    // TODO(bluesillybeard): does dlOpen accept utf8?
     void* lib = dlopen((char*)nameUtf8NullTerm, RTLD_LAZY);
     pincFree(nameUtf8NullTerm, nameSize+1);
 
@@ -58,7 +57,6 @@ void* pincLoadLibrary(uint8_t const* nameUtf8, size_t nameSize) {
         pincMemCopy("lib", nameUtf8NullTerm, 3);
         pincMemCopy(nameUtf8, nameUtf8NullTerm+3, nameSize);
         pincMemCopy(".so.0\0", nameUtf8NullTerm+3+nameSize, 6);
-        // TODO(bluesillybeard): does dlOpen accept utf8?
         lib = dlopen((char*)nameUtf8NullTerm, RTLD_LAZY);
         pincFree(nameUtf8NullTerm, nameSize+1);
     }
@@ -108,20 +106,13 @@ void pincMemSet(uint8_t value, void* destination, size_t numBytes) {
     memset(destination, value, numBytes);
 }
 
-// TODO(bluesillybeard): these need to be implemented
-// uint32_t pincUtf8Unicode(uint8_t const* restrict str, size_t strLen, size_t* restrict outLen);
-// size_t pincUnicodeUtf8(uint32_t codepoint, char* destStr);
-// size_t pincUtf8UnicodeString(uint8_t const* restrict str, size_t strLen, uint32_t* restrict outUnicode);
-// size_t pincUnicodeUtf8String(uint32_t const* restrict codepoints, size_t numCodepoints, uint8_t* restrict outUtf8);
-
 // Source: https://github.com/scottt/debugbreak/blob/master/debugbreak.h
 // Not a copy, but this has the parts needed from it
 // We don't need any of the windows stuff, or the C++ stuff... Or most of it, actually.
 
 void pincTriggerDebugger(void) {
     // NOLINTBEGIN(hicpp-no-assembler)
-    // TODO(bluesillybeard): does it make sense to make this debug stuff a Pinc option rather than use standard macros?
-    // It's a single assembly instruction - it might be fine to just always include it, even in release builds.
+    // This is a single assembly instruction, so I don't believe there is a good reason to make a Pinc build option for it.
     #if !defined(DEBUG) && !defined(NDEBUG)
     #if defined(__i386__) || defined(__x86_64__)
     // x86

@@ -1505,7 +1505,7 @@ PincWindowHandle pincSdl2glGetCurrentWindow(struct WindowBackend* obj) {
 }
 
 PincOpenglContextHandle pincSdl2glGetCurrentContext(struct WindowBackend* obj) {
-    // TODO(bluesillybeard): I'm not too confident about this, it should be tested properly
+    // TODO(bluesillybeard): I'm not too confident about this function, it should be tested properly
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     SDL_GLContext sdlContext = this->libsdl2.glGetCurrentContext();
     if(!sdlContext) {

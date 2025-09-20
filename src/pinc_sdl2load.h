@@ -25,7 +25,7 @@
     SDL_FUNC(int, getDisplayMode, SDL_GetDisplayMode, (int displayIndex, int modeIndex, SDL_DisplayMode* outMode)) \
     SDL_FUNC(SDL_PixelFormat*, allocFormat, SDL_AllocFormat, (uint32_t pixelFormat)) \
     SDL_FUNC(void, freeFormat, SDL_FreeFormat, (SDL_PixelFormat* format)) \
-    SDL_FUNC(SDL_Window*, createWindow, SDL_CreateWindow, (char const* title, int x, int y, int w, int h, uint32_t flags)) \
+    SDL_FUNC(SDL_Window*, createWindow, SDL_CreateWindow, (char const* title, int x, int y, int width, int height, uint32_t flags)) \
     SDL_FUNC(int, glSetSwapInterval, SDL_GL_SetSwapInterval, (int interval)) \
     SDL_FUNC(int, glGetSwapInterval, SDL_GL_GetSwapInterval, (void)) \
     SDL_FUNC(char const*, getError, SDL_GetError, (void)) \
@@ -33,7 +33,7 @@
     SDL_FUNC(int, pollEvent, SDL_PollEvent, (SDL_Event* event)) \
     SDL_FUNC(void*, setWindowData, SDL_SetWindowData, (SDL_Window* window, char const* name, void* userdata)) \
     SDL_FUNC(void*, getWindowData, SDL_GetWindowData, (SDL_Window* window, char const* name)) \
-    SDL_FUNC(SDL_Window*, getWindowFromId, SDL_GetWindowFromID, (uint32_t id)) \
+    SDL_FUNC(SDL_Window*, getWindowFromId, SDL_GetWindowFromID, (uint32_t window_id)) \
     SDL_FUNC(void, glSwapWindow, SDL_GL_SwapWindow, (SDL_Window* window)) \
     SDL_FUNC(SDL_GLContext, glCreateContext, SDL_GL_CreateContext, (SDL_Window* window)) \
     SDL_FUNC(void, glDeleteContext, SDL_GL_DeleteContext, (SDL_GLContext context)) \
@@ -65,7 +65,7 @@
 #define SDL_FUNC(_type, _name, _realName, _args) typedef _type (SDLCALL * PFN_##_realName) _args;
 #define SDL_FUNC_OPTIONAL(_type, _name, _realName, _args) typedef _type (SDLCALL * PFN_##_realName) _args;
 
-SDL_FUNCTIONS //NOLINT: TODO: fix short stupid names for function arguments
+SDL_FUNCTIONS //TODO(B): fix short stupid names for function arguments
 
 #undef SDL_FUNC
 #undef SDL_FUNC_OPTIONAL

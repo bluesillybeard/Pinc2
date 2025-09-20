@@ -45,7 +45,7 @@ endif()
 project(pinc
     VERSION 2.0.0
     DESCRIPTION "Windowing / graphics library written in C"
-    HOMEPAGE_URL "TODO"
+    HOMEPAGE_URL "https://github.com/bluesillybeard/Pinc2"
     LANGUAGES C
 )
 
@@ -57,7 +57,6 @@ add_library(pinc
     src/pinc_arena.c
     src/libs/pinc_string.c
     src/libs/pinc_utf8.c
-    # Internal headers - these are so the LSP works correctly, and have nothing to do with the build itself
     # there are a lot of these because implementations of functions tend to get grouped together more than macros and types
     src/pinc_error.h
     src/pinc_main.h

@@ -201,7 +201,6 @@ typedef struct {
     PincReallocCallback userReallocFn;
     PincFreeCallback userFreeFn;
 
-    // TODO(bluesillybeard): is this still needed?
     bool windowBackendSet;
     WindowBackend windowBackend;
 

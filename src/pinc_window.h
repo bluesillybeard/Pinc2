@@ -88,8 +88,9 @@ struct WindowBackend;
 
 #undef PINC_WINDOW_INTERFACE_FUNCTION
 #undef PINC_WINDOW_INTERFACE_PROCEDURE
-// Classic interfaces in C.
-// TODO(bluesillybeard): evaluate if this actually saves time or is just a big mess
+
+// Classic interfaces in C. Gotta love a good struct of function pointers in the form of a big macro.
+// Reminder: you can use gcc -E to see what the "actual" code ends up looking like.
 #define PINC_WINDOW_INTERFACE_FUNCTION(type, arguments, name, argumentsNames, defaultReturn) type (* name) arguments; //NOLINT these macros are intentionally non-parenthesized. Homework: can you figure out why?
 #define PINC_WINDOW_INTERFACE_PROCEDURE(arguments, name, argumentsNames) void (* name) arguments; //NOLINT these macros are intentionally non-parenthesized. Homework: can you figure out why?
 
@@ -131,13 +132,5 @@ PINC_WINDOW_INTERFACE
 
 #undef PINC_WINDOW_INTERFACE_FUNCTION
 #undef PINC_WINDOW_INTERFACE_PROCEDURE
-
-// These are declared here to avoid a circular reference between pinc_main.h and window.h
-// However, the variables themselves are located in pinc_main.c
-// TODO(bluesillybeard): wait, is that actually a problem? I'm genuinely confused.
-
-extern bool windowBackendSet; //NOLINT: see above
-
-extern WindowBackend windowBackend; //NOLINT: see above
 
 #endif

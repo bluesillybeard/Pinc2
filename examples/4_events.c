@@ -1,5 +1,6 @@
 #include "example.h"
 #include "pinc.h"
+#include <inttypes.h>
 #include <stdio.h>
 
 // NOLINTBEGIN: As examples, these are really only subject to what matters for demonstrating features, not for 'real' code
@@ -28,7 +29,7 @@ int main(void) { //NOLINT: I'm conflicted on the complexity of this example func
         // Then we can iterate the events
         uint32_t num_events = pincEventGetNum();
         for(uint32_t i=0; i<num_events; ++i) {
-            // printf("[%lx] ", pincEventGetTimestampUnixMillis(i)); // TODO: fix this
+            printf("[%" PRIi64 "] ", pincEventGetTimestampUnixMillis(i));
             switch(pincEventGetType(i)) {
                 case PincEventType_closeSignal: {
                     PincWindowHandle window_closed = pincEventCloseSignalWindow(i);
