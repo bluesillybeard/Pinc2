@@ -21,9 +21,17 @@ Even with approval, it is not guaranteed that we will accept your PR. It is the 
 - types are in `PascalCase`
 - arguments are in `snake_case`
 - functions are `camelCase`
+- enum values are `EnumName_enumValueName`
 - No macros, of any kind, no exceptions
 
-By contrast, the *internal* Pinc code is an utter mess. It's all crap quality code, in terms of style conventions anyway. So, unless you're trying to make it worse, pretty much anything goes. The plan is to fix up the internal style conventions at some point - but for now, it remains a bit of a disaster.
+Internally, the coding style is still up for debate, and not actually meaningfully enforced either. But in general:
+- types are in `PascalCase`
+- variables and arguments are in `camelCase`
+- functions are `camelCase`
+- macros are `SCREAMING_SNAKE_CASE` unless they are function-like macros which are `PascalCase`
+- enum values are `EnumName_enumValueName`
+
+For internal code, the main thing that matters is that it works and is readable. Unlike external code, there is not a strict requirement for consistency.
 
 ## Actually modifying the code
 

@@ -389,7 +389,7 @@ bool pincSdl2Init(WindowBackend* obj) {
     pincLoadSdl2Functions(this->sdl2Lib, &this->libsdl2);
     SDL_version sdlVersion;
     this->libsdl2.getVersion(&sdlVersion);
-    pincString strings[] = {
+    PincString strings[] = {
         pincString_makeDirect("Loaded SDL2 version: "),
         pincString_allocFormatUint32(sdlVersion.major, tempAllocator),
         pincString_makeDirect("."),
@@ -397,7 +397,7 @@ bool pincSdl2Init(WindowBackend* obj) {
         pincString_makeDirect("."),
         pincString_allocFormatUint32(sdlVersion.patch, tempAllocator),
     };
-    pincString msg = pincString_concat(sizeof(strings) / sizeof(pincString), strings, tempAllocator);
+    PincString msg = pincString_concat(sizeof(strings) / sizeof(PincString), strings, tempAllocator);
     pincPrintDebugLine(msg.str, msg.len);
     if(sdlVersion.major < 2) {
         char* msg2 = "SDL version too old, disabling SDL2 backend\n";
@@ -440,7 +440,7 @@ static PincSdl2Window* pincSdl2GetDummyWindow(struct WindowBackend* obj) {
     pincMemCopy(title, titlePtr, titleLen);
     IncompleteWindow windowSettings = {
         // Ownership is transferred to the window
-        .title = (pincString) {.str = titlePtr, .len = titleLen},
+        .title = (PincString) {.str = titlePtr, .len = titleLen},
         .hasWidth = false,
         .width = 0,
         .hasHeight = false,
@@ -514,11 +514,11 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, pi
 
     int numDisplays = this->libsdl2.getNumVideoDisplays();
     if(numDisplays < 0) {
-        pincString strings[] = {
+        PincString strings[] = {
             pincString_makeDirect("Pinc encountered fatal SDL2 error: "),
             pincString_makeDirect((char*)this->libsdl2.getError()),
         };
-        pincString err = pincString_concat(sizeof(strings) / sizeof(pincString), strings, tempAllocator);
+        PincString err = pincString_concat(sizeof(strings) / sizeof(PincString), strings, tempAllocator);
         *outNumFormats = 0;
         PincAssertExternalStr(numDisplays > 0, err, false, return 0;);
         return NULL;
@@ -526,11 +526,11 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, pi
     for(int displayIndex=0; displayIndex<numDisplays; ++displayIndex) {
         int numDisplayModes = this->libsdl2.getNumDisplayModes(displayIndex);
         if(numDisplayModes < 0) {
-            pincString strings[] = {
+            PincString strings[] = {
                 pincString_makeDirect("Pinc encountered fatal SDL2 error: "),
                 pincString_makeDirect((char*)this->libsdl2.getError()),
             };
-            pincString err = pincString_concat(sizeof(strings) / sizeof(pincString), strings, tempAllocator);
+            PincString err = pincString_concat(sizeof(strings) / sizeof(PincString), strings, tempAllocator);
             PincAssertExternalStr(numDisplays > 0, err, false, return 0;);
             *outNumFormats = 0;
             return NULL;
@@ -540,13 +540,13 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, pi
             this->libsdl2.getDisplayMode(displayIndex, displayModeIndex, &displayMode);
             // Strangeness is going on and I don't like it!
             if(!displayMode.format || !displayMode.w || !displayMode.h) {
-                pincString strings[] = {
+                PincString strings[] = {
                     pincString_makeDirect("Pinc encountered non-fatal SDL2 error: Invalid display mode "),
                     pincString_allocFormatUint64((uint64_t)displayModeIndex, tempAllocator),
                     pincString_makeDirect(" For display "),
                     pincString_allocFormatUint64((uint64_t)displayIndex, tempAllocator),
                 };
-                pincString err = pincString_concat(sizeof(strings) / sizeof(pincString), strings, tempAllocator);
+                PincString err = pincString_concat(sizeof(strings) / sizeof(PincString), strings, tempAllocator);
                 pincPrintErrorLine(err.str, err.len);
                 pincString_free(&err, tempAllocator);
                 continue;
@@ -558,11 +558,11 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, pi
             uint32_t bmask = 0;
             uint32_t amask = 0;
             if(this->libsdl2.pixelFormatEnumToMasks(displayMode.format, &bpp, &rmask, &gmask, &bmask, &amask) == SDL_FALSE){
-                pincString strings[] = {
+                PincString strings[] = {
                     pincString_makeDirect("Pinc encountered non-fatal SDL2 error: "),
                     pincString_makeDirect((char*)this->libsdl2.getError()),
                 };
-                pincString err = pincString_concat(sizeof(strings) / sizeof(pincString), strings, tempAllocator);
+                PincString err = pincString_concat(sizeof(strings) / sizeof(PincString), strings, tempAllocator);
                 pincPrintErrorLine(err.str, err.len);
                 pincString_free(&err, tempAllocator);
                 continue;
@@ -938,7 +938,7 @@ WindowHandle pincSdl2completeWindow(struct WindowBackend* obj, IncompleteWindow 
         dummyWindow->frontHandle = frontHandle;
         // They gave us ownership
         // Sooner or later I'm going to change that
-        pincString_free((pincString*)&incomplete->title, rootAllocator);
+        pincString_free((PincString*)&incomplete->title, rootAllocator);
         return dummyWindow;
     }
     SDL_MAKE_NEW_WINDOW:
@@ -964,7 +964,7 @@ WindowHandle pincSdl2completeWindow(struct WindowBackend* obj, IncompleteWindow 
         
         // They gave us ownership
         // Sooner or later I'm going to change that
-        pincString_free((pincString*)&incomplete->title, rootAllocator);
+        pincString_free((PincString*)&incomplete->title, rootAllocator);
 
         // So we can easily get one of our windows out of the SDL2 window handle
         this->libsdl2.setWindowData(win, "pincSdl2Window", windowObj);
@@ -1009,7 +1009,7 @@ void pincSdl2setWindowTitle(struct WindowBackend* obj, WindowHandle windowHandle
     PincSdl2Window* window = (PincSdl2Window*)windowHandle;
     
     // It needs to be null terminated because reasons
-    char* titleNullTerm = pincString_marshalAlloc((pincString){.str = title, .len = titleLen}, tempAllocator);
+    char* titleNullTerm = pincString_marshalAlloc((PincString){.str = title, .len = titleLen}, tempAllocator);
     this->libsdl2.setWindowTitle(window->sdlWindow, titleNullTerm);
     pincAllocator_free(tempAllocator, titleNullTerm, titleLen+1);
     // We take ownership of the title
@@ -1375,7 +1375,7 @@ RawOpenglContextHandle pincSdl2glCompleteContext(struct WindowBackend* obj, Inco
     SDL_GLContext sdlGlContext = this->libsdl2.glCreateContext(dummyWindow->sdlWindow);
     if(!sdlGlContext) {
         #if PINC_ENABLE_ERROR_EXTERNAL
-        pincString errorMsg = pincString_concat(2, (pincString[]){
+        PincString errorMsg = pincString_concat(2, (PincString[]){
             pincString_makeDirect((char*)"SDL2 backend: Could not create OpenGl context: "),
             // const is not an issue, this string will not be modified
             pincString_makeDirect((char*)this->libsdl2.getError()),
@@ -1479,7 +1479,7 @@ PincErrorCode pincSdl2glMakeCurrent(struct WindowBackend* obj, WindowHandle wind
     int result = this->libsdl2.glMakeCurrent(windowObj->sdlWindow, contextObj);
     if(result != 0) {
         #if PINC_ENABLE_ERROR_EXTERNAL
-        pincString errorMsg = pincString_concat(2, (pincString[]){
+        PincString errorMsg = pincString_concat(2, (PincString[]){
             pincString_makeDirect((char*)"SDL2 backend: Could not make context current: "),
             pincString_makeDirect((char*)this->libsdl2.getError()),
         },tempAllocator);

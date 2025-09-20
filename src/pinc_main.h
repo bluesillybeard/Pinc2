@@ -206,7 +206,7 @@ typedef struct {
 
     PincErrorCode lastErrorCode;
     // Allocated either statically or on the temporary allocator (best to assume the temp allocator)
-    pincString lastErrorMessage;
+    PincString lastErrorMessage;
     bool lastErrorRecoverable;
 } PincStaticState;
 

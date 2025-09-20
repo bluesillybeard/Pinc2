@@ -13,7 +13,7 @@
 
 // Implementations of things in pinc_main.h
 
-void pinc_intern_callError(pincString message, PincErrorCode type, bool recoverable) {
+void pincInternalCallError(PincString message, PincErrorCode type, bool recoverable) {
     if(rootAllocator.vtable == 0) {
         char* errString = "Pinc received an error before initialization of the root allocator - Did you forget to call InitComplete()?";
         size_t errStringLen = pincStringLen(errString);
@@ -23,7 +23,7 @@ void pinc_intern_callError(pincString message, PincErrorCode type, bool recovera
             pincPrintErrorLine((uint8_t const*) errString, errStringLen);
         }
         staticState.lastErrorCode = PincErrorCode_user;
-        staticState.lastErrorMessage = (pincString){(uint8_t*)errString, errStringLen};
+        staticState.lastErrorMessage = (PincString){(uint8_t*)errString, errStringLen};
         // Although calling an error before the allocator is ready should be recoverable,
         // The error that came before may not have been.
         staticState.lastErrorRecoverable = recoverable;
@@ -38,7 +38,7 @@ void pinc_intern_callError(pincString message, PincErrorCode type, bool recovera
     }
 
     staticState.lastErrorCode = type;
-    staticState.lastErrorMessage = (pincString){(uint8_t*)msgNullTerm, message.len};
+    staticState.lastErrorMessage = (PincString){(uint8_t*)msgNullTerm, message.len};
     staticState.lastErrorRecoverable = recoverable;
 }
 
@@ -60,7 +60,7 @@ static void pinc_root_platform_free(void* obj, void* ptr, size_t size) {
     pincFree(ptr, size);
 }
 
-static const pincAllocatorVtable pinc_platform_alloc_vtable = {
+static const PincAllocatorVtable pinc_platform_alloc_vtable = {
     .allocate = &pinc_root_platform_allocate,
     .reallocate = &pinc_root_platform_reallocate,
     .free = &pinc_root_platform_free,
@@ -81,7 +81,7 @@ static void pinc_root_user_free(void* obj, void* ptr, size_t size) {
     staticState.userFreeFn(obj, ptr, size);
 }
 
-static const pincAllocatorVtable pinc_user_alloc_vtable = {
+static const PincAllocatorVtable pinc_user_alloc_vtable = {
     .allocate = &pinc_root_user_allocate,
     .reallocate = &pinc_root_user_reallocate,
     .free = &pinc_root_user_free,
@@ -105,7 +105,7 @@ static void pinc_temp_free(void* obj, void* ptr, size_t size) {
     // TODO(bluesillybeard): implement this - if this allocation happens to be the last one, then rewind the arena by size.
 }
 
-static const pincAllocatorVtable PincTempAllocatorVtable = {
+static const PincAllocatorVtable PincTempAllocatorVtable = {
     .allocate = &pinc_temp_allocate,
     .reallocate = &pinc_temp_reallocate,
     .free = &pinc_temp_free,
@@ -988,11 +988,11 @@ PINC_EXPORT PincWindowHandle PINC_CALL pincWindowCreateIncomplete(void) {
     PincAssertUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pincInitComplete?", true, return 0;);
     PincWindowHandle handle = PincObject_allocate(PincObjectDiscriminator_incompleteWindow);
     IncompleteWindow* window = PincObject_ref_incompleteWindow(handle);
-    pincString strings[] = {
+    PincString strings[] = {
         pincString_makeDirect("Pinc Window "),
         pincString_allocFormatUint32(handle, tempAllocator),
     };
-    pincString name = pincString_concat(sizeof(strings) / sizeof(pincString), strings, rootAllocator);
+    PincString name = pincString_concat(sizeof(strings) / sizeof(PincString), strings, rootAllocator);
     *window = (IncompleteWindow){
         .title = name,
         .hasWidth = false,
@@ -1061,7 +1061,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetTitle(PincWindowHandle window, const cha
                 pincMemCopy(title_buf, object->title.str, title_len);
             } else {
                 pincString_free(&object->title, rootAllocator);
-                object->title = pincString_copy((pincString){.str = (uint8_t*)title_buf, .len = title_len}, rootAllocator);
+                object->title = pincString_copy((PincString){.str = (uint8_t*)title_buf, .len = title_len}, rootAllocator);
             }
             break;
         }
@@ -1478,7 +1478,7 @@ PINC_EXPORT void PINC_CALL pincStep(void) {
     // The arena reset also means the error message must be reset
     // It is the only lasting object on the temp allocator
     // If someone complains about error states not being preserved across steps, they can file an issue.
-    staticState.lastErrorMessage = (pincString){0, 0};
+    staticState.lastErrorMessage = (PincString){0, 0};
     staticState.lastErrorCode = PincErrorCode_pass;
     staticState.lastErrorRecoverable = true;
     arena_reset(&staticState.arenaAllocatorObject);

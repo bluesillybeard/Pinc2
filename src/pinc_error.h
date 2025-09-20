@@ -8,23 +8,23 @@
 
 // NOTE: This function is implemented in pinc_main.c - there is no pinc_error.c
 // Call the error function for a non-fatal error
-void pinc_intern_callError(pincString message, PincErrorCode type, bool recoverable);
+void pincInternalCallError(PincString message, PincErrorCode type, bool recoverable);
 
 // These macros an error if an expression expands to false
 // Usage example: PincAssertExternal(value<=max, "value is too big!", false, {return error_value;});
-// the *Str variant takes a pincString instead of a char*
+// the *Str variant takes a PincString instead of a char*
 
 #if PINC_ENABLE_ERROR_EXTERNAL == 1
 # define PincAssertExternal(assertExpression, messageNullterm, recoverable, ...) \
     if(!(assertExpression)) { \
         __VA_ARGS__\
-        pinc_intern_callError(pincString_makeDirect((char*)(messageNullterm)), PincErrorCode_external, (recoverable)); \
+        pincInternalCallError(pincString_makeDirect((char*)(messageNullterm)), PincErrorCode_external, (recoverable)); \
     }
 
 # define PincAssertExternalStr(assertExpression, messageStr, recoverable, ...) \
     if(!(assertExpression)) { \
         __VA_ARGS__\
-        pinc_intern_callError(messageStr, PincErrorCode_external, (recoverable)); \
+        pincInternalCallError(messageStr, PincErrorCode_external, (recoverable)); \
     }
 #else
 # define PincAssertExternal(assertExpression, messageNullterm, recoverable, ...)
@@ -35,13 +35,13 @@ void pinc_intern_callError(pincString message, PincErrorCode type, bool recovera
 # define PincAssertAssert(assertExpression, messageNullterm, recoverable, ...) \
     if(!(assertExpression)) { \
         __VA_ARGS__\
-        pinc_intern_callError(pincString_makeDirect((char*)(messageNullterm)), PincErrorCode_assert, (recoverable)); \
+        pincInternalCallError(pincString_makeDirect((char*)(messageNullterm)), PincErrorCode_assert, (recoverable)); \
     }
 
 # define PincAssertAssertStr(assertExpression, messageStr, recoverable, ...) \
     if(!(assertExpression)) { \
         __VA_ARGS__\
-        pinc_intern_callError(messageStr, PincErrorCode_assert, (recoverable)); \
+        pincInternalCallError(messageStr, PincErrorCode_assert, (recoverable)); \
     }
 #else
 # define PincAssertAssert(assertExpression, messageNullterm, recoverable, ...)
@@ -52,13 +52,13 @@ void pinc_intern_callError(pincString message, PincErrorCode type, bool recovera
 # define PincAssertUser(assertExpression, messageNullterm, recoverable, ...) \
     if(!(assertExpression)) { \
         __VA_ARGS__\
-        pinc_intern_callError(pincString_makeDirect((char*)(messageNullterm)), PincErrorCode_user, (recoverable)); \
+        pincInternalCallError(pincString_makeDirect((char*)(messageNullterm)), PincErrorCode_user, (recoverable)); \
     }
 
 # define PincAssertUserStr(assertExpression, messageStr, recoverable, ...) \
     if(!(assertExpression)) { \
         __VA_ARGS__\
-        pinc_intern_callError(messageStr, PincErrorCode_user, (recoverable)); \
+        pincInternalCallError(messageStr, PincErrorCode_user, (recoverable)); \
     }
 #else
 # define PincAssertUser(assertExpression, messageNullterm, recoverable, ...)

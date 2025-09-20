@@ -33,4 +33,4 @@
 # Other things
 - Don't forget the issue tracker!
 - Don't forget the infinite sea of TODOs in the sources!
-    - Last count: 147 TODOs
+    - Last count: 130 TODOs

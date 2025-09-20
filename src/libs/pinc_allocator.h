@@ -9,11 +9,11 @@ typedef struct {
     void* (*allocateAligned) (void* obj, size_t size, size_t alignment);
     void* (*reallocate) (void* obj, void* ptr, size_t oldSize, size_t newSize);
     void (*free) (void* obj, void* ptr, size_t size);
-} pincAllocatorVtable;
+} PincAllocatorVtable;
 
 typedef struct {
     void* allocatorObjectPtr;
-    pincAllocatorVtable const* vtable;
+    PincAllocatorVtable const* vtable;
 } pincAllocator;
 
 /// @brief Allocate some memory. Aligned depending on platform such that any structure can be placed into this memory.

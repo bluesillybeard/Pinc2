@@ -19,7 +19,7 @@ typedef struct {
 
 typedef struct {
     // Allocated on the root allocator
-    pincString title;
+    PincString title;
     bool hasWidth;
     uint32_t width;
     bool hasHeight;

@@ -1,5 +1,14 @@
 #include "pinc_utf8.h"
 
+// Implementation based on Zig's standard library: 0.14.1 -> unicode.zig.
+// Seriously, Zig's standard library is a genuine gold mine for random things like this.
+// Everything is optimized, robust, well documented and easy to read.
+
+// Main differences from Zig impl:
+// - in C (obviously)
+// - surrogates is assumed to be can_encode_surrogate_half
+// - lookup table size was cut in half. The zig version could easily do this... so why don't they?
+
 uint8_t pincCodepointUTF8Len(uint32_t codepoint) {
     if (codepoint < 0x80) { return 1; }
     if (codepoint < 0x800) { return 2; }
@@ -31,15 +40,6 @@ static const uint8_t first_utf8_byte_info[128] = {
 };
 
 bool pincValidateUTF8String(char const* str_ptr, size_t str_len) { //NOLINT
-    // Implementation based on Zig's standard library: 0.14.1 -> unicode.zig -> utf8ValidateSlice.,
-    // Seriously, Zig's standard library is a genuine gold mine for random things like this.
-    // Everything is optimized, robust, well documented and easy to read.
-
-    // Main differences from Zig impl:
-    // - in C (obviously)
-    // - surrogates is assumed to be can_encode_surrogate_half
-    // - large lists are declared above and defined at the bottom of this file
-    // - lookup table size was cut in half. The zig version could easily do this... so why don't they?
     uint8_t const* rem_ptr = (uint8_t const*)str_ptr;
     size_t rem_len = str_len;
 
