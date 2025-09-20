@@ -65,7 +65,7 @@
 #define SDL_FUNC(_type, _name, _realName, _args) typedef _type (SDLCALL * PFN_##_realName) _args;
 #define SDL_FUNC_OPTIONAL(_type, _name, _realName, _args) typedef _type (SDLCALL * PFN_##_realName) _args;
 
-SDL_FUNCTIONS //TODO(B): fix short stupid names for function arguments
+SDL_FUNCTIONS
 
 #undef SDL_FUNC
 #undef SDL_FUNC_OPTIONAL

@@ -23,17 +23,16 @@ void pinc_intern_callError(pincString message, PincErrorCode type, bool recovera
             pincPrintErrorLine((uint8_t const*) errString, errStringLen);
         }
     }
+    // Let's be nice and let the user have their null terminator
+    char* msgNullTerm = pincString_marshalAlloc(message, tempAllocator);
     if(staticState.userCallError) {
-        // Let's be nice and let the user have their null terminator
-        uint8_t* msgNullTerm = (uint8_t*)pincString_marshalAlloc(message, tempAllocator);
-        staticState.userCallError(msgNullTerm, message.len, type, recoverable);
-        pincAllocator_free(tempAllocator, msgNullTerm, message.len+1);
+        staticState.userCallError((uint8_t*)msgNullTerm, message.len, type, recoverable);
     } else {
         pincPrintErrorLine(message.str, message.len);
     }
 
     staticState.lastErrorCode = type;
-    staticState.lastErrorMessage = message; //TODO(important): make this null terminated!!!
+    staticState.lastErrorMessage = (pincString){(uint8_t*)msgNullTerm, message.len};
     staticState.lastErrorRecoverable = recoverable;
 }
 
@@ -1470,6 +1469,12 @@ PINC_EXPORT void PINC_CALL pincWindowPresentFramebuffer(PincWindowHandle complet
 PINC_EXPORT void PINC_CALL pincStep(void) {
     PincValidateForState(PincState_init);
     PincAssertUser(staticState.windowBackendSet, "Window backend not set. Did you forget to call pincInitComplete?", true, return;);
+    // The arena reset also means the error message must be reset
+    // It is the only lasting object on the temp allocator
+    // If someone complains about error states not being preserved across steps, they can file an issue.
+    staticState.lastErrorMessage = (pincString){0, 0};
+    staticState.lastErrorCode = PincErrorCode_pass;
+    staticState.lastErrorRecoverable = true;
     arena_reset(&staticState.arenaAllocatorObject);
     pincWindowBackend_step(&staticState.windowBackend);
     // Event buffer swap
