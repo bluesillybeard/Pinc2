@@ -102,6 +102,7 @@ bool pincValidateUTF8String(char const* str_ptr, size_t str_len) { //NOLINT
                 uint8_t const fourth_byte = rem_ptr[index + 3];
                 if(fourth_byte < min_continue || max_continue < third_byte) { return false; }
                 index += 4;
+                break;
             }
             default: return false;
         }

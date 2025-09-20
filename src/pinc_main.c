@@ -22,6 +22,12 @@ void pinc_intern_callError(pincString message, PincErrorCode type, bool recovera
         } else {
             pincPrintErrorLine((uint8_t const*) errString, errStringLen);
         }
+        staticState.lastErrorCode = PincErrorCode_user;
+        staticState.lastErrorMessage = (pincString){(uint8_t*)errString, errStringLen};
+        // Although calling an error before the allocator is ready should be recoverable,
+        // The error that came before may not have been.
+        staticState.lastErrorRecoverable = recoverable;
+        return;
     }
     // Let's be nice and let the user have their null terminator
     char* msgNullTerm = pincString_marshalAlloc(message, tempAllocator);
