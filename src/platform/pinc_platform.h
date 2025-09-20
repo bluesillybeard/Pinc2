@@ -98,33 +98,6 @@ void pincMemMove(void const* source, void* destination, size_t numBytes);
 
 void pincMemSet(uint8_t value, void* destination, size_t numBytes);
 
-/// @brief Convert the first UTF8 encoded codepoint
-/// @param str String to convert
-/// @param strLen The length of the string, in bytes. To avoid reading out of bounds for invalid UTF8.
-/// @param outLen Place to output the number of bytes converted, or null if that is not needed.
-/// @return the unicode point
-uint32_t pincUtf8Unicode(uint8_t const* str, size_t strLen, size_t* outLen);
-
-/// @brief Encode a unicode point to UTF8
-/// @param codepoint the codepoint to encode
-/// @param destStr a pointer to write the codepoint. May be null so only the length is returned.
-/// @return the number of bytes required to encode this codepoint
-size_t pincUnicodeUtf8(uint32_t codepoint, char* destStr);
-
-/// @brief Convert a UTF8 string to a unicode string
-/// @param str UTF8 string to convert
-/// @param strLen length of UTF8 string in bytes
-/// @param outUnicode where to write output characters, or null to only query length
-/// @return the number of unicode points in the string
-size_t pincUtf8UnicodeString(uint8_t const* str, size_t strLen, uint32_t* outUnicode);
-
-/// @brief Convert a unicode string into a UTF8 string
-/// @param codepoints unicode string to convert
-/// @param numCodepoints the length of the unicode string, in codepoints
-/// @param outUtf8 where to write the output string, or null to only query length
-/// @return the number of UTF8 bytes in the string
-size_t pincUnicodeUtf8String(uint32_t const* codepoints, size_t numCodepoints, uint8_t* outUtf8);
-
 // debugging functionality
 
 /// @brief Trigger a debugger breakpoint if possible, then continue execution, if possible

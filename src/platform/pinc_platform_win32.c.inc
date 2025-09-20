@@ -115,12 +115,6 @@ void pincMemSet(uint8_t value, void* destination, size_t numBytes) {
     }
 }
 
-// // Arguably these go in their own header, as UTF8 and unicode should not be platform specific
-// uint32_t pincUtf8Unicode(uint8_t const* str, size_t strLen, size_t* outLen);
-// size_t pincUnicodeUtf8(uint32_t codepoint, char* destStr);
-// size_t pincUtf8UnicodeString(uint8_t const* str, size_t strLen, uint32_t* outUnicode);
-// size_t pincUnicodeUtf8String(uint32_t const* codepoints, size_t numCodepoints, uint8_t* outUtf8);
-
 void pincTriggerDebugger(void) {
     // Windows W right here, doing this reliably on posix is rather annoying
     DebugBreak();
