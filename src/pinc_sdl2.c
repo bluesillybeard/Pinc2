@@ -1533,3 +1533,7 @@ PincPfn pincSdl2glGetProc(struct WindowBackend* obj, char const* procname) {
 }
 
 #endif
+// This is to stop that STUPID empty translation unit error. Why C, why?
+struct dummy {
+    int d;
+};

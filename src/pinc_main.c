@@ -672,9 +672,11 @@ PINC_EXPORT void PINC_CALL pincInitIncomplete(void) {
     };
 
     // Begin initialization of window backends
-    // TODO(bluesillybeard): SDL2 is the only one that actually exists so yeah
 
-    bool sdl2InitRes = pincSdl2Init(&staticState.sdl2WindowBackend);
+    bool sdl2InitRes = false;
+    #if PINC_HAVE_WINDOW_SDL2
+    sdl2InitRes = pincSdl2Init(&staticState.sdl2WindowBackend);
+    #endif
 
     PincAssertExternal(sdl2InitRes, "No supported window backends available!", false, return;);
 
