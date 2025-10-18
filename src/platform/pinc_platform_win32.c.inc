@@ -6,17 +6,13 @@
 // 2. Use a compiler toolchain with the windows headers (We recommend MinGW + Clang or MinGW + GCC, but MSVC should work too)
 
 // NOLINTBEGIN: Windows api headers are stupid and order-dependent
-#include <minwindef.h>
-#include <windef.h>
-#include <wingdi.h>
-#include <heapapi.h>
-#include <libloaderapi.h>
-#include <debugapi.h>
-#include <processthreadsapi.h>
-#include <processenv.h>
-#include <wincon.h>
-#include <winbase.h>
-#include <winnt.h>
+// Microsoft and their infinite wisdom thought putting literally everything in one header was the best idea ever.
+// Here we are decades later and still dealing with the consequences instead of just fixing the problem.
+// Gotta love Microsoft and their infinite wisdom.
+// Do you have any idea how long it took so Pinc can be compiled with a toolchain that doesn't have the windows headers?
+// Yes, there are Windows C compilers out there that don't have windows.h.
+#define WIN32_LEAN_AND_MEAN 1
+#include <windows.h>
 // NOLINTEND
 
 #include "pinc_platform.h"

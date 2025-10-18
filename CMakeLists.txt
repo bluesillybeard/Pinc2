@@ -33,13 +33,15 @@ option(PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION "see settings.md" OFF)
 set(PINC_ADDITIONAL_COMPILE_OPTIONS "" CACHE STRING "Additional compiler options")
 set(PINC_ADDITIONAL_LINK_OPTIONS "" CACHE STRING "Additional linker options")
 
-if (MSVC)
-    set(PINC_COMPILE_OPTIONS ${PINC_ADDITIONAL_COMPILE_OPTIONS} "" CACHE STRING "options used to compile Pinc and the examples")
-    set(PINC_LINK_OPTIONS ${PINC_ADDITIONAL_LINK_OPTIONS} "" CACHE STRING "linker flags for pinc and examples")
-else()
-    set(PINC_COMPILE_OPTIONS ${PINC_ADDITIONAL_COMPILE_OPTIONS} "-Werror" "-pedantic-errors" "-Wall" "-Wextra" "-Wconversion" "-Wno-unused-function" CACHE STRING "options used to compile Pinc and the examples")
-    set(PINC_LINK_OPTIONS ${PINC_ADDITIONAL_LINK_OPTIONS} "" CACHE STRING "linker flags for pinc and examples")
-endif()
+set(PINC_COMPILE_OPTIONS ${PINC_ADDITIONAL_COMPILE_OPTIONS} "" CACHE STRING "options used to compile Pinc and the examples")
+set(PINC_LINK_OPTIONS ${PINC_ADDITIONAL_LINK_OPTIONS} "" CACHE STRING "linker flags for pinc and examples")
+
+# TODO: this don't work, actually none of the compiler identification things seem to be set in my windows environment
+#if(CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL GNU)
+#    message("It GNU time")
+#    set(PINC_COMPILE_OPTIONS ${PINC_ADDITIONAL_COMPILE_OPTIONS} "-Werror" "-pedantic-errors" "-Wall" "-Wextra" "-Wconversion" "-Wno-unused-function" CACHE STRING "options used to compile Pinc and the examples")
+#    set(PINC_LINK_OPTIONS ${PINC_ADDITIONAL_LINK_OPTIONS} "" CACHE STRING "linker flags for pinc and examples")
+#endif()
 
 # VERSION
 project(pinc
