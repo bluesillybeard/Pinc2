@@ -1692,11 +1692,16 @@ __MINGW_CXX14_CONSTEXPR inline ENUMTYPE& operator ^= (ENUMTYPE& a, ENUMTYPE b) {
 # if defined(__cplusplus)
 extern "C" {
 # endif
-# include <x86intrin.h>
+// PINC EDIT: This header isn't available in "pure" clang
+// # include <x86intrin.h>
 # if defined(__cplusplus)
 }
 # endif
-#include <emmintrin.h>
+// PINC EDIT: Commented out this header as it breaks "pure" clang builds
+// #include <emmintrin.h>
+// However, this file does still needs __readgsqword for some reason.
+unsigned __int64 __readgsqword(unsigned long);
+
 #endif /* !defined(RC_INVOKED) */
 
 #define FastFence __faststorefence
