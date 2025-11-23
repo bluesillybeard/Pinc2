@@ -7,10 +7,12 @@
     // In a future version of Zig it will be used for package deduplication.
     .version = "2.0.0",
 
-    .fingerprint = 0x7c510f91b4e2eabc, // Changing this has security and trust implications.
+    // Changing this has security and trust implications.
+    .fingerprint = 0x7c510f91b4e2eabc,
 
     // If you have a good argument for supporting additional version of Zig, make an issue.
     // For now however, Pinc will generally try to keep compatibility with whatever the current stable release is.
+    // Explicitly tested versions: 0.14.1, 0.15.2
     .minimum_zig_version = "0.14.0",
 
     .dependencies = .{},

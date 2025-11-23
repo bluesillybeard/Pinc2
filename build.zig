@@ -39,6 +39,7 @@
 // your_exe.linkLibrary(pinc_lib);
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -68,19 +69,19 @@ pub fn build(b: *std.Build) !void {
     var flags = try std.ArrayList([]const u8).initCapacity(b.allocator, 8);
 
     if (have_window_sdl2) |enable| {
-        try flags.append(if (enable) "-DPINC_HAVE_WINDOW_SDL2=ON" else "-DPINC_HAVE_WINDOW_SDL2=OFF");
+        flags.appendAssumeCapacity(if (enable) "-DPINC_HAVE_WINDOW_SDL2=ON" else "-DPINC_HAVE_WINDOW_SDL2=OFF");
     }
     if (enable_error_external) |enable| {
-        try flags.append(if (enable) "-DPINC_ENABLE_ERROR_EXTERNAL=ON" else "-DPINC_ENABLE_ERROR_EXTERNAL=OFF");
+        flags.appendAssumeCapacity(if (enable) "-DPINC_ENABLE_ERROR_EXTERNAL=ON" else "-DPINC_ENABLE_ERROR_EXTERNAL=OFF");
     }
     if (enable_error_assert) |enable| {
-        try flags.append(if (enable) "-DPINC_ENABLE_ERROR_ASSERT=ON" else "-DPINC_ENABLE_ERROR_ASSERT=OFF");
+        flags.appendAssumeCapacity(if (enable) "-DPINC_ENABLE_ERROR_ASSERT=ON" else "-DPINC_ENABLE_ERROR_ASSERT=OFF");
     }
     if (enable_error_user) |enable| {
-        try flags.append(if (enable) "-DPINC_ENABLE_ERROR_USER=ON" else "-DPINC_ENABLE_ERROR_USER=OFF");
+        flags.appendAssumeCapacity(if (enable) "-DPINC_ENABLE_ERROR_USER=ON" else "-DPINC_ENABLE_ERROR_USER=OFF");
     }
     if (use_custom_platform_implementation) |enable| {
-        try flags.append(if (enable) "-DPINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=ON" else "-PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=OFF");
+        flags.appendAssumeCapacity(if (enable) "-DPINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=ON" else "-PINC_USE_CUSTOM_PLATFORM_IMPLEMENTATION=OFF");
     }
 
     lib_mod.addCSourceFiles(.{
@@ -89,11 +90,17 @@ pub fn build(b: *std.Build) !void {
             "src/pinc_main.c",
             "src/platform/pinc_platform.c",
             "src/pinc_sdl2.c",
-            "src/pinc_arena.c",
+            "src/libs/pinc_arena.c",
             "src/libs/pinc_string.c",
             "src/libs/pinc_utf8.c",
         },
-        .flags = try flags.toOwnedSlice(),
+        .flags = blk: {
+            if (builtin.zig_version.minor == 14) {
+                break :blk try flags.toOwnedSlice();
+            } else {
+                break :blk try flags.toOwnedSlice(b.allocator);
+            }
+        },
     });
 
     lib_mod.addIncludePath(b.path("ext"));
