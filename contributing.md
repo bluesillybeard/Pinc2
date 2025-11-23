@@ -40,6 +40,7 @@ For internal code, the main thing that matters is that it works and is readable.
 - Submit the PR through Github, or in private if that is desired.
 - We'll go over your changes, and submit any requests or advice. We don't do nitpicks, those can be fixed later.
 - We will also run your PR through the testing suite - which for now is just manually running every example in an appropriate environment. Eventually, we will have a proper CI system set up.
+    - We test with `-fsanitize=undefined,address`, and for all supported platforms (see support.md)
 
 ## Merge requirements
 
