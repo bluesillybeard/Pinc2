@@ -74,7 +74,7 @@ void* PincArenaAllocator_allocateAligned(void* thisUncast, size_t size, size_t a
     // align the spot forward
     uintptr_t returnMe = ((firstFreeSpot + alignment - 1) / alignment) * alignment;
     this->lastBlockUsed += size + (returnMe - firstFreeSpot);
-    return (void*)firstFreeSpot; //NOLINT: performance is fine here mate
+    return (void*)returnMe; //NOLINT: performance is fine here mate
 }
 
 void* PincArenaAllocator_reallocate(void* thisUncast, void* ptr, size_t size, size_t newSize) {
