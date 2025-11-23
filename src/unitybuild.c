@@ -7,7 +7,7 @@
 
 #include "libs/pinc_string.c"
 #include "libs/pinc_utf8.c"
-#include "pinc_arena.c"
+#include "libs/pinc_arena.c"
 #include "pinc_main.c"
 #include "pinc_sdl2.c"
 #include "platform/pinc_platform.c"

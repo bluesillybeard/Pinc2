@@ -49,12 +49,12 @@ typedef struct {
 // Adds a window to the list of windows
 void pincSdl2AddWindow(PincSdl2WindowBackend* this, PincSdl2Window* window) {
     if(!this->windows) {
-        this->windows = pincAllocator_allocate(rootAllocator, sizeof(PincSdl2Window*) * 8);
+        this->windows = PincAllocator_allocate(rootAllocator, sizeof(PincSdl2Window*) * 8);
         this->windowsNum = 0;
         this->windowsCapacity = 8;
     }
     if(this->windowsCapacity == this->windowsNum) {
-        this->windows = pincAllocator_reallocate(rootAllocator, this->windows, sizeof(PincSdl2Window*) * this->windowsCapacity, sizeof(PincSdl2Window*) * this->windowsCapacity * 2);
+        this->windows = PincAllocator_reallocate(rootAllocator, this->windows, sizeof(PincSdl2Window*) * this->windowsCapacity, sizeof(PincSdl2Window*) * this->windowsCapacity * 2);
         this->windowsCapacity = this->windowsCapacity * 2;
     }
     this->windows[this->windowsNum] = window;
@@ -373,7 +373,7 @@ PINC_WINDOW_INTERFACE
 #undef PINC_WINDOW_INTERFACE_PROCEDURE
 
 bool pincSdl2Init(WindowBackend* obj) {
-    obj->obj = pincAllocator_allocate(rootAllocator, sizeof(PincSdl2WindowBackend));
+    obj->obj = PincAllocator_allocate(rootAllocator, sizeof(PincSdl2WindowBackend));
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     *this = (PincSdl2WindowBackend){0};
     // The only thing required for SDL2 support is for the SDL2 library to be present
@@ -436,7 +436,7 @@ static PincSdl2Window* pincSdl2GetDummyWindow(struct WindowBackend* obj) {
     }
     char const* const title = "Pinc Dummy Window";
     size_t const titleLen = pincStringLen(title);
-    uint8_t* titlePtr = pincAllocator_allocate(rootAllocator, titleLen);
+    uint8_t* titlePtr = PincAllocator_allocate(rootAllocator, titleLen);
     pincMemCopy(title, titlePtr, titleLen);
     IncompleteWindow windowSettings = {
         // Ownership is transferred to the window
@@ -488,7 +488,7 @@ static void pincSdl2FramebufferFormatAdd(FramebufferFormat** formats, size_t* fo
     }
     if(formatsNum == formatsCapacity) {
         size_t newFormatsCapacity = *formatsCapacity*2;
-        *formats = pincAllocator_reallocate(tempAllocator, *formats, sizeof(FramebufferFormat) * (*formatsCapacity), sizeof(FramebufferFormat) * newFormatsCapacity);
+        *formats = PincAllocator_reallocate(tempAllocator, *formats, sizeof(FramebufferFormat) * (*formatsCapacity), sizeof(FramebufferFormat) * newFormatsCapacity);
         *formatsCapacity = newFormatsCapacity;
     }
     // I somehow managed to lose several hours on forgetting to surround "*formats" with parentheses.
@@ -500,7 +500,7 @@ static void pincSdl2FramebufferFormatAdd(FramebufferFormat** formats, size_t* fo
 
 // Implementation of the interface
 
-FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, pincAllocator allocator, size_t* outNumFormats) {
+FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, PincAllocator allocator, size_t* outNumFormats) {
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     // SDL2 has no nice way for us to get a list of possible framebuffer formats
     // However, SDL2 does have functionality to iterate through displays and go through what formats they support.
@@ -508,7 +508,7 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, pi
 
     // Dynamic list to hold the framebuffer formats
     // TODO(bluesillybeard): A proper set data structure for deduplication is a good idea
-    FramebufferFormat* formats = pincAllocator_allocate(tempAllocator, sizeof(FramebufferFormat)*8);
+    FramebufferFormat* formats = PincAllocator_allocate(tempAllocator, sizeof(FramebufferFormat)*8);
     size_t formatsNum = 0;
     size_t formatsCapacity = 8;
 
@@ -594,12 +594,12 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, pi
         }
     }
     // Allocate the final returned value
-    FramebufferFormat* actualFormats = pincAllocator_allocate(allocator, formatsNum * sizeof(FramebufferFormat));
+    FramebufferFormat* actualFormats = PincAllocator_allocate(allocator, formatsNum * sizeof(FramebufferFormat));
     for(size_t fmi = 0; fmi<formatsNum; fmi++) {
         actualFormats[fmi] = formats[fmi];
     }
     // Even though the temp allocator os a bump allocator, we may as well treat it as a real one.
-    pincAllocator_free(tempAllocator, formats, formatsCapacity * sizeof(FramebufferFormat));
+    PincAllocator_free(tempAllocator, formats, formatsCapacity * sizeof(FramebufferFormat));
     *outNumFormats = formatsNum;
     return actualFormats;
 }
@@ -644,12 +644,12 @@ void pincSdl2deinit(struct WindowBackend* obj) {
     PincAssertAssert(this->windowsNum == 0, "Internal pinc error: the frontend didn't delete the windows before calling backend deinit", false, return;);
     
     this->libsdl2.destroyWindow(this->dummyWindow->sdlWindow);
-    pincAllocator_free(rootAllocator, this->dummyWindow, sizeof(PincSdl2Window));
+    PincAllocator_free(rootAllocator, this->dummyWindow, sizeof(PincSdl2Window));
 
     this->libsdl2.quit();
     pincSdl2UnloadLib(this->sdl2Lib);
-    pincAllocator_free(rootAllocator, this->windows, sizeof(PincSdl2Window*) * this->windowsCapacity);
-    pincAllocator_free(rootAllocator, this, sizeof(PincSdl2WindowBackend));
+    PincAllocator_free(rootAllocator, this->windows, sizeof(PincSdl2Window*) * this->windowsCapacity);
+    PincAllocator_free(rootAllocator, this, sizeof(PincSdl2WindowBackend));
 }
 
 void pincSdl2step(struct WindowBackend* obj) { //NOLINT: TODO: Fix this abominably massive function. I'm still undecided on the best way to do this.
@@ -814,7 +814,7 @@ void pincSdl2step(struct WindowBackend* obj) { //NOLINT: TODO: Fix this abominab
                     PincAssertExternal(clipboardText, "SDL2 clipboard is NULL", true, return;);
                     if(!clipboardText) { break; }
                     size_t clipboardTextLen = pincStringLen(clipboardText);
-                    char* clipboardTextCopy = pincAllocator_allocate(tempAllocator, clipboardTextLen + 1);
+                    char* clipboardTextCopy = PincAllocator_allocate(tempAllocator, clipboardTextLen + 1);
                     pincMemCopy(clipboardText, clipboardTextCopy, clipboardTextLen);
                     clipboardTextCopy[clipboardTextLen] = 0;
                     PincEventClipboardChanged(timestamp, PincMediaType_text, clipboardTextCopy, clipboardTextLen);
@@ -904,7 +904,7 @@ WindowHandle pincSdl2completeWindow(struct WindowBackend* obj, IncompleteWindow 
         // In fact, a lof of these if statements are difficult to parse
         if((windowFlags&(uint32_t)SDL_WINDOW_OPENGL) && !(realFlags&(uint32_t)SDL_WINDOW_OPENGL)) {
             this->libsdl2.destroyWindow(dummyWindow->sdlWindow);
-            pincAllocator_free(rootAllocator, dummyWindow, sizeof(PincSdl2Window));
+            PincAllocator_free(rootAllocator, dummyWindow, sizeof(PincSdl2Window));
             goto SDL_MAKE_NEW_WINDOW;
         }
 
@@ -934,7 +934,7 @@ WindowHandle pincSdl2completeWindow(struct WindowBackend* obj, IncompleteWindow 
 
         char* titleNullTerm = pincString_marshalAlloc(incomplete->title, tempAllocator);
         this->libsdl2.setWindowTitle(dummyWindow->sdlWindow, titleNullTerm);
-        pincAllocator_free(tempAllocator, titleNullTerm, incomplete->title.len+1);
+        PincAllocator_free(tempAllocator, titleNullTerm, incomplete->title.len+1);
         dummyWindow->frontHandle = frontHandle;
         // They gave us ownership
         // Sooner or later I'm going to change that
@@ -952,9 +952,9 @@ WindowHandle pincSdl2completeWindow(struct WindowBackend* obj, IncompleteWindow 
         SDL_Window* win = this->libsdl2.createWindow(titleNullTerm, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (int)realWidth, (int)realHeight, windowFlags); //NOLINT: we do not have control over SDL macros
         // I'm so paranoid, I actually went through the SDL2 source code to make sure it actually duplicates the window title to avoid a use-after-free
         // Better too worried than not enough I guess
-        pincAllocator_free(tempAllocator, titleNullTerm, incomplete->title.len+1);
+        PincAllocator_free(tempAllocator, titleNullTerm, incomplete->title.len+1);
 
-        PincSdl2Window* windowObj = pincAllocator_allocate(rootAllocator, sizeof(PincSdl2Window));
+        PincSdl2Window* windowObj = PincAllocator_allocate(rootAllocator, sizeof(PincSdl2Window));
         *windowObj = (PincSdl2Window){
             .sdlWindow = win,
             .frontHandle = frontHandle,
@@ -1001,7 +1001,7 @@ void pincSdl2deinitWindow(struct WindowBackend* obj, WindowHandle windowHandle) 
         return;
     }
     this->libsdl2.destroyWindow(window->sdlWindow);
-    pincAllocator_free(rootAllocator, window, sizeof(PincSdl2Window));
+    PincAllocator_free(rootAllocator, window, sizeof(PincSdl2Window));
 }
 
 void pincSdl2setWindowTitle(struct WindowBackend* obj, WindowHandle windowHandle, uint8_t* title, size_t titleLen) {
@@ -1011,9 +1011,9 @@ void pincSdl2setWindowTitle(struct WindowBackend* obj, WindowHandle windowHandle
     // It needs to be null terminated because reasons
     char* titleNullTerm = pincString_marshalAlloc((PincString){.str = title, .len = titleLen}, tempAllocator);
     this->libsdl2.setWindowTitle(window->sdlWindow, titleNullTerm);
-    pincAllocator_free(tempAllocator, titleNullTerm, titleLen+1);
+    PincAllocator_free(tempAllocator, titleNullTerm, titleLen+1);
     // We take ownership of the title
-    pincAllocator_free(rootAllocator, title, titleLen);
+    PincAllocator_free(rootAllocator, title, titleLen);
 }
 
 uint8_t const * pincSdl2getWindowTitle(struct WindowBackend* obj, WindowHandle windowHandle, size_t* outTitleLen) {

@@ -4,7 +4,7 @@
 #include <pinc.h>
 
 #include "libs/pinc_allocator.h"
-#include "pinc_arena.h"
+#include "libs/pinc_arena.h"
 #include "pinc_error.h"
 #include "pinc_options.h"
 #include "pinc_types.h"
@@ -155,11 +155,11 @@ typedef struct {
     // Keep track of what stage of initialization we're in
     PincState initState;
     // See doc for rootAllocator macro. Live for incomplete and init
-    pincAllocator alloc;
+    PincAllocator alloc;
     // Memory for tempAlloc object
-    Arena arenaAllocatorObject;
+    PincArenaAllocator arenaAllocatorObject;
     // See doc for tempAllocator macro. Live for incomplete and init.
-    pincAllocator tempAlloc;
+    PincAllocator tempAlloc;
     // Nullable, Lifetime separate from initState
     PincErrorCallback userCallError;
     // Live for incomplete and init

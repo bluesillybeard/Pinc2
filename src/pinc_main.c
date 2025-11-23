@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 #include "libs/pinc_allocator.h"
+#include "libs/pinc_arena.h"
 #include "libs/pinc_string.h"
 #include "pinc_error.h"
 #include "pinc_main.h"
@@ -87,38 +88,21 @@ static const PincAllocatorVtable pinc_user_alloc_vtable = {
     .free = &pinc_root_user_free,
 };
 
-// allocator implementation for temp allocator
-static void* pinc_temp_allocate(void* obj, size_t size) {
-    P_UNUSED(obj);
-    return arena_alloc(&staticState.arenaAllocatorObject, size);
-}
-
-static void* pinc_temp_reallocate(void* obj, void* ptr, size_t oldSize, size_t newSize) {
-    P_UNUSED(obj);
-    return arena_realloc(&staticState.arenaAllocatorObject, ptr, oldSize, newSize);
-}
-
-static void pinc_temp_free(void* obj, void* ptr, size_t size) {
-    P_UNUSED(obj);
-    P_UNUSED(ptr);
-    P_UNUSED(size);
-    // TODO(bluesillybeard): implement this - if this allocation happens to be the last one, then rewind the arena by size.
-}
-
 static const PincAllocatorVtable PincTempAllocatorVtable = {
-    .allocate = &pinc_temp_allocate,
-    .reallocate = &pinc_temp_reallocate,
-    .free = &pinc_temp_free,
+    .allocate = &PincArenaAllocator_allocate,
+    .allocateAligned = &PincArenaAllocator_allocateAligned,
+    .reallocate = &PincArenaAllocator_reallocate,
+    .free = &PincArenaAllocator_free,
 };
 
 uint32_t PincPool_alloc(PincPool* pool, size_t elementSize) {
     if(pool->objectsCapacity == pool->objectsNum) {
         if(!pool->objectsArray) {
-            pool->objectsArray = pincAllocator_allocate(rootAllocator, elementSize * 8);
+            pool->objectsArray = PincAllocator_allocate(rootAllocator, elementSize * 8);
             pool->objectsCapacity = 8;
         } else {
             uint32_t newObjectsCapacity = pool->objectsCapacity * 2;
-            pool->objectsArray = pincAllocator_reallocate(rootAllocator, pool->objectsArray, elementSize * pool->objectsCapacity, elementSize * newObjectsCapacity);
+            pool->objectsArray = PincAllocator_reallocate(rootAllocator, pool->objectsArray, elementSize * pool->objectsCapacity, elementSize * newObjectsCapacity);
             pool->objectsCapacity = newObjectsCapacity;
         }
     }
@@ -137,11 +121,11 @@ void PincPool_free(PincPool* pool, uint32_t index, size_t elementSize) {
     } else {
         if(pool->freeArrayCapacity == pool->freeArrayNum) {
             if(!pool->freeArray) {
-                pool->freeArray = pincAllocator_allocate(rootAllocator, elementSize * 8);
+                pool->freeArray = PincAllocator_allocate(rootAllocator, elementSize * 8);
                 pool->freeArrayCapacity = 8;
             } else {
                 uint32_t newObjectsCapacity = pool->freeArrayCapacity * 2;
-                pool->freeArray = pincAllocator_reallocate(rootAllocator, pool->freeArray, elementSize * pool->freeArrayCapacity, elementSize * newObjectsCapacity);
+                pool->freeArray = PincAllocator_reallocate(rootAllocator, pool->freeArray, elementSize * pool->freeArrayCapacity, elementSize * newObjectsCapacity);
                 pool->freeArrayCapacity = newObjectsCapacity;
             }
         }
@@ -152,10 +136,10 @@ void PincPool_free(PincPool* pool, uint32_t index, size_t elementSize) {
 
 void PincPool_deinit(PincPool* pool, size_t elementSize) {
     if(pool->objectsArray) {
-        pincAllocator_free(rootAllocator, pool->objectsArray, elementSize * pool->objectsCapacity);
+        PincAllocator_free(rootAllocator, pool->objectsArray, elementSize * pool->objectsCapacity);
     }
     if(pool->freeArray) {
-        pincAllocator_free(rootAllocator, pool->freeArray, sizeof(uint32_t) * pool->freeArrayCapacity);
+        PincAllocator_free(rootAllocator, pool->freeArray, sizeof(uint32_t) * pool->freeArrayCapacity);
     }
     *pool = (PincPool){0};
 }
@@ -251,12 +235,12 @@ void PincObject_free(PincObjectHandle handle) {
 static void PincEventBackEnsureCapacity(uint32_t capacity) {
     if(staticState.eventsBufferBackCapacity >= capacity) { return; }
     if(!staticState.eventsBufferBack) {
-        staticState.eventsBufferBack = pincAllocator_allocate(rootAllocator, 8 * sizeof(PincEvent));
+        staticState.eventsBufferBack = PincAllocator_allocate(rootAllocator, 8 * sizeof(PincEvent));
         staticState.eventsBufferBackCapacity = 8;
         staticState.eventsBufferBackNum = 0;
     } else {
         uint32_t newCapacity = staticState.eventsBufferBackCapacity * 2;
-        staticState.eventsBufferBack = pincAllocator_reallocate(rootAllocator, staticState.eventsBufferBack, staticState.eventsBufferBackCapacity * sizeof(PincEvent), newCapacity * sizeof(PincEvent));
+        staticState.eventsBufferBack = PincAllocator_reallocate(rootAllocator, staticState.eventsBufferBack, staticState.eventsBufferBackCapacity * sizeof(PincEvent), newCapacity * sizeof(PincEvent));
         staticState.eventsBufferBackCapacity = newCapacity;
     }
 }
@@ -652,22 +636,23 @@ PINC_EXPORT void PINC_CALL pincInitIncomplete(void) {
     
     if(staticState.userAllocFn) {
         // User callbacks are set
-        rootAllocator = (pincAllocator) {
+        rootAllocator = (PincAllocator) {
             .allocatorObjectPtr = staticState.userAllocObj,
             .vtable = &pinc_user_alloc_vtable,
         };
     } else {
         // user callbacks are not set
-        rootAllocator = (pincAllocator){
+        rootAllocator = (PincAllocator){
             .allocatorObjectPtr = 0,
             .vtable = &pinc_platform_alloc_vtable,
         };
     }
 
-    staticState.arenaAllocatorObject = (Arena){0};
+    // TODO(bluesillybeard): use the actual OS block size instead of hard-coding 4096
+    PincArenaAllocator_init(&staticState.arenaAllocatorObject, rootAllocator, 0, 4096);
 
-    tempAllocator = (pincAllocator) {
-        .allocatorObjectPtr = 0,
+    tempAllocator = (PincAllocator) {
+        .allocatorObjectPtr = &staticState.arenaAllocatorObject,
         .vtable = &PincTempAllocatorVtable,
     };
 
@@ -690,7 +675,7 @@ PINC_EXPORT void PINC_CALL pincInitIncomplete(void) {
         *reference = framebufferFormats[i];
     }
 
-    pincAllocator_free(tempAllocator, framebufferFormats, numFramebufferFormats*sizeof(FramebufferFormat));
+    PincAllocator_free(tempAllocator, framebufferFormats, numFramebufferFormats*sizeof(FramebufferFormat));
     staticState.initState = PincState_incomplete;
     PincValidateForState(PincState_incomplete);
 }
@@ -737,7 +722,7 @@ PINC_EXPORT PincFramebufferFormatHandle pincQueryFramebufferFormatDefault(PincWi
     // Use the front-end API to do what a user would effectively do
     uint32_t numFramebufferFormats = pincQueryFramebufferFormats(window_backend, graphics_api, 0, 0);
     PincAssertExternal(numFramebufferFormats, "No framebuffer formats available", true, {}); // Recoverable, although dubiously, because the Pinc state remains as if this function had never been called.
-    uint32_t* ids = pincAllocator_allocate(tempAllocator, numFramebufferFormats * sizeof(uint32_t));
+    uint32_t* ids = PincAllocator_allocate(tempAllocator, numFramebufferFormats * sizeof(uint32_t));
     pincQueryFramebufferFormats(window_backend, graphics_api, ids, numFramebufferFormats);
     
     // framebuffer format default can be tuned here
@@ -902,11 +887,11 @@ PINC_EXPORT void PINC_CALL pincDeinit(void) {
     PincPool_deinit(&staticState.rawOpenglContextHandleObjects, sizeof(RawOpenglContextObject));
     PincPool_deinit(&staticState.framebufferFormatObjects, sizeof(FramebufferFormat));
 
-    pincAllocator_free(rootAllocator, staticState.eventsBuffer, staticState.eventsBufferNum * sizeof(PincEvent));
-    pincAllocator_free(rootAllocator, staticState.eventsBufferBack, staticState.eventsBufferBackNum * sizeof(PincEvent));
+    PincAllocator_free(rootAllocator, staticState.eventsBuffer, staticState.eventsBufferNum * sizeof(PincEvent));
+    PincAllocator_free(rootAllocator, staticState.eventsBufferBack, staticState.eventsBufferBackNum * sizeof(PincEvent));
 
     if(staticState.tempAlloc.vtable){
-        arena_free(&staticState.arenaAllocatorObject);
+        PincArenaAllocator_deinit(&staticState.arenaAllocatorObject);
     }
 
     // Full reset the state
@@ -1071,7 +1056,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetTitle(PincWindowHandle window, const cha
             WindowHandle* object = PincObject_ref_window(window);
             PincForwardErrorVoid();
             // Window takes ownership of the pointer, but we don't have ownership of title_buf
-            uint8_t* titlePtr = (uint8_t*)pincAllocator_allocate(rootAllocator, title_len);
+            uint8_t* titlePtr = (uint8_t*)PincAllocator_allocate(rootAllocator, title_len);
             pincMemCopy(title_buf, titlePtr, title_len);
             pincWindowBackend_setWindowTitle(&staticState.windowBackend, *object, titlePtr, title_len);
             PincForwardErrorVoid();
@@ -1483,7 +1468,8 @@ PINC_EXPORT void PINC_CALL pincStep(void) {
     staticState.lastErrorMessage = (PincString){0, 0};
     staticState.lastErrorCode = PincErrorCode_pass;
     staticState.lastErrorRecoverable = true;
-    arena_reset(&staticState.arenaAllocatorObject);
+    // TODO(bluesillybeard): configurable reset size
+    PincArenaAllocator_reset(&staticState.arenaAllocatorObject, 6 * staticState.arenaAllocatorObject.blockSize);
     pincWindowBackend_step(&staticState.windowBackend);
     // Event buffer swap
     PincEvent* tempEventsBuffer = staticState.eventsBuffer;

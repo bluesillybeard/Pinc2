@@ -54,9 +54,9 @@ project(pinc
 add_library(pinc
     # Actual source files
     src/pinc_main.c
-    src/platform/pinc_platform.c
     src/pinc_sdl2.c
-    src/pinc_arena.c
+    src/platform/pinc_platform.c
+    src/libs/pinc_arena.c
     src/libs/pinc_string.c
     src/libs/pinc_utf8.c
     # there are a lot of these because implementations of functions tend to get grouped together more than macros and types

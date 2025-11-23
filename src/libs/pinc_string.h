@@ -17,32 +17,32 @@ typedef struct {
 
 PincString pincString_makeDirect(char* str);
 
-PincString pincString_makeAlloc(char const* str, pincAllocator alloc);
+PincString pincString_makeAlloc(char const* str, PincAllocator alloc);
 
-PincString pincString_copy(PincString str, pincAllocator alloc);
+PincString pincString_copy(PincString str, PincAllocator alloc);
 
 /// Makes a new traditional C string from a PString.
 /// Returns null if the given string is null.
-char* pincString_marshalAlloc(PincString str, pincAllocator alloc);
+char* pincString_marshalAlloc(PincString str, PincAllocator alloc);
 
 /// Marshals str into dest, where dest has capacity characters it can hold (including null terminator)
 void pincString_marshalDirect(PincString str, char* dest, size_t capacity);
 
 PincString pincString_slice(PincString str, size_t start, size_t len);
 
-void pincString_free(PincString* str, pincAllocator alloc);
+void pincString_free(PincString* str, PincAllocator alloc);
 
 /// @brief Concatenate multiple strings together
 /// @param numStrings the number of strings in the array to concatenate together 
 /// @param strings the strings to concatenate
 /// @param alloc The allocator that the new string will be allocated on. This function is guaranteed to only make a single allocation.
 /// @return the result of the concatenation, allocated with alloc.
-PincString pincString_concat(size_t numStrings, PincString strings[], pincAllocator alloc);
+PincString pincString_concat(size_t numStrings, PincString strings[], PincAllocator alloc);
 
-PincString pincString_allocFormatUint32(uint32_t item, pincAllocator alloc);
+PincString pincString_allocFormatUint32(uint32_t item, PincAllocator alloc);
 
-PincString pincString_allocFormatInt32(int32_t value, pincAllocator alloc);
+PincString pincString_allocFormatInt32(int32_t value, PincAllocator alloc);
 
-PincString pincString_allocFormatUint64(uint64_t item, pincAllocator alloc);
+PincString pincString_allocFormatUint64(uint64_t item, PincAllocator alloc);
 
 #endif

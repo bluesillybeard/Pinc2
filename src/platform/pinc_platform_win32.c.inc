@@ -94,7 +94,7 @@ void pincMemCopy(void const* P_RESTRICT source, void* P_RESTRICT destination, si
 
 void pincMemMove(void const* source, void* destination, size_t numBytes) {
     // MoveMemory is a macro to a macro to something that depends on the compiler
-    // TODO(bluesillybeard): optimization
+    // TODO(bluesillybeard): optimization, also I think this implementation is actually not correct either
     uint8_t* src = (uint8_t*) source;
     uint8_t* dst = (uint8_t*) destination;
     for(size_t i=0; i<numBytes; ++i) {

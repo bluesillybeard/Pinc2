@@ -1,5 +1,5 @@
-#include "pinc_string.h"
 #include "libs/pinc_allocator.h"
+#include "pinc_string.h"
 #include "platform/pinc_platform.h"
 
 #include <pinc_error.h>
@@ -14,9 +14,9 @@ PincString pincString_makeDirect(char* str) {
     };
 }
 
-PincString pincString_makeAlloc(char const* str, pincAllocator alloc) {
+PincString pincString_makeAlloc(char const* str, PincAllocator alloc) {
     size_t len = pincStringLen(str);
-    uint8_t* newStr = pincAllocator_allocate(alloc, len);
+    uint8_t* newStr = PincAllocator_allocate(alloc, len);
     pincMemCopy(str, newStr, len);
     return (PincString) {
         .str = newStr,
@@ -24,8 +24,8 @@ PincString pincString_makeAlloc(char const* str, pincAllocator alloc) {
     };
 }
 
-PincString pincString_copy(PincString const str, pincAllocator alloc) {
-    uint8_t* newStr = pincAllocator_allocate(alloc, str.len);
+PincString pincString_copy(PincString const str, PincAllocator alloc) {
+    uint8_t* newStr = PincAllocator_allocate(alloc, str.len);
     pincMemCopy(str.str, newStr, str.len);
     return (PincString) {
         .str = newStr,
@@ -33,10 +33,10 @@ PincString pincString_copy(PincString const str, pincAllocator alloc) {
     };
 }
 
-char* pincString_marshalAlloc(PincString str, pincAllocator alloc) {
+char* pincString_marshalAlloc(PincString str, PincAllocator alloc) {
     // If the length is zero, we can't return a pointer to a zero byte
     // as the user explicitly called for it to be allocated on alloc.
-    char* newStr = pincAllocator_allocate(alloc, str.len+1);
+    char* newStr = PincAllocator_allocate(alloc, str.len+1);
     pincMemCopy(str.str, newStr, str.len);
     newStr[str.len] = 0;
     return newStr;
@@ -62,20 +62,20 @@ PincString pincString_slice(PincString str, size_t start, size_t len) {
     };
 }
 
-void pincString_free(PincString* str, pincAllocator alloc) {
-    pincAllocator_free(alloc, str->str, str->len);
+void pincString_free(PincString* str, PincAllocator alloc) {
+    PincAllocator_free(alloc, str->str, str->len);
     str->str = 0;
     str->len = 0;
 }
 
-PincString pincString_concat(size_t numStrings, PincString strings[], pincAllocator alloc) {
+PincString pincString_concat(size_t numStrings, PincString strings[], PincAllocator alloc) {
     size_t totalLen = 0;
     for(size_t index = 0; index < numStrings; ++index) {
         totalLen += strings[index].len;
     }
     PincString newStr = (PincString) {
         .len = totalLen,
-        .str = pincAllocator_allocate(alloc, totalLen),
+        .str = PincAllocator_allocate(alloc, totalLen),
     };
     uint8_t* writePtr = newStr.str;
     for(size_t index = 0; index < numStrings; ++index) {
@@ -88,18 +88,18 @@ PincString pincString_concat(size_t numStrings, PincString strings[], pincAlloca
     return newStr;
 }
 
-PincString pincString_allocFormatUint32(uint32_t item, pincAllocator alloc) {
+PincString pincString_allocFormatUint32(uint32_t item, PincAllocator alloc) {
     char buffer[11];
     size_t len = pincBufPrintUint32(buffer, 11, item);
     PincString new;
-    new.str = pincAllocator_allocate(alloc, len);
+    new.str = PincAllocator_allocate(alloc, len);
     pincMemCopy(buffer, new.str, len);
     PincAssertAssert(len, "Zero length string", true, return (PincString){0, 0};);
     new.len = len;
     return new;
 }
 
-PincString pincString_allocFormatInt32(int32_t value, pincAllocator alloc) {
+PincString pincString_allocFormatInt32(int32_t value, PincAllocator alloc) {
     if(value == 0) {
         return pincString_makeAlloc("0", alloc);
     }
@@ -119,7 +119,7 @@ PincString pincString_allocFormatInt32(int32_t value, pincAllocator alloc) {
         buf[11 - index] = '-';
     }
     PincAssertAssert(index <= 11, "", true, return (PincString){0, 0};);
-    uint8_t* str = pincAllocator_allocate(alloc, index);
+    uint8_t* str = PincAllocator_allocate(alloc, index);
     pincMemCopy(&buf[11-index], str, index);
     return (PincString){
         .str = str,
@@ -127,11 +127,11 @@ PincString pincString_allocFormatInt32(int32_t value, pincAllocator alloc) {
     };
 }
 
-PincString pincString_allocFormatUint64(uint64_t item, pincAllocator alloc) {
+PincString pincString_allocFormatUint64(uint64_t item, PincAllocator alloc) {
     char buffer[21];
     size_t len = pincBufPrintUint64(buffer, 21, item);
     PincString new;
-    new.str = pincAllocator_allocate(alloc, len);
+    new.str = PincAllocator_allocate(alloc, len);
     pincMemCopy(buffer, new.str, len);
     PincAssertAssert(len, "Zero length string", true, return (PincString){0, 0};);
     new.len = len-1;
