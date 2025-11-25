@@ -865,6 +865,8 @@ PINC_EXPORT void PINC_CALL pincDeinit(void) {
                 case PincObjectType_framebufferFormat:
                 case PincObjectType_incompleteGlContext:
                 break;
+                default:
+                PincAssertAssert(false, "Invalid object type... in deinit?", false, return;);
             }
         }
     }

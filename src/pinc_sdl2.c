@@ -49,12 +49,12 @@ typedef struct {
 // Adds a window to the list of windows
 void pincSdl2AddWindow(PincSdl2WindowBackend* this, PincSdl2Window* window) {
     if(!this->windows) {
-        this->windows = PincAllocator_allocate(rootAllocator, sizeof(PincSdl2Window*) * 8);
+        this->windows = (PincSdl2Window**) PincAllocator_allocate(rootAllocator, sizeof(PincSdl2Window*) * 8);
         this->windowsNum = 0;
         this->windowsCapacity = 8;
     }
     if(this->windowsCapacity == this->windowsNum) {
-        this->windows = PincAllocator_reallocate(rootAllocator, this->windows, sizeof(PincSdl2Window*) * this->windowsCapacity, sizeof(PincSdl2Window*) * this->windowsCapacity * 2);
+        this->windows = (PincSdl2Window**) PincAllocator_reallocate(rootAllocator, (void*) this->windows, sizeof(PincSdl2Window*) * this->windowsCapacity, sizeof(PincSdl2Window*) * this->windowsCapacity * 2);
         this->windowsCapacity = this->windowsCapacity * 2;
     }
     this->windows[this->windowsNum] = window;
@@ -648,7 +648,7 @@ void pincSdl2deinit(struct WindowBackend* obj) {
 
     this->libsdl2.quit();
     pincSdl2UnloadLib(this->sdl2Lib);
-    PincAllocator_free(rootAllocator, this->windows, sizeof(PincSdl2Window*) * this->windowsCapacity);
+    PincAllocator_free(rootAllocator, (void*)this->windows, sizeof(PincSdl2Window*) * this->windowsCapacity);
     PincAllocator_free(rootAllocator, this, sizeof(PincSdl2WindowBackend));
 }
 
@@ -1355,6 +1355,8 @@ RawOpenglContextHandle pincSdl2glCompleteContext(struct WindowBackend* obj, Inco
             this->libsdl2.glSetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
             glFlags |= SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG; //NOLINT: SDL wants an int
             break;
+        default:
+            PincAssertUser(false, "Invalid opengl context profile", true, return 0;)
     }
     if(incompleteContext.robustAccess) {
         glFlags |= SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG; //NOLINT: SDL wants an int

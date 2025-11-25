@@ -17,14 +17,14 @@ void pincInternalCallError(PincString message, PincErrorCode type, bool recovera
 #if PINC_ENABLE_ERROR_EXTERNAL == 1
 # define PincAssertExternal(assertExpression, messageNullterm, recoverable, ...) \
     if(!(assertExpression)) { \
-        __VA_ARGS__\
         pincInternalCallError(pincString_makeDirect((char*)(messageNullterm)), PincErrorCode_external, (recoverable)); \
+        __VA_ARGS__\
     }
 
 # define PincAssertExternalStr(assertExpression, messageStr, recoverable, ...) \
     if(!(assertExpression)) { \
-        __VA_ARGS__\
         pincInternalCallError(messageStr, PincErrorCode_external, (recoverable)); \
+        __VA_ARGS__\
     }
 #else
 # define PincAssertExternal(assertExpression, messageNullterm, recoverable, ...)
@@ -34,14 +34,14 @@ void pincInternalCallError(PincString message, PincErrorCode type, bool recovera
 #if PINC_ENABLE_ERROR_ASSERT == 1
 # define PincAssertAssert(assertExpression, messageNullterm, recoverable, ...) \
     if(!(assertExpression)) { \
-        __VA_ARGS__\
         pincInternalCallError(pincString_makeDirect((char*)(messageNullterm)), PincErrorCode_assert, (recoverable)); \
+        __VA_ARGS__\
     }
 
 # define PincAssertAssertStr(assertExpression, messageStr, recoverable, ...) \
     if(!(assertExpression)) { \
-        __VA_ARGS__\
         pincInternalCallError(messageStr, PincErrorCode_assert, (recoverable)); \
+        __VA_ARGS__\
     }
 #else
 # define PincAssertAssert(assertExpression, messageNullterm, recoverable, ...)
@@ -51,14 +51,14 @@ void pincInternalCallError(PincString message, PincErrorCode type, bool recovera
 #if PINC_ENABLE_ERROR_USER == 1
 # define PincAssertUser(assertExpression, messageNullterm, recoverable, ...) \
     if(!(assertExpression)) { \
-        __VA_ARGS__\
         pincInternalCallError(pincString_makeDirect((char*)(messageNullterm)), PincErrorCode_user, (recoverable)); \
+        __VA_ARGS__\
     }
 
 # define PincAssertUserStr(assertExpression, messageStr, recoverable, ...) \
     if(!(assertExpression)) { \
-        __VA_ARGS__\
         pincInternalCallError(messageStr, PincErrorCode_user, (recoverable)); \
+        __VA_ARGS__\
     }
 #else
 # define PincAssertUser(assertExpression, messageNullterm, recoverable, ...)
