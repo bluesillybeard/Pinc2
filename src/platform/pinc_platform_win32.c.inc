@@ -17,6 +17,12 @@
 
 #include "pinc_platform.h"
 
+// TODO(bluesillybeard) Uh, should probably add a platform function for getting a human-readable version of the last error
+// char volatile msg[1024] = {0};
+// DWORD res = GetLastError();
+// FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, 0, res, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), msg, 1024, 0);
+// Don't ask why Windows uses the *format* function to get the *error* message, because I don't know either. Man those crazy Windows devs.
+
 // TODO(bluesillybeard): does it make any sense to expose this to the user?
 static void* pincHeap = NULL; //NOLINT
 
@@ -52,19 +58,22 @@ void pincFree(void* pointer, size_t bytes) {
 }
 
 void* pincLoadLibrary(uint8_t const* nameUtf8, size_t nameSize) {
-    char* nameNullTerm = pincAlloc(nameSize);
-    pincMemCopy(nameUtf8, nameNullTerm, nameSize+1);
+    char* nameNullTerm = pincAlloc(nameSize+1);
+    pincMemCopy(nameUtf8, nameNullTerm, nameSize);
     nameNullTerm[nameSize] = 0;
     // TODO(bluesillybeard): handle utf8?
     void* lib = LoadLibraryA(nameNullTerm);
+    pincFree(nameNullTerm, nameSize+1);
     return lib;
 }
 
 pincPFN pincLibrarySymbol(void* library, uint8_t const* symbolNameUtf8, size_t nameSize) {
-    char* nameNullTerm = pincAlloc(nameSize);
-    pincMemCopy(symbolNameUtf8, nameNullTerm, nameSize+1);
+    char* nameNullTerm = pincAlloc(nameSize+1);
+    pincMemCopy(symbolNameUtf8, nameNullTerm, nameSize);
     nameNullTerm[nameSize] = 0;
-    return (pincPFN) GetProcAddress(library, nameNullTerm);
+    pincPFN proc = (pincPFN) GetProcAddress(library, nameNullTerm);
+    pincFree(nameNullTerm, nameSize+1);
+    return proc;
 }
 
 void pincUnloadLibrary(void* library) {
