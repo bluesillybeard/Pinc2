@@ -11,13 +11,16 @@ int main(void) {
         // We don't care what we get, so don't set anything.
         // Everything is left default.
         pincInitComplete(PincWindowBackend_any, PincGraphicsApi_any, 0);
+        if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
         PincWindowHandle window = pincWindowCreateIncomplete();
         // Enter 0 for length so pinc does the work of finding the length for us
         pincWindowSetTitle(window, "Minimal Pinc Window!", 0);
         pincWindowComplete(window);
+        if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
         bool running = true;
         while(running) {
             pincStep();
+            if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
             uint32_t num_events = pincEventGetNum();
             for(uint32_t i=0; i<num_events; ++i) {
                 switch(pincEventGetType(i)) {

@@ -128,6 +128,7 @@ int main(void) {
 
     // Init pinc with the opengl API.
     pincInitComplete(PincWindowBackend_any, PincGraphicsApi_opengl, 0);
+    if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
 
     if(pincQueryOpenglVersionSupported(PincWindowBackend_any, 2, 1, PincOpenglContextProfile_core) == PincOpenglSupportStatus_none) {
         fprintf(stderr, "Support for OpenGL 1.5 is required.\n");
@@ -175,6 +176,7 @@ int main(void) {
     bool running = true;
     while(running) {
         pincStep();
+        if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
         uint32_t num_events = pincEventGetNum();
         for(uint32_t i=0; i<num_events; ++i) {
             switch(pincEventGetType(i)) {

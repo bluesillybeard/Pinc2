@@ -70,6 +70,7 @@ int main(void) {
 
     // Init pinc with the opengl API.
     pincInitComplete(PincWindowBackend_any, PincGraphicsApi_opengl, 0);
+    if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
 
     if(pincQueryOpenglVersionSupported(PincWindowBackend_any, 2, 1, PincOpenglContextProfile_core) == PincOpenglSupportStatus_none) {
         fprintf(stderr, "Support for OpenGL 1.2 is required.\n");
@@ -80,6 +81,7 @@ int main(void) {
     // Enter 0 for length so pinc does the work of finding the length for us
     pincWindowSetTitle(window, "Pinc OpenGL example", 0);
     pincWindowComplete(window);
+    if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
 
     // Make OpenGL context - Just like with other Pinc objects, an OpenGL context is created, settings are set, then it is completed.
     // If you are familiar with OpenGL, you may be interested to here that the OpenGL context has no immediate binding to a window.
@@ -89,6 +91,7 @@ int main(void) {
     // This is actually the default in Pinc, but may as well set it anyway.
     pincOpenglSetContextVersion(gl_context, 1, 2, PincOpenglContextProfile_core);
     pincOpenglCompleteContext(gl_context);
+    if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
 
     pincOpenglMakeCurrent(window, gl_context);
 
@@ -105,6 +108,7 @@ int main(void) {
     bool running = true;
     while(running) {
         pincStep();
+        if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
         uint32_t num_events = pincEventGetNum();
         for(uint32_t i=0; i<num_events; ++i) {
             switch(pincEventGetType(i)) {

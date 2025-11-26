@@ -9,8 +9,10 @@ int main(void) { //NOLINT: I'm conflicted on the complexity of this example func
     pincPreinitSetErrorCallback(exampleErrorCallback);
     pincInitIncomplete();
     pincInitComplete(PincWindowBackend_any, PincGraphicsApi_any, 0);
+    if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
     PincWindowHandle window1 = pincWindowCreateIncomplete();
     pincWindowComplete(window1);
+    if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
 
     // Actually, let's make a second window for the fun of it (if that is allowed)
     PincWindowHandle window2 = 0;
@@ -18,6 +20,7 @@ int main(void) { //NOLINT: I'm conflicted on the complexity of this example func
     if(max_open_windows > 1 || max_open_windows == 0) {
         window2 = pincWindowCreateIncomplete();
         pincWindowComplete(window2);
+        if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
     }
     bool running = true;
     while(running) {
@@ -26,6 +29,7 @@ int main(void) { //NOLINT: I'm conflicted on the complexity of this example func
         // On step(), the buffers are swapped, the back buffer reset, then step() returns back to the application code.
         // In the future, Pinc may support an immediate-mode event loop for event based applications.
         pincStep();
+        if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
         // Then we can iterate the events
         uint32_t num_events = pincEventGetNum();
         for(uint32_t i=0; i<num_events; ++i) {
@@ -152,7 +156,6 @@ int main(void) { //NOLINT: I'm conflicted on the complexity of this example func
         }
         pincWindowPresentFramebuffer(window1);
         if(window2) pincWindowPresentFramebuffer(window2);
-        if(pincLastErrorCode() != PincErrorCode_pass) { pincDeinit(); return 100; }
     }
     pincWindowDeinit(window1);
     if(window2) pincWindowDeinit(window2);
