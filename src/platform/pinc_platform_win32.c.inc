@@ -1,4 +1,5 @@
 #include "pinc_error.h"
+#include "pinc_main.h"
 #include <stdint.h>
 
 // If you are here because you encountered include errors, either:
@@ -40,7 +41,7 @@ void* pincAllocAligned(size_t bytes, size_t alignment) {
     }
     (void)bytes;
     (void)alignment;
-    pincPrintError((uint8_t*)"Aligned allocations are not implemented on Windows", sizeof("Aligned allocations are not implemented on Windows"));
+    PincLogLiteral("[PLATFORM WIN32] [FATAL] Aligned allocations are not implemented on Windows");
     pincAssertFail();
     return NULL;
 }
@@ -240,7 +241,9 @@ int64_t pincCurrentTimeMillis(void) {
     // TODO(bluesillybeard): However, it is almost certainly a good idea to get something that is accurate to 1-2 ms
     uint64_t ticks = GetTickCount64();
     if(ticks > INT64_MAX) {
-        pincPrintError((uint8_t*)"Integer Overflow", sizeof("Integer Overflow"));
+        // TODO: this is pathetic, only 28 days of runtime before an overflow?
+        // It's certainly better to use some kind of time struct with 128 bits of milliseconds or something.
+        PincLogLiteral("[PLATFORM WIN32] [FATAL] Integer Overflow");
         pincAssertFail();
         return 0;
     }

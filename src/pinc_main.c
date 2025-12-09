@@ -14,14 +14,26 @@
 
 // Implementations of things in pinc_main.h
 
+void pincLogDirect(char const* msg, size_t len) {
+    if(staticState.userAllocFn) {
+        char* str2 = PincAllocator_allocate(tempAllocator, len+1);;
+        pincMemCopy(msg, str2, len);
+        str2[len] = 0;
+        staticState.userLogFn(staticState.userLogObj, str2, len);
+        PincAllocator_free(tempAllocator, str2, len+1);
+    } else {
+        pincPrintDebugLine((uint8_t const*)msg, len);
+    }
+}
+
 void pincInternalCallError(PincString message, PincErrorCode type, bool recoverable) {
     if(rootAllocator.vtable == 0) {
-        char* errString = "Pinc received an error before initialization of the root allocator - Did you forget to call InitComplete()?";
+        char* errString = "[FRONTEND] [ERROR] Pinc received an error before initialization of the root allocator - Did you forget to call InitComplete()?";
         size_t errStringLen = pincStringLen(errString);
         if(staticState.userCallError) {
             staticState.userCallError((uint8_t const*) errString, errStringLen, PincErrorCode_user, false);
         } else {
-            pincPrintErrorLine((uint8_t const*) errString, errStringLen);
+            pincLogDirect(errString, errStringLen);
         }
         staticState.lastErrorCode = PincErrorCode_user;
         staticState.lastErrorMessage = (PincString){(uint8_t*)errString, errStringLen};
@@ -408,7 +420,7 @@ void PincEventClipboardChanged(int64_t timeUnixMillis, PincMediaType type, char*
 }
 
 // StateValidMacroForConvenience
-#define SttVld(_expr, _message) if(!(_expr)) {pincPrintErrorEZ(_message); return false;}
+#define SttVld(_expr, _message) if(!(_expr)) {PincLogCstr(_message); return false;}
 static bool PincStateValidForIncomplete(void) {
     #if PINC_ENABLE_ERROR_ASSERT
     // Easy validation with little cost
@@ -627,7 +639,12 @@ PINC_EXPORT void PINC_CALL pincPreinitSetAllocCallbacks(void* user_ptr, PincAllo
     staticState.userAllocFn = alloc;
     staticState.userReallocFn = realloc;
     staticState.userFreeFn = free;
-    
+}
+
+PINC_EXPORT void PINC_CALL pincPreinitSetLogCallback(void* user_ptr, PincLogCallback log) {
+    PincValidateForState(PincState_preinit);
+    staticState.userLogObj = user_ptr;
+    staticState.userLogFn = log;
 }
 
 PINC_EXPORT void PINC_CALL pincInitIncomplete(void) {

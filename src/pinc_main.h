@@ -201,6 +201,9 @@ typedef struct {
     PincReallocCallback userReallocFn;
     PincFreeCallback userFreeFn;
 
+    void* userLogObj;
+    PincLogCallback userLogFn;
+
     bool windowBackendSet;
     WindowBackend windowBackend;
 
@@ -222,6 +225,19 @@ extern PincStaticState pinc_intern_staticState; // NOLINT
 #define rootAllocator staticState.alloc
 // A temporary allocator that is cleared at the end of pinc_step().
 #define tempAllocator staticState.tempAlloc
+
+// Suggested log format: [DOMAIN] [TYPE] [MESSAGE]
+// like "[SDL2] [WARN] something went kinda wrong but it's not a major problem"
+void pincLogDirect(char const* msg, size_t len);
+
+// do while junk in case someone passes a function call into the input, so their function is only called once
+#define PincLogStr(_str) do {PincString _realstr = (_str); pincLogDirect((char const*)_realstr.str, _realstr.len);} while(false)
+
+// The extra "" in this macro is to make sure nobody does a dumb and calls this with anything other than a string literal
+#define PincLogLiteral(_str) pincLogDirect(("" _str), sizeof(_str))
+
+// do while junk in case someone passes a function call into the input, so their function is only called once
+#define PincLogCstr(_str) do {char const* _realstr = (char const*)(_str); pincLogDirect(_realstr, pincStringLen(_realstr));} while(false)
 
 PincObjectHandle PincObject_allocate(PincObjectDiscriminator discriminator);
 

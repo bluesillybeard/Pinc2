@@ -329,12 +329,14 @@ typedef void* ( PINC_PROC_CALL * PincAllocCallback) (void* user_ptr, size_t allo
 /// @param old_alloc_size_bytes Old size of the allocation. Must be the exact size given to pAlloc, or pRealloc for the respective pointer.
 /// @param alloc_size_bytes The new size of the allocation
 /// @return A pointer to this memory. May be the same or different from pointer.
-typedef void* ( PINC_PROC_CALL * PincReallocCallback) (void* userPtr, void* ptr, size_t old_alloc_size_bytes, size_t alloc_size_bytes);
+typedef void* ( PINC_PROC_CALL * PincReallocCallback) (void* user_ptr, void* ptr, size_t old_alloc_size_bytes, size_t alloc_size_bytes);
 
 /// @brief Free some memory
 /// @param ptr Pointer to free. Must exactly be a pointer returned by pAlloc, or pRealloc.
 /// @param alloc_size_bytes Number of bytes to free. Must be the exact size given to pAlloc, or pRealloc for the respective pointer.
-typedef void ( PINC_PROC_CALL * PincFreeCallback) (void* userPtr, void* ptr, size_t alloc_size_bytes);
+typedef void ( PINC_PROC_CALL * PincFreeCallback) (void* user_ptr, void* ptr, size_t alloc_size_bytes);
+
+typedef void ( PINC_PROC_CALL * PincLogCallback) (void* user_ptr, char const* message_utf8, size_t message_length);
 
 /// @section functions
 
@@ -357,8 +359,11 @@ PINC_EXTERN char const* PINC_CALL pincLastErrorMessage(size_t* out_len);
 /// If the last error was recoverable, it's as if the function call resulting in the error had no effect.
 PINC_EXTERN bool PINC_CALL pincLastErrorRecoverable(void);
 
-/// @brief Set allocation callbacks. Must be called before incomplete_init, or never. The type of each proc has more information. They either must all be set, or all null.
+/// @brief Set optional allocation callbacks. Must be called before incomplete_init, or never. The type of each proc has more information. They either must all be set, or all null.
 PINC_EXTERN void PINC_CALL pincPreinitSetAllocCallbacks(void* user_ptr, PincAllocCallback alloc, PincReallocCallback realloc, PincFreeCallback free);
+
+/// Sets the log optional log callback. May be set to null for default platform-specific behavior. The string given to the log function is guaranteed to be null terminated but is given a length for convenience.
+PINC_EXTERN void PINC_CALL pincPreinitSetLogCallback(void* user_ptr, PincLogCallback log);
 
 /// @brief Begin the initialization process
 /// @return the success or failure of this function call. Failures are likely caused by external factors (ex: no window backends) or a failed allocation.

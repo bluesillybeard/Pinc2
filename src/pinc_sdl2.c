@@ -379,9 +379,7 @@ bool pincSdl2Init(WindowBackend* obj) {
     // The only thing required for SDL2 support is for the SDL2 library to be present
     void* lib = pincSdl2LoadLib();
     if(!lib) {
-        char* msg = "SDL2 could not be loaded, disabling SDL2 backend.\n";
-        pincPrintDebug((uint8_t*)msg, pincStringLen(msg));
-        // pincSdl2UnloadLib(lib);
+        PincLogLiteral("[BACKEND SDL2] [WARN] library could not be loaded, disabling SDL2 backend.");
         return false;
     }
     this->sdl2Lib = lib;
@@ -390,7 +388,7 @@ bool pincSdl2Init(WindowBackend* obj) {
     SDL_version sdlVersion;
     this->libsdl2.getVersion(&sdlVersion);
     PincString strings[] = {
-        pincString_makeDirect("Loaded SDL2 version: "),
+        pincString_makeDirect("[BACKEND SDL2] [TRACE] Loaded SDL2 version: "),
         pincString_allocFormatUint32(sdlVersion.major, tempAllocator),
         pincString_makeDirect("."),
         pincString_allocFormatUint32(sdlVersion.minor, tempAllocator),
@@ -398,11 +396,9 @@ bool pincSdl2Init(WindowBackend* obj) {
         pincString_allocFormatUint32(sdlVersion.patch, tempAllocator),
     };
     PincString msg = pincString_concat(sizeof(strings) / sizeof(PincString), strings, tempAllocator);
-    pincPrintDebugLine(msg.str, msg.len);
+    PincLogStr(msg);
     if(sdlVersion.major < 2) {
-        char* msg2 = "SDL version too old, disabling SDL2 backend\n";
-        pincPrintDebug((uint8_t*)msg2, pincStringLen(msg2));
-        pincSdl2UnloadLib(lib);
+        PincLogLiteral("[BACKEND SDL2] [WARN] version too old, disabling SDL2 backend");
         this->sdl2Lib = 0;
         this->libsdl2 = (Sdl2Functions){0};
         return false;
@@ -500,7 +496,7 @@ static void pincSdl2FramebufferFormatAdd(FramebufferFormat** formats, size_t* fo
 
 // Implementation of the interface
 
-FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, PincAllocator allocator, size_t* outNumFormats) {
+FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, PincAllocator allocator, size_t* outNumFormats) { // NOLINT: maybe the complexity threshold should be like 30 or something
     PincSdl2WindowBackend* this = (PincSdl2WindowBackend*)obj->obj;
     // SDL2 has no nice way for us to get a list of possible framebuffer formats
     // However, SDL2 does have functionality to iterate through displays and go through what formats they support.
@@ -520,7 +516,7 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, Pi
         };
         PincString err = pincString_concat(sizeof(strings) / sizeof(PincString), strings, tempAllocator);
         *outNumFormats = 0;
-        PincAssertExternalStr(numDisplays > 0, err, false, return 0;);
+        pincInternalCallError(err, PincErrorCode_external, false);
         return NULL;
     }
     for(int displayIndex=0; displayIndex<numDisplays; ++displayIndex) {
@@ -531,8 +527,8 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, Pi
                 pincString_makeDirect((char*)this->libsdl2.getError()),
             };
             PincString err = pincString_concat(sizeof(strings) / sizeof(PincString), strings, tempAllocator);
-            PincAssertExternalStr(numDisplays > 0, err, false, return 0;);
             *outNumFormats = 0;
+            pincInternalCallError(err, PincErrorCode_external, false);
             return NULL;
         }
         for(int displayModeIndex=0; displayModeIndex<numDisplayModes; ++displayModeIndex) {
@@ -541,13 +537,13 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, Pi
             // Strangeness is going on and I don't like it!
             if(!displayMode.format || !displayMode.w || !displayMode.h) {
                 PincString strings[] = {
-                    pincString_makeDirect("Pinc encountered non-fatal SDL2 error: Invalid display mode "),
+                    pincString_makeDirect("[BACKEND SDL2] [WARN] Invalid display mode "),
                     pincString_allocFormatUint64((uint64_t)displayModeIndex, tempAllocator),
                     pincString_makeDirect(" For display "),
                     pincString_allocFormatUint64((uint64_t)displayIndex, tempAllocator),
                 };
                 PincString err = pincString_concat(sizeof(strings) / sizeof(PincString), strings, tempAllocator);
-                pincPrintErrorLine(err.str, err.len);
+                PincLogStr(err);
                 pincString_free(&err, tempAllocator);
                 continue;
             }
@@ -559,11 +555,11 @@ FramebufferFormat* pincSdl2queryFramebufferFormats(struct WindowBackend* obj, Pi
             uint32_t amask = 0;
             if(this->libsdl2.pixelFormatEnumToMasks(displayMode.format, &bpp, &rmask, &gmask, &bmask, &amask) == SDL_FALSE){
                 PincString strings[] = {
-                    pincString_makeDirect("Pinc encountered non-fatal SDL2 error: "),
+                    pincString_makeDirect("[BACKEND SDL2] [WARN] Pinc encountered an SDL2 error: "),
                     pincString_makeDirect((char*)this->libsdl2.getError()),
                 };
                 PincString err = pincString_concat(sizeof(strings) / sizeof(PincString), strings, tempAllocator);
-                pincPrintErrorLine(err.str, err.len);
+                PincLogStr(err);
                 pincString_free(&err, tempAllocator);
                 continue;
             }

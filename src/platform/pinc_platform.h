@@ -127,10 +127,4 @@ size_t pincBufPrintUint64(char* buf, size_t capacity, uint64_t value);
 // The only strict requirement is that it is relatively consistent so two time values can be compared with decent accuracy.
 int64_t pincCurrentTimeMillis(void);
 
-// functions for ease of use
-
-static P_INLINE void pincPrintErrorEZ(char* message) {
-    pincPrintError((uint8_t*)message, sizeof(message));
-}
-
 #endif
