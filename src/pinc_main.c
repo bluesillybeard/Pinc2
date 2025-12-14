@@ -419,6 +419,20 @@ void PincEventClipboardChanged(int64_t timeUnixMillis, PincMediaType type, char*
     PincEventBackAppend(&event);
 }
 
+void PincEventFullscreenChanged(int64_t timestamp, PincWindowHandle window, PincFullscreenType old, PincFullscreenType new) {
+    PincEvent event = {
+        .currentWindow = staticState.realCurrentWindow,
+        .timeUnixMillis = timestamp,
+        .type = PincEventType_fullscreenChanged,
+        .data.fullscreen = {
+            .window = window,
+            .old = old,
+            .new = new,
+        }
+    };
+    PincEventBackAppend(&event);
+}
+
 // StateValidMacroForConvenience
 #define SttVld(_expr, _message) if(!(_expr)) {PincLogCstr(_message); return false;}
 static bool PincStateValidForIncomplete(void) {
@@ -1007,8 +1021,7 @@ PINC_EXPORT PincWindowHandle PINC_CALL pincWindowCreateIncomplete(void) {
         .height = 0,
         .resizable = true,
         .minimized = false,
-        .maximized = false,
-        .fullscreen = false,
+        .fullscreen = PincFullscreenType_normal,
         .focused = false,
         .hidden = false,
     };
@@ -1309,44 +1322,7 @@ PINC_EXPORT bool PINC_CALL pincWindowGetMinimized(PincWindowHandle window) {
     return 0;
 }
 
-PINC_EXPORT void PINC_CALL pincWindowSetMaximized(PincWindowHandle window, bool maximized) {
-    PincValidateForState(PincState_init);
-    switch (PincObject_discriminator(window)) {
-        case PincObjectDiscriminator_incompleteWindow: {
-            IncompleteWindow* window_object = PincObject_ref_incompleteWindow(window);
-            window_object->maximized = maximized;
-            break;
-        }
-        case PincObjectDiscriminator_window: {
-            WindowHandle* window_backend_handle = PincObject_ref_window(window);
-            pincWindowBackend_setWindowMaximized(&staticState.windowBackend, *window_backend_handle, maximized);
-            break;
-        }
-        default:{
-            PincAssertUser(false, "Not a window object", true, return;);
-        }
-    }
-}
-
-PINC_EXPORT bool PINC_CALL pincWindowGetMaximized(PincWindowHandle window) {
-    PincValidateForState(PincState_init);
-    switch (PincObject_discriminator(window)) {
-        case PincObjectDiscriminator_incompleteWindow: {
-            IncompleteWindow* window_object = PincObject_ref_incompleteWindow(window);
-            return window_object->maximized;
-        }
-        case PincObjectDiscriminator_window: {
-            WindowHandle* window_backend_handle = PincObject_ref_window(window);
-            return pincWindowBackend_getWindowMaximized(&staticState.windowBackend, *window_backend_handle);
-        }
-        default:{
-            PincAssertUser(false, "Not a window object", true, return false;);
-        }
-    }
-    return 0;
-}
-
-PINC_EXPORT void PINC_CALL pincWindowSetFullscreen(PincWindowHandle window, bool fullscreen) {
+PINC_EXPORT void PINC_CALL pincWindowSetFullscreen(PincWindowHandle window, PincFullscreenType fullscreen) {
     PincValidateForState(PincState_init);
     switch (PincObject_discriminator(window)) {
         case PincObjectDiscriminator_incompleteWindow: {
@@ -1365,7 +1341,7 @@ PINC_EXPORT void PINC_CALL pincWindowSetFullscreen(PincWindowHandle window, bool
     }
 }
 
-PINC_EXPORT bool PINC_CALL pincWindowGetFullscreen(PincWindowHandle window) {
+PINC_EXPORT PincFullscreenType PINC_CALL pincWindowGetFullscreen(PincWindowHandle window) {
     PincValidateForState(PincState_init);
     switch (PincObject_discriminator(window)) {
         case PincObjectDiscriminator_incompleteWindow: {
@@ -1769,6 +1745,27 @@ PINC_EXPORT size_t PINC_CALL pincEventClipboardChangedDataSize(uint32_t event_in
     PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
     PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_clipboardChanged, "Wrong event type", true, return 0;);
     return staticState.eventsBuffer[event_index].data.clipboard.dataSize;
+}
+
+PINC_EXPORT PincFullscreenType PINC_CALL pincEventFullscreenChangedOldType(uint32_t event_index) {
+    PincValidateForState(PincState_init);
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_fullscreenChanged, "Wrong event type", true, return 0;);
+    return staticState.eventsBuffer[event_index].data.fullscreen.old;
+}
+
+PINC_EXPORT PincFullscreenType PINC_CALL pincEventFullscreenChangedType(uint32_t event_index) {
+    PincValidateForState(PincState_init);
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_fullscreenChanged, "Wrong event type", true, return 0;);
+    return staticState.eventsBuffer[event_index].data.fullscreen.new;
+}
+
+PINC_EXPORT PincWindowHandle PINC_CALL pincEventFullscreenChangedWindow(uint32_t event_index) {
+    PincValidateForState(PincState_init);
+    PincAssertUser(event_index < staticState.eventsBufferNum, "Event index out of bounds", true, return 0;);
+    PincAssertUser(staticState.eventsBuffer[event_index].type == PincEventType_fullscreenChanged, "Wrong event type", true, return 0;);
+    return staticState.eventsBuffer[event_index].data.fullscreen.window;
 }
 
 // ### OPENGL FUNCTIONS ###

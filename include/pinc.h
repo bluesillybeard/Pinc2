@@ -147,6 +147,8 @@ typedef enum {
     PincEventType_scroll,
     /// The environment's clipboard was modified (effectively, someone copied some text)
     PincEventType_clipboardChanged,
+    /// The user requested a window fullscreen changed - this is associated with a separate resize event if the actual window client area changed as a result.
+    PincEventType_fullscreenChanged,
 } pincEventTypeEnum;
 
 typedef uint32_t PincEventType;
@@ -301,6 +303,19 @@ typedef enum {
 } PincMediaTypeEnum;
 
 typedef uint32_t PincMediaType;
+
+/// @section window state enums
+
+typedef enum {
+    /// Regular window
+    PincFullscreenType_normal,
+    /// Window set to take the full available space
+    PincFullscreenType_maximized,
+    /// A window covering the entire display output
+    PincFullscreenType_fullscreen,
+} PincFullscreenTypeEnum;
+
+typedef uint32_t PincFullscreenType;
 
 /// @section IDs
 
@@ -470,9 +485,7 @@ PINC_EXTERN void PINC_CALL pincWindowDeinit(PincWindowHandle window_handle);
 // - bool resizable (rw) [true]
 // - bool minimized (rw) [false]
 //     - when minimized, a window is in the system tray / app switcher / whatever, but is not open on the desktop
-// - bool maximized (rw) [false]
-//     - when maximized, the window's size is set to the largest it can get without covering elements of the desktop environment
-// - bool fullscreen (rw) [false]
+// - PincFullscreenType fullscreen_type [PincFullscreenType_normal]
 // - bool focused (rw) [false]
 // - bool hidden (rw) [false]
 //     - when hidden, a window cannot be seen anywhere to the user (at least not directly), but is still secretly open.
@@ -543,25 +556,15 @@ PINC_EXTERN void PINC_CALL pincWindowSetMinimized(PincWindowHandle window_handle
 /// @return true if the window is minimized, false if not
 PINC_EXTERN bool PINC_CALL pincWindowGetMinimized(PincWindowHandle window_handle);
 
-/// @brief set if a window is maximized or not.
-/// @param window_handle the window. Asserts the object is valid, and is a window.
-/// @param maximized true if the window is maximized, false if not
-PINC_EXTERN void PINC_CALL pincWindowSetMaximized(PincWindowHandle window_handle, bool maximized);
-
-/// @brief get if a window is maximized or not.
-/// @param window_handle the window. Asserts the object is valid, and is a window.
-/// @return true if the window is maximized, false if not
-PINC_EXTERN bool PINC_CALL pincWindowGetMaximized(PincWindowHandle window_handle);
-
 /// @brief set if a window is fullscreen or not.
 /// @param window_handle the window. Asserts the object is valid, and is a window.
 /// @param fullscreen true if the window is fullscreen, false if not
-PINC_EXTERN void PINC_CALL pincWindowSetFullscreen(PincWindowHandle window_handle, bool fullscreen);
+PINC_EXTERN void PINC_CALL pincWindowSetFullscreen(PincWindowHandle window_handle, PincFullscreenType fullscreen);
 
 /// @brief get if a window is fullscreen or not.
 /// @param window_handle the window. Asserts the object is valid, and is a window.
 /// @return true if the window is fullscreen, false if not
-PINC_EXTERN bool PINC_CALL pincWindowGetFullscreen(PincWindowHandle window_handle);
+PINC_EXTERN PincFullscreenType PINC_CALL pincWindowGetFullscreen(PincWindowHandle window_handle);
 
 /// @brief set if a window is focused or not.
 /// @param window_handle the window. Asserts the object is valid, and is a window.
@@ -716,5 +719,11 @@ PINC_EXTERN char const* PINC_CALL pincEventClipboardChangedData(uint32_t event_i
 
 /// The size of the new clipboard data in bytes / characters
 PINC_EXTERN size_t PINC_CALL pincEventClipboardChangedDataSize(uint32_t event_index);
+
+PINC_EXTERN PincFullscreenType PINC_CALL pincEventFullscreenChangedOldType(uint32_t event_index);
+
+PINC_EXTERN PincFullscreenType PINC_CALL pincEventFullscreenChangedType(uint32_t event_index);
+
+PINC_EXTERN PincWindowHandle PINC_CALL pincEventFullscreenChangedWindow(uint32_t event_index);
 
 #endif

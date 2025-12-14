@@ -26,8 +26,7 @@ typedef struct {
     uint32_t height;
     bool resizable;
     bool minimized;
-    bool maximized;
-    bool fullscreen;
+    PincFullscreenType fullscreen;
     bool focused;
     bool hidden;
 } IncompleteWindow;

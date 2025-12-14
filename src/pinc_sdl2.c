@@ -443,8 +443,7 @@ static PincSdl2Window* pincSdl2GetDummyWindow(struct WindowBackend* obj) {
         .height = 0,
         .resizable = true,
         .minimized = false,
-        .maximized = false,
-        .fullscreen = false,
+        .fullscreen = PincFullscreenType_normal,
         .focused = false,
         .hidden = true,
     };
@@ -706,6 +705,16 @@ void pincSdl2step(struct WindowBackend* obj) { //NOLINT: TODO: Fix this abominab
                     case SDL_WINDOWEVENT_LEAVE: {
                         // TODO(bluesillybeard): it seems we need to keep track of the cursor position in order to fill out this event
                         PincEventCursorTransition(timestamp, windowObj->frontHandle, 0, 0, 0, 0, 0);
+                        break;
+                    }
+                    case SDL_WINDOWEVENT_MAXIMIZED: {
+                        // TODO(bluesillybeard) Does SDL2 allow maximizing a fullscreen window?
+                        PincEventFullscreenChanged(timestamp, windowObj->frontHandle, PincFullscreenType_normal, PincFullscreenType_maximized);
+                        break;
+                    }
+                    case SDL_WINDOWEVENT_RESTORED: {
+                        // TODO(bluesillybeard) Does SDL2 allow restoring a fullscreen window?
+                        PincEventFullscreenChanged(timestamp, windowObj->frontHandle, PincFullscreenType_maximized, PincFullscreenType_normal);
                     }
                     default:{
                         // TODO(bluesillybeard): once all window events are handled, assert.
@@ -867,15 +876,28 @@ WindowHandle pincSdl2completeWindow(struct WindowBackend* obj, IncompleteWindow 
     if(incomplete->minimized) {
         windowFlags |= (uint32_t)SDL_WINDOW_MINIMIZED;
     }
-    if(incomplete->maximized) {
-        windowFlags |= (uint32_t)SDL_WINDOW_MAXIMIZED;
-    }
-    if(incomplete->fullscreen) {
-        // TODO(bluesillybeard): do we want to use fullscreen or fullscreen_desktop?
-        // Currently, we use "real" fullscreen,
-        // But it may be a good option to "fake" fullscreen via fullscreen_desktop.
-        // Really, we should add an option so the user gets to decide.
-        windowFlags |= (uint32_t)SDL_WINDOW_FULLSCREEN;
+
+    switch(incomplete->fullscreen) {
+        case PincFullscreenType_normal: {
+            // ... SDL2 default
+            break;
+        }
+        case PincFullscreenType_maximized: {
+            windowFlags |= (uint32_t)SDL_WINDOW_MAXIMIZED;
+            break;
+        }
+        case PincFullscreenType_fullscreen: {
+            // TODO(bluesillybeard): do we want to use fullscreen or fullscreen_desktop?
+            // Currently, we use "real" fullscreen,
+            // But it may be a good option to "fake" fullscreen via fullscreen_desktop.
+            // Really, we should add an option so the user gets to decide - or maybe Pinc should just work and always choose the best one per-platform?
+            windowFlags |= (uint32_t)SDL_WINDOW_FULLSCREEN;
+            break;
+        }
+        default: {
+            PincAssertAssert(false, "Invalid fullscreen type enum value", true, );
+            return 0;
+        }
     }
     if(incomplete->focused) {
         // TODO(bluesillybeard): Does keyboard grabbed just steal keyboard input entirely, or does it allow the user to move to other windows normally?
@@ -911,11 +933,12 @@ WindowHandle pincSdl2completeWindow(struct WindowBackend* obj, IncompleteWindow 
         if((windowFlags&(uint32_t)SDL_WINDOW_MINIMIZED) != (realFlags&(uint32_t)SDL_WINDOW_MINIMIZED)) {
             pincSdl2setWindowMinimized(obj, dummyWindow, (windowFlags&(uint32_t)SDL_WINDOW_MINIMIZED) != 0);
         }
+        // TODO(bluesillybeard) this is a bit tricky, but does SDL2 even allow a window to be both fullscreen and maximized at the same time? Is it platform specific?
         if((windowFlags&(uint32_t)SDL_WINDOW_MAXIMIZED) != (realFlags&(uint32_t)SDL_WINDOW_MAXIMIZED)) {
-            pincSdl2setWindowMaximized(obj, dummyWindow, (windowFlags&(uint32_t)SDL_WINDOW_MAXIMIZED) != 0);
+            pincSdl2setWindowFullscreen(obj, dummyWindow, (windowFlags&(uint32_t)SDL_WINDOW_MAXIMIZED) != 0 ? PincFullscreenType_maximized : PincFullscreenType_normal);
         }
         if((windowFlags&(uint32_t)SDL_WINDOW_FULLSCREEN) != (realFlags&(uint32_t)SDL_WINDOW_FULLSCREEN)) {
-            pincSdl2setWindowFullscreen(obj, dummyWindow, (windowFlags&(uint32_t)SDL_WINDOW_FULLSCREEN) != 0);
+            pincSdl2setWindowFullscreen(obj, dummyWindow, (windowFlags&(uint32_t)SDL_WINDOW_FULLSCREEN) != 0 ? PincFullscreenType_fullscreen : PincFullscreenType_normal);
         }
         if((windowFlags&(uint32_t)SDL_WINDOW_INPUT_FOCUS) != (realFlags&(uint32_t)SDL_WINDOW_INPUT_FOCUS)) {
             pincSdl2setWindowFocused(obj, dummyWindow, (windowFlags&(uint32_t)SDL_WINDOW_INPUT_FOCUS) != 0);
@@ -1125,32 +1148,18 @@ bool pincSdl2getWindowMinimized(struct WindowBackend* obj, WindowHandle window) 
     return false;
 }
 
-void pincSdl2setWindowMaximized(struct WindowBackend* obj, WindowHandle window, bool maximized) {
-    P_UNUSED(obj);
-    P_UNUSED(window);
-    P_UNUSED(maximized);
-    // TODO(bluesillybeard): 
-}
-
-bool pincSdl2getWindowMaximized(struct WindowBackend* obj, WindowHandle window) {
-    P_UNUSED(obj);
-    P_UNUSED(window);
-    // TODO(bluesillybeard): 
-    return false;
-}
-
-void pincSdl2setWindowFullscreen(struct WindowBackend* obj, WindowHandle window, bool fullscreen) {
+void pincSdl2setWindowFullscreen(struct WindowBackend* obj, WindowHandle window, PincFullscreenType fullscreen) {
     P_UNUSED(obj);
     P_UNUSED(window);
     P_UNUSED(fullscreen);
     // TODO(bluesillybeard): 
 }
 
-bool pincSdl2getWindowFullscreen(struct WindowBackend* obj, WindowHandle window) {
+PincFullscreenType pincSdl2getWindowFullscreen(struct WindowBackend* obj, WindowHandle window) {
     P_UNUSED(obj);
     P_UNUSED(window);
     // TODO(bluesillybeard): 
-    return false;
+    return PincFullscreenType_normal;
 }
 
 void pincSdl2setWindowFocused(struct WindowBackend* obj, WindowHandle window, bool focused) {

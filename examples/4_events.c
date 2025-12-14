@@ -152,6 +152,37 @@ int main(void) { //NOLINT: I'm conflicted on the complexity of this example func
                     }
                     break;
                 }
+                case PincEventType_fullscreenChanged: {
+                    printf("Window %i fullscreen mode was changed from ", pincEventFullscreenChangedWindow(i));
+                    switch(pincEventFullscreenChangedOldType(i)) {
+                        case PincFullscreenType_normal: {
+                            printf("normal to ");
+                            break;
+                        }
+                        case PincFullscreenType_maximized: {
+                            printf("maximized to ");
+                            break;
+                        }
+                        case PincFullscreenType_fullscreen: {
+                            printf("fullscreen to ");
+                            break;
+                        }
+                    }
+                    switch(pincEventFullscreenChangedType(i)) {
+                        case PincFullscreenType_normal: {
+                            printf("normal.\n");
+                            break;
+                        }
+                        case PincFullscreenType_maximized: {
+                            printf("maximized.\n");
+                            break;
+                        }
+                        case PincFullscreenType_fullscreen: {
+                            printf("fullscreen.\n");
+                            break;
+                        }
+                    }
+                }
             }
         }
         pincWindowPresentFramebuffer(window1);

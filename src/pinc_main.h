@@ -115,6 +115,11 @@ typedef struct {
             char* data;
             size_t dataSize;
         } clipboard;
+        struct PincEventFullscreenChanged {
+            PincWindowHandle window;
+            PincFullscreenType old;
+            PincFullscreenType new;
+        } fullscreen;
     } data;
 } PincEvent;
 
@@ -142,6 +147,8 @@ void PincEventScroll(int64_t timeUnixMillis, float vertical, float horizontal);
 
 /// Note: the data given here is assumed to be already on the pinc temporary allocator
 void PincEventClipboardChanged(int64_t timeUnixMillis, PincMediaType type, char* dataNullterm, size_t dataSize);
+
+void PincEventFullscreenChanged(int64_t timestamp, PincWindowHandle window, PincFullscreenType old, PincFullscreenType new);
 
 // Pinc static state
 

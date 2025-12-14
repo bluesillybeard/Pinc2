@@ -47,10 +47,8 @@ struct WindowBackend;
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, WindowHandle window), getWindowResizable, (obj, window), false) \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, WindowHandle window, bool minimized), setWindowMinimized, (obj, window, minimized)) \
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, WindowHandle window), getWindowMinimized, (obj, window), false) \
-    PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, WindowHandle window, bool maximized), setWindowMaximized, (obj, window, maximized)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, WindowHandle window), getWindowMaximized, (obj, window), false) \
-    PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, WindowHandle window, bool fullscreen), setWindowFullscreen, (obj, window, fullscreen)) \
-    PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, WindowHandle window), getWindowFullscreen, (obj, window), false) \
+    PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, WindowHandle window, PincFullscreenType fullscreen), setWindowFullscreen, (obj, window, fullscreen)) \
+    PINC_WINDOW_INTERFACE_FUNCTION(PincFullscreenType, (struct WindowBackend* obj, WindowHandle window), getWindowFullscreen, (obj, window), PincFullscreenType_normal) \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, WindowHandle window, bool focused), setWindowFocused, (obj, window, focused)) \
     PINC_WINDOW_INTERFACE_FUNCTION(bool, (struct WindowBackend* obj, WindowHandle window), getWindowFocused, (obj, window), false) \
     PINC_WINDOW_INTERFACE_PROCEDURE((struct WindowBackend* obj, WindowHandle window, bool hidden), setWindowHidden, (obj, window, hidden)) \
